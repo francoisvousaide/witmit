@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TellUs — Proposer une expérience — Direction V3</title>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal-50: #EAF4F5; --teal-100: #CCE0E3; --teal-500: #35838E; --teal-700: #235259; --teal-900: #112830;
+    --orange-500: #FC8005; --orange-50: #FFF6EC; --orange-100: #FEF0E0;
+    --olive-500: #72A304; --olive-100: #E8F5D6;
+    --bg: #F5F4F0; --surface: #FFFFFF; --border: #E0DDD5; --border2: #ECEAE4;
+    --text: #1A1917; --text2: #515151; --textm: #9E9B93;
+    --nav-h: 56px;
+    --transition: 170ms ease;
+    --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-component: cubic-bezier(0.32, 0.72, 0, 1);
+    --shadow-xs: 0 1px 2px rgba(17,40,48,.05);
+    --shadow-sm: 0 1px 3px rgba(17,40,48,.07), 0 1px 2px rgba(17,40,48,.04);
+    --shadow-md: 0 4px 12px rgba(17,40,48,.10), 0 2px 4px rgba(17,40,48,.06);
+    --shadow-lg: 0 12px 32px rgba(17,40,48,.14), 0 4px 8px rgba(17,40,48,.08);
+    --shadow-glow: 0 0 0 3px rgba(53,131,142,.15), 0 4px 16px rgba(53,131,142,.18);
+    --r-card: 14px;
+  }
+  [data-theme="dark"] {
+    --bg: #0D1F24; --surface: #152A31; --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.05);
+    --text: #F0F6F7; --text2: #A8C4C9; --textm: #6B9099;
+    --teal-100: rgba(53,131,142,0.25); --teal-700: #7BBFC8;
+    --olive-100: rgba(114,163,4,0.15); --orange-50: rgba(252,128,5,0.06); --orange-100: rgba(252,128,5,0.1);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,.25);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+    --shadow-md: 0 4px 14px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.25);
+    --shadow-lg: 0 16px 40px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans','Open Sauce Sans',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; animation: page-fade 240ms ease both; padding-bottom: 90px; }
+  @keyframes page-fade { from{opacity:0;} to{opacity:1;} }
+  :focus-visible { outline:none; box-shadow:var(--shadow-glow); border-radius:6px; }
+
+  /* NAVBAR */
+  .navbar { position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); background: radial-gradient(140% 180% at 12% 0%, rgba(2,213,220,.15), transparent 55%), var(--teal-700); display: flex; align-items: center; padding: 0 20px; z-index: 200; box-shadow: var(--shadow-sm); }
+  [data-theme="dark"] .navbar { background: radial-gradient(140% 180% at 12% 0%, rgba(2,213,220,.12), transparent 55%), var(--teal-900); }
+  .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: 14px; }
+  .nav-logo { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px dashed rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(255,255,255,0.4); font-family: 'League Spartan', sans-serif; font-weight: 700; }
+  .nav-name { font-family: 'League Spartan', sans-serif; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.97); letter-spacing: -0.2px; }
+  .nav-module { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; letter-spacing:.3px; color:rgba(255,255,255,.85); background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); border-radius:50px; padding:4px 11px 4px 9px; display:flex; align-items:center; gap:5px; cursor:pointer; transition:background 160ms; text-decoration:none; margin-right:20px; flex-shrink:0; }
+  .nav-module:hover { background:rgba(255,255,255,.22); }
+  .nav-module .dot { opacity:.6; font-size:9px; }
+  .nav-links { display:flex; align-items:center; gap:2px; flex:1; }
+  .nav-link { font-family:'League Spartan',sans-serif; font-size:13px; font-weight:600; color:rgba(255,255,255,0.65); padding:6px 12px; border-radius:6px; cursor:pointer; white-space:nowrap; transition:all 160ms; position:relative; text-decoration:none; }
+  .nav-link:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
+  .nav-link.active { background: rgba(255,255,255,0.15); color: white; cursor:default; }
+  .nav-right { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .nav-avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; font-size:13px; font-weight:700; color:white; border:1.5px solid rgba(255,255,255,0.3); cursor:pointer; flex-shrink:0; }
+  .nav-burger { display:none; flex-direction:column; justify-content:center; gap:5px; width:36px; height:36px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); border-radius:6px; cursor:pointer; padding:8px; flex-shrink:0; }
+  .nav-burger span { display:block; height:2px; background:white; border-radius:1px; }
+  .nav-menu-mobile { display:none; position:fixed; top:var(--nav-h); left:0; right:0; background:var(--teal-700); z-index:299; padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  [data-theme="dark"] .nav-menu-mobile { background:var(--teal-900); }
+  .nav-menu-mobile.open { display:block; }
+  .nav-menu-link { display:block; font-family:'League Spartan',sans-serif; font-size:14px; font-weight:600; color:rgba(255,255,255,0.8); padding:10px 14px; border-radius:6px; cursor:pointer; text-decoration:none; }
+  .nav-menu-link.active { color:white; background:rgba(255,255,255,0.15); }
+  @media (max-width: 1024px) { .nav-links { display:none; } .nav-burger { display:flex; } }
+
+  /* PAGE HEAD */
+  .page-wrap { max-width: 760px; margin: 0 auto; padding: calc(var(--nav-h) + 28px) 24px 0; }
+  .page-head { opacity:0; animation: enter-up 360ms var(--ease-enter) both; margin-bottom:22px; }
+  @keyframes enter-up { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  .page-title { font-family: 'League Spartan', sans-serif; font-size: 24px; font-weight: 800; color: var(--text); margin-bottom:6px; }
+  .page-subtitle { font-size: 13.5px; color: var(--text2); max-width: 520px; line-height:1.5; }
+
+  /* PROGRESS BAR */
+  .progress-wrap { display:flex; align-items:center; justify-content:space-between; margin: 22px 0 6px; }
+  .progress-steps { display:flex; align-items:center; }
+  .pstep { display:flex; align-items:center; }
+  .pdot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; font-size:13px; font-weight:700; background:var(--border2); color:var(--textm); flex-shrink:0; transition: all 250ms var(--ease-enter); cursor:pointer; }
+  .pdot.done { background:var(--teal-100); color:var(--teal-700); }
+  .pdot.active { background:var(--teal-500); color:white; box-shadow:var(--shadow-glow); }
+  .pline { width:44px; height:2px; background:var(--border2); margin:0 4px; transition: background 250ms ease; }
+  .pline.done { background:var(--teal-100); }
+  .autosave { font-size:11.5px; color:var(--textm); white-space:nowrap; }
+  .step-label { font-family:'League Spartan',sans-serif; font-size:13px; font-weight:700; color:var(--teal-700); margin-top:10px; }
+
+  /* BANDEAU CONTEXTUEL */
+  .band-context { display:flex; gap:12px; background:var(--orange-50); border-left:3px solid var(--orange-500); border-radius:10px; padding:14px 16px; margin: 18px 0; }
+  .band-context-txt { font-size:13px; color:var(--text2); }
+  .band-context-txt b { color:var(--text); display:block; margin-bottom:4px; }
+  .band-motif { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:12.5px; color:var(--text2); font-style:italic; }
+
+  /* FORM CARD */
+  .fcard { background: var(--surface); border:1px solid var(--border); border-radius: var(--r-card); padding:24px; box-shadow: var(--shadow-sm); margin-bottom:18px; opacity:0; animation: enter-up 340ms var(--ease-enter) both; }
+  .fcard-title { font-family:'League Spartan',sans-serif; font-size:14px; font-weight:700; color:var(--text); margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border2); }
+
+  .field { margin-bottom:16px; }
+  .field:last-child { margin-bottom:0; }
+  .field-label { display:flex; align-items:center; gap:6px; font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; color:var(--text2); margin-bottom:6px; }
+  .field-label .req { color:var(--orange-500); }
+  .field-hint { font-size:11.5px; color:var(--textm); margin-top:5px; line-height:1.4; }
+
+  input[type="text"], input[type="url"], input[type="number"], input[type="date"], textarea, select {
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:9px;
+    font-family:'DM Sans',sans-serif; font-size:13.5px; color:var(--text); background:var(--bg);
+    outline:none; transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  input:focus, textarea:focus, select:focus { border-color:var(--teal-500); box-shadow:0 0 0 3px rgba(53,131,142,.12); background:var(--surface); }
+  select { appearance:none; cursor:pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239E9B93'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position: right 12px center; padding-right:32px; }
+  textarea { resize:vertical; min-height:64px; }
+
+  .editor-toolbar { display:flex; gap:2px; padding:6px; border:1px solid var(--border); border-bottom:none; border-radius:9px 9px 0 0; background:var(--bg); }
+  .editor-btn { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text2); font-family:'League Spartan',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all var(--transition); }
+  .editor-btn:hover { background:var(--border2); }
+  .editor-area { border:1px solid var(--border); border-radius:0 0 9px 9px; padding:12px; min-height:140px; font-size:13.5px; line-height:1.6; color:var(--text); background:var(--bg); outline:none; }
+  .editor-area:focus { border-color:var(--teal-500); box-shadow:0 0 0 3px rgba(53,131,142,.12); background:var(--surface); }
+  .char-count { text-align:right; font-size:11px; color:var(--textm); margin-top:4px; }
+
+  .info-box { display:flex; gap:10px; background:var(--teal-50); border-radius:9px; padding:12px 14px; font-size:12.5px; color:var(--teal-700); line-height:1.5; }
+  [data-theme="dark"] .info-box { background: rgba(53,131,142,0.1); }
+
+  /* TAG INPUT (multi-select recherche) */
+  .tag-input-wrap { position:relative; }
+  .tag-pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tag-pill { display:inline-flex; align-items:center; gap:6px; font-family:'League Spartan',sans-serif; font-size:12px; font-weight:600; padding:4px 6px 4px 11px; border-radius:50px; background:var(--teal-100); color:var(--teal-700); }
+  .tag-pill .x { cursor:pointer; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.5); font-size:10px; }
+  .tag-pill .x:hover { background:white; }
+  .tag-suggest { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow-md); z-index:20; overflow:hidden; display:none; }
+  .tag-suggest.open { display:block; }
+  .tag-suggest-item { padding:9px 12px; font-size:13px; color:var(--text2); cursor:pointer; }
+  .tag-suggest-item:hover { background:var(--teal-50); color:var(--teal-700); }
+  [data-theme="dark"] .tag-suggest-item:hover { background: rgba(53,131,142,0.1); }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  /* Accordéon médias */
+  .accordion-toggle { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1.5px dashed var(--border); border-radius:9px; cursor:pointer; font-family:'League Spartan',sans-serif; font-size:13px; font-weight:600; color:var(--text2); transition:all var(--transition); }
+  .accordion-toggle:hover { border-color:var(--teal-500); color:var(--teal-500); }
+  .accordion-toggle input { width:16px; height:16px; accent-color:var(--teal-500); }
+  .accordion-body { max-height:0; overflow:hidden; transition:max-height 340ms var(--ease-component); }
+  .accordion-body.open { max-height:900px; margin-top:14px; }
+  .media-entry { border:1px solid var(--border2); border-radius:10px; padding:14px; margin-bottom:12px; background:var(--bg); }
+  .media-entry-head { font-family:'League Spartan',sans-serif; font-size:11.5px; font-weight:700; color:var(--textm); margin-bottom:10px; text-transform:uppercase; letter-spacing:.4px; }
+  .upload-drop { border:1.5px dashed var(--border); border-radius:9px; padding:18px; text-align:center; font-size:12.5px; color:var(--textm); cursor:pointer; transition:all var(--transition); }
+  .upload-drop:hover { border-color:var(--teal-500); color:var(--teal-500); }
+  .consent-row { display:flex; align-items:center; gap:8px; margin-top:12px; }
+  .consent-row input { width:16px; height:16px; accent-color:var(--olive-500); flex-shrink:0; }
+  .consent-row label { font-size:12.5px; color:var(--text2); }
+  .channel-checks { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; padding:10px 12px; background:var(--surface); border-radius:8px; }
+  .channel-checks label { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text2); }
+  .channel-checks input { width:14px; height:14px; accent-color:var(--teal-500); }
+  .btn-add-media { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; color:var(--teal-500); background:var(--teal-50); border:1px solid var(--teal-100); border-radius:8px; padding:8px 14px; cursor:pointer; transition:all var(--transition); }
+  .btn-add-media:hover { background:var(--teal-500); color:white; }
+  [data-theme="dark"] .btn-add-media { background: rgba(53,131,142,0.12); }
+
+  .check-block { display:flex; align-items:flex-start; gap:10px; }
+  .check-block input { width:16px; height:16px; accent-color:var(--olive-500); margin-top:2px; flex-shrink:0; }
+  .check-block label { font-size:13px; color:var(--text2); }
+
+  /* RÉCAP */
+  .recap-block { border-bottom:1px solid var(--border2); padding:16px 0; }
+  .recap-block:last-child { border-bottom:none; padding-bottom:0; }
+  .recap-block-head { display:flex; align-items:center; margin-bottom:10px; }
+  .recap-block-title { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--teal-700); }
+  .btn-edit { margin-left:auto; font-family:'League Spartan',sans-serif; font-size:11.5px; font-weight:700; color:var(--teal-500); background:none; border:none; cursor:pointer; text-decoration:underline; }
+  .recap-row { display:flex; gap:8px; font-size:13px; margin-bottom:6px; }
+  .recap-row .k { color:var(--textm); min-width:150px; flex-shrink:0; }
+  .recap-row .v { color:var(--text); }
+  .recap-row .v.empty { color:var(--textm); font-style:italic; }
+
+  /* STICKY ACTIONS */
+  .sticky-actions { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:12px; z-index:100; box-shadow: 0 -4px 16px rgba(17,40,48,.06); }
+  .actions-inner { max-width:760px; margin:0 auto; width:100%; display:flex; align-items:center; gap:12px; }
+  .btn { font-family:'League Spartan',sans-serif; font-size:13.5px; font-weight:700; padding:11px 20px; border-radius:9px; border:none; cursor:pointer; transition: all 150ms var(--ease-enter); }
+  .btn:active { transform:scale(0.97); }
+  .btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border); }
+  .btn-ghost:hover { border-color:var(--teal-500); color:var(--teal-500); }
+  .btn-primary { background:var(--teal-500); color:white; margin-left:auto; }
+  .btn-primary:hover { background:var(--teal-700); box-shadow:var(--shadow-sm); }
+  .btn-submit { background:var(--orange-500); color:white; margin-left:auto; }
+  .btn-submit:hover { box-shadow:0 4px 10px rgba(252,128,5,.3); }
+
+  .step { display:none; }
+  .step.active { display:block; }
+
+  .mock-controls { position: fixed; bottom: 84px; right: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; z-index: 500; }
+  .theme-btn { background: rgba(255,255,255,.75); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border: 1px solid var(--border); border-radius: 50px; padding: 6px 14px; font-size: 12px; font-family: 'League Spartan', sans-serif; font-weight: 600; color: var(--text2); cursor: pointer; box-shadow: var(--shadow-md); }
+  [data-theme="dark"] .theme-btn { background: rgba(21,42,49,.75); }
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.01ms !important;}}
+  @media (max-width:700px) {
+    .grid2 { grid-template-columns:1fr; }
+    .page-wrap { padding: calc(var(--nav-h) + 20px) 16px 0; }
+    .pline { width:20px; }
+    .step-label { display:none; }
+  }
+
+
+
+</style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <a class="nav-brand" href="#"><div class="nav-logo">logo</div><span class="nav-name">TellUs Cultures</span></a>
+  <a class="nav-module" href="00_TellUs_Maquette_Accueil_DirectionV3.html" title="Retour à l'accueil des modules"><span class="dot">●</span> Collecte</a>
+  <div class="nav-links">
+    <a class="nav-link" id="nlExperiences" href="02_TellUs_Maquette_Liste_EIC_DirectionV3.html">Expériences</a>
+    <a class="nav-link" id="nlPropositions" href="07_TellUs_Maquette_MesPropositions_DirectionV3.html">Mes propositions</a>
+    <a class="nav-link" id="nlComite" href="05_TellUs_Maquette_Comite_DirectionV3.html">Comité</a>
+    <span class="nav-link" id="nlAdmin">Admin</span>
+  </div>
+  <div class="nav-right">
+    <div class="nav-burger" onclick="toggleBurger()"><span></span><span></span><span></span></div>
+    <div class="nav-avatar">MA</div>
+  </div>
+</nav>
+
+<div class="nav-menu-mobile" id="navMenu">
+  <a class="nav-menu-link" id="nmExperiences" href="02_TellUs_Maquette_Liste_EIC_DirectionV3.html">Expériences</a>
+  <a class="nav-menu-link" id="nmPropositions" href="07_TellUs_Maquette_MesPropositions_DirectionV3.html">Mes propositions</a>
+  <a class="nav-menu-link" id="nmComite" href="05_TellUs_Maquette_Comite_DirectionV3.html">Comité</a>
+  <span class="nav-menu-link" id="nmAdmin">Admin</span>
+</div>
+
+<div class="page-wrap">
+
+  <div class="page-head">
+    <div class="page-title" id="pageTitle">Proposer une expérience</div>
+    <div class="page-subtitle">Saisis les informations sur le témoignage que tu as collecté. Tu peux enregistrer un brouillon à tout moment et y revenir.</div>
+
+    <div class="progress-wrap">
+      <div class="progress-steps">
+        <div class="pstep"><div class="pdot active" data-step="1" onclick="goStep(1)">1</div></div>
+        <div class="pline" id="pline1"></div>
+        <div class="pstep"><div class="pdot" data-step="2" onclick="goStep(2)">2</div></div>
+        <div class="pline" id="pline2"></div>
+        <div class="pstep"><div class="pdot" data-step="3" onclick="goStep(3)">3</div></div>
+        <div class="pline" id="pline3"></div>
+        <div class="pstep"><div class="pdot" data-step="4" onclick="goStep(4)">4</div></div>
+      </div>
+      <div class="autosave" id="autosave">Enregistré il y a 12 secondes</div>
+    </div>
+    <div class="step-label" id="stepLabel">Étape 1 — Témoignage et auteur</div>
+
+    <div class="band-context" id="bandContext" style="display:none;">
+      <span style="font-size:18px;">✉️</span>
+      <div class="band-context-txt">
+        <b>Le comité a demandé un complément avant de pouvoir valider cette proposition.</b>
+        <div class="band-motif">« La piste d'explication est bien argumentée, mais il manque la problématique culturelle pour situer le débat. Peux-tu ajouter 2-3 phrases sur la tension entre les deux visions du respect en jeu ? »</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 1 ===== -->
+  <div class="step active" id="stepPanel1">
+    <div class="fcard" style="animation-delay:0ms">
+      <div class="fcard-title">Le texte de l'expérience</div>
+      <div class="field">
+        <div class="field-label">Titre <span class="req">*</span></div>
+        <input type="text" placeholder="Ex : « La queue au supermarché à Madrid »" value="Ponctualité et flexibilité : deux visions du respect">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <div class="field-label">Langue du témoignage <span class="req">*</span></div>
+          <select><option>Français</option><option>Anglais</option><option>Espagnol</option><option>Portugais</option><option>Autre</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">Texte complet <span class="req">*</span></div>
+        <div class="editor-toolbar">
+          <button class="editor-btn" style="font-weight:800;">B</button>
+          <button class="editor-btn" style="font-style:italic;">I</button>
+          <button class="editor-btn">⋮≡</button>
+          <button class="editor-btn">¶</button>
+        </div>
+        <div class="editor-area" contenteditable="true">Lors d'un rendez-vous d'affaires entre une équipe allemande et une équipe mexicaine, la question de l'heure de début a créé un malentendu profond. Pour les Allemands, arriver pile à l'heure est un signe de respect professionnel — pour les Mexicains présents, une marge de 15 à 20 minutes est une norme sociale implicite, pas un manque de sérieux…</div>
+        <div class="char-count">312 / min. 50 caractères</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Texte court / extrait</div>
+        <textarea placeholder="Extrait pour publications (500 car. max)"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">Sous-titre / chapeau</div>
+        <input type="text" placeholder="Ex : « Un Chilien-Suisse vivant à Dubaï… »">
+      </div>
+      <div class="field">
+        <div class="field-label">Lien document source</div>
+        <input type="url" placeholder="Lien vers le Google Doc ou fichier Word d'origine">
+      </div>
+    </div>
+
+    <div class="fcard" style="animation-delay:60ms">
+      <div class="fcard-title">L'auteur·ice du témoignage</div>
+      <div class="field">
+        <div class="field-label">Prénom (tel qu'affiché dans l'EIC)</div>
+        <input type="text" placeholder="Prénom contextuel">
+      </div>
+      <div class="field">
+        <div class="field-label">Présentation auteur</div>
+        <textarea placeholder="Quelques mots pour présenter l'auteur·ice dans le contexte de cette expérience"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">Lien vers fiche personne</div>
+        <div class="tag-input-wrap">
+          <input type="text" placeholder="Rechercher par prénom ou nom…">
+        </div>
+        <div class="field-hint">Si l'auteur n'existe pas encore, laisse vide ou <a href="#" style="color:var(--teal-500);">crée une fiche personne</a>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 2 ===== -->
+  <div class="step" id="stepPanel2">
+    <div class="fcard" style="animation-delay:0ms">
+      <div class="fcard-title">Où et quand ?</div>
+      <div class="field">
+        <div class="field-label">Pays du lieu <span class="req">*</span></div>
+        <div class="tag-input-wrap">
+          <input type="text" placeholder="Tape les premières lettres…">
+          <div class="tag-pills">
+            <span class="tag-pill">Mexique <span class="x">✕</span></span>
+            <span class="tag-pill">Allemagne <span class="x">✕</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <div class="field-label">Précision géographique</div>
+          <input type="text" placeholder="Ex : Bangkok, Thaïlande" value="Mexico City">
+        </div>
+        <div class="field">
+          <div class="field-label">Année de l'expérience</div>
+          <input type="number" placeholder="2024" value="2024">
+        </div>
+      </div>
+    </div>
+
+    <div class="fcard" style="animation-delay:60ms">
+      <div class="fcard-title">Les cultures concernées</div>
+      <div class="field">
+        <div class="field-label">Cultures concernées <span class="req">* (min. 2)</span></div>
+        <div class="tag-input-wrap">
+          <input type="text" placeholder="Tape les premières lettres… (~147 entrées)">
+          <div class="tag-pills">
+            <span class="tag-pill">Mexicaine <span class="x">✕</span></span>
+            <span class="tag-pill">Allemande <span class="x">✕</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">Nationalité(s) de l'auteur·ice</div>
+        <div class="tag-input-wrap">
+          <input type="text" placeholder="Optionnel — utile pour contextualiser">
+        </div>
+      </div>
+    </div>
+
+    <div class="fcard" style="animation-delay:120ms">
+      <div class="fcard-title">La question interculturelle</div>
+      <div class="field">
+        <div class="field-label">Problématique</div>
+        <textarea placeholder="Quelle tension ou incompréhension culturelle cette expérience illustre-t-elle ?"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">Petit fait curieux</div>
+        <textarea placeholder="Élément déclencheur ou anecdotique"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">Thématiques & mots-clés proposés (D2)</div>
+        <div class="tag-input-wrap">
+          <input type="text" placeholder="Ajoute une thématique ou un mot-clé…">
+          <div class="tag-pills">
+            <span class="tag-pill">Rapport au temps <span class="x">✕</span></span>
+            <span class="tag-pill">Codes professionnels <span class="x">✕</span></span>
+          </div>
+        </div>
+        <div class="field-hint">Optionnel — le comité pourra les revoir ou les modifier au moment de l'archivage.</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Question culturelle (D3)</div>
+        <textarea placeholder="Cette question sera validée et reformulée par le comité. Tu peux proposer une première formulation.">Comment concilier deux définitions du professionnalisme quand elles reposent sur des rapports au temps opposés ?</textarea>
+      </div>
+      <div class="info-box">ℹ️ Le classement par axes culturels (D1) est réalisé par le comité lors de la validation.</div>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 3 ===== -->
+  <div class="step" id="stepPanel3">
+    <div class="fcard" style="animation-delay:0ms">
+      <div class="fcard-title">Comment a été collecté ce témoignage ?</div>
+      <div class="grid2">
+        <div class="field">
+          <div class="field-label">Mode de collecte</div>
+          <select><option>Interview</option><option>Publication</option><option>Spontané</option><option>Zoom Cultures</option><option>Atelier</option><option>Formation</option><option>Autre</option></select>
+        </div>
+        <div class="field">
+          <div class="field-label">Co-collecteur</div>
+          <input type="text" placeholder="Rechercher par prénom…">
+        </div>
+      </div>
+    </div>
+
+    <div class="fcard" style="animation-delay:60ms">
+      <div class="fcard-title">Médias associés</div>
+      <label class="accordion-toggle" id="mediaToggle" onclick="toggleAccordion()">
+        <input type="checkbox" id="mediaCheck">
+        📎 Associer des médias à cette proposition
+      </label>
+      <div class="accordion-body" id="mediaBody">
+        <div class="media-entry">
+          <div class="media-entry-head">Média 1</div>
+          <div class="grid2">
+            <div class="field">
+              <div class="field-label">Type de média <span class="req">*</span></div>
+              <select><option>Visuel</option><option>Audio</option><option>Vidéo</option><option>Autre</option></select>
+            </div>
+            <div class="field">
+              <div class="field-label">Légende</div>
+              <input type="text" placeholder="Description courte">
+            </div>
+          </div>
+          <div class="upload-drop">📤 Glisser un fichier ou cliquer pour importer — ou renseigner une URL alternative</div>
+          <div class="consent-row">
+            <input type="checkbox" id="consentCheck" onchange="toggleConsent()">
+            <label for="consentCheck">Accord de diffusion obtenu (jamais pré-coché)</label>
+          </div>
+          <div id="consentDetails" style="display:none;">
+            <div class="channel-checks">
+              <label><input type="checkbox"> Site web</label>
+              <label><input type="checkbox"> Réseaux sociaux</label>
+              <label><input type="checkbox"> Podcast</label>
+              <label><input type="checkbox"> Exposition</label>
+              <label><input type="checkbox"> Livre</label>
+            </div>
+            <div class="field" style="margin-top:10px;">
+              <div class="field-label">Crédit auteur du média</div>
+              <input type="text" placeholder="Si différent de l'auteur de l'EIC">
+            </div>
+          </div>
+        </div>
+        <button class="btn-add-media">+ Ajouter un autre média</button>
+      </div>
+    </div>
+
+    <div class="fcard" style="animation-delay:120ms">
+      <div class="fcard-title">Accord de l'auteur·ice</div>
+      <div class="check-block">
+        <input type="checkbox" id="accordAuteur" onchange="toggleAccordDate()">
+        <label for="accordAuteur">Accord auteur obtenu</label>
+      </div>
+      <div class="field" id="accordDateField" style="display:none; margin-top:12px;">
+        <div class="field-label">Date de l'accord</div>
+        <input type="date">
+      </div>
+      <div class="field-hint" style="margin-top:12px;">L'accord de l'auteur·ice est nécessaire avant la validation définitive. Tu peux soumettre la proposition sans accord — le comité effectuera d'abord l'examen préliminaire.</div>
+    </div>
+
+    <div class="fcard" style="animation-delay:180ms">
+      <div class="fcard-title">Publiabilité</div>
+      <div class="check-block">
+        <input type="checkbox">
+        <label>Publiable publiquement — l'auteur·ice a explicitement autorisé la publication sur le site de TellUs</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 4 ===== -->
+  <div class="step" id="stepPanel4">
+    <div class="fcard" style="animation-delay:0ms">
+      <div class="recap-block">
+        <div class="recap-block-head"><span class="recap-block-title">Témoignage</span><button class="btn-edit" onclick="goStep(1)">Modifier</button></div>
+        <div class="recap-row"><span class="k">Titre</span><span class="v">Ponctualité et flexibilité : deux visions du respect</span></div>
+        <div class="recap-row"><span class="k">Langue</span><span class="v">Français</span></div>
+        <div class="recap-row"><span class="k">Extrait</span><span class="v">Lors d'un rendez-vous d'affaires entre une équipe allemande et une équipe mexicaine…</span></div>
+        <div class="recap-row"><span class="k">Sous-titre</span><span class="v empty">Non renseigné</span></div>
+      </div>
+      <div class="recap-block">
+        <div class="recap-block-head"><span class="recap-block-title">Auteur</span><button class="btn-edit" onclick="goStep(1)">Modifier</button></div>
+        <div class="recap-row"><span class="k">Prénom</span><span class="v empty">Non renseigné</span></div>
+        <div class="recap-row"><span class="k">Lien fiche personne</span><span class="v empty">Non renseigné</span></div>
+      </div>
+      <div class="recap-block">
+        <div class="recap-block-head"><span class="recap-block-title">Contexte</span><button class="btn-edit" onclick="goStep(2)">Modifier</button></div>
+        <div class="recap-row"><span class="k">Pays</span><span class="v">Mexique, Allemagne</span></div>
+        <div class="recap-row"><span class="k">Cultures</span><span class="v">Mexicaine, Allemande</span></div>
+        <div class="recap-row"><span class="k">Précision géo. / année</span><span class="v">Mexico City — 2024</span></div>
+      </div>
+      <div class="recap-block">
+        <div class="recap-block-head"><span class="recap-block-title">Question interculturelle</span><button class="btn-edit" onclick="goStep(2)">Modifier</button></div>
+        <div class="recap-row"><span class="k">Problématique</span><span class="v empty">Non renseigné</span></div>
+        <div class="recap-row"><span class="k">Question (D3)</span><span class="v">Comment concilier deux définitions du professionnalisme…</span></div>
+      </div>
+      <div class="recap-block">
+        <div class="recap-block-head"><span class="recap-block-title">Collecte &amp; médias</span><button class="btn-edit" onclick="goStep(3)">Modifier</button></div>
+        <div class="recap-row"><span class="k">Mode de collecte</span><span class="v">Interview</span></div>
+        <div class="recap-row"><span class="k">Médias</span><span class="v empty">Aucun média ajouté</span></div>
+        <div class="recap-row"><span class="k">Accord auteur</span><span class="v empty">Non obtenu à ce stade</span></div>
+        <div class="recap-row"><span class="k">Publiable publiquement</span><span class="v empty">Non</span></div>
+      </div>
+    </div>
+
+    <div class="info-box" style="margin-bottom:18px;">✓ Tous les champs obligatoires sont renseignés. Tu peux soumettre cette proposition au comité.</div>
+  </div>
+
+</div>
+
+<!-- BARRE D'ACTIONS FIXE -->
+<div class="sticky-actions">
+  <div class="actions-inner">
+    <button class="btn btn-ghost">Enregistrer brouillon</button>
+    <button class="btn btn-ghost" id="btnPrev" onclick="prevStep()" style="display:none;">← Précédent</button>
+    <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Suivant →</button>
+    <button class="btn btn-submit" id="btnSubmit" onclick="alert('Drawer de confirmation — maquette')" style="display:none;">Soumettre au comité</button>
+  </div>
+</div>
+
+<div class="mock-controls cm-ui">
+  <button class="cm-toggle-btn cm-ui" onclick="cmToggle()" id="cmToggleBtn" title="Mode commentaire"><span class="cm-btn-off">💬</span><span class="cm-btn-on" style="display:none;">✕</span></button>
+  <button class="cm-toggle-btn cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" title="Voir les commentaires de cette page">📋<span class="cm-count-badge" id="cmCount" data-zero="1"></span></button>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Mode sombre</button>
+</div>
+
+<script>
+  function toggleTheme() {
+    const isDark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
+    document.getElementById('themeBtn').textContent = isDark ? '🌙 Mode sombre' : '☀️ Mode clair';
+  }
+  function toggleBurger() {
+    document.getElementById('navMenu').classList.toggle('open');
+  }
+
+  const labels = {
+    1: 'Étape 1 — Témoignage et auteur',
+    2: "Étape 2 — Contexte de l'expérience",
+    3: 'Étape 3 — Collecte, médias et accord auteur',
+    4: 'Étape 4 — Récapitulatif et soumission'
+  };
+  let current = 1;
+
+  function goStep(n) {
+    current = n;
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('stepPanel' + n).classList.add('active');
+    document.querySelectorAll('.pdot').forEach(d => {
+      const step = parseInt(d.dataset.step);
+      d.classList.remove('active', 'done');
+      if (step < n) { d.classList.add('done'); d.textContent = '✓'; }
+      else { d.textContent = step; }
+      if (step === n) d.classList.add('active');
+    });
+    [1,2,3].forEach(i => {
+      document.getElementById('pline' + i).classList.toggle('done', i < n);
+    });
+    document.getElementById('stepLabel').textContent = labels[n];
+    document.getElementById('btnPrev').style.display = n === 1 ? 'none' : '';
+    document.getElementById('btnNext').style.display = n === 4 ? 'none' : '';
+    document.getElementById('btnSubmit').style.display = n === 4 ? '' : 'none';
+    document.getElementById('btnNext').textContent = n === 3 ? 'Voir le récapitulatif →' : 'Suivant →';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  function nextStep() { if (current < 4) goStep(current + 1); }
+  function prevStep() { if (current > 1) goStep(current - 1); }
+
+  function toggleAccordion() {
+    const check = document.getElementById('mediaCheck');
+    setTimeout(() => {
+      document.getElementById('mediaBody').classList.toggle('open', check.checked);
+    }, 10);
+  }
+  function toggleConsent() {
+    document.getElementById('consentDetails').style.display = document.getElementById('consentCheck').checked ? '' : 'none';
+  }
+  function toggleAccordDate() {
+    document.getElementById('accordDateField').style.display = document.getElementById('accordAuteur').checked ? '' : 'none';
+  }
+
+  // Démo : bandeau contextuel visible (mode modification avec complément demandé)
+  document.getElementById('bandContext').style.display = '';
+  document.getElementById('pageTitle').textContent = 'Modifier ta proposition';
+</script>
+
+
+
+<script src="../../src/annotate.js" data-project="tellus"></script>
+</body>
+</html>

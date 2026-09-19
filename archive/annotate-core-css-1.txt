@@ -1,0 +1,126 @@
+
+  /* ===== MODULE COMMENTAIRES v1 (voir TEMPLATE_Socle_Commun_v3.md §5) ===== */
+
+  /* Boutons compacts, ronds, icône seule — pour ne jamais gêner la lecture (retour utilisateur) */
+  .cm-toggle-btn { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,.75); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--border); border-radius:50%; font-size:16px; cursor:pointer; box-shadow:var(--shadow-md); transition:all var(--transition); position:relative; }
+  [data-theme="dark"] .cm-toggle-btn { background: rgba(21,42,49,.75); }
+  .cm-toggle-btn:hover { border-color:var(--orange-500); transform:scale(1.06); }
+  .cm-toggle-btn.cm-on { background:var(--orange-500); border-color:var(--orange-500); }
+  .cm-toggle-btn .cm-count-badge { position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:9px; background:var(--teal-500); color:#fff; font-family:'League Spartan',sans-serif; font-size:9.5px; font-weight:700; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px var(--surface); }
+  .cm-toggle-btn .cm-count-badge:empty, .cm-toggle-btn .cm-count-badge[data-zero="1"] { display:none; }
+
+  body.cm-active { cursor: crosshair; }
+  body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: auto; }
+
+  /* Cadre "vignette" — fort sur le bord, dégradé vers l'intérieur sur une distance fixe (même esprit que
+     l'indicateur de contrôle de Claude in Chrome). Zéro impact sur la mise en page : position:fixed +
+     pointer-events:none, ne recouvre jamais la navbar ni rien d'autre. */
+  .cm-frame { position:fixed; inset:0; z-index:895; pointer-events:none; display:none; }
+  .cm-frame.show { display:block; }
+  .cm-frame::before {
+    content:''; position:absolute; inset:0;
+    animation: cmFrameWave 3.4s ease-in-out infinite;
+  }
+  /* "vague" douce : le halo respire (s'étend puis se resserre) plutôt qu'un simple fondu d'opacité —
+     bord toujours net et marqué, intérieur qui pulse pour rester bien visible même en fond sombre. */
+  @keyframes cmFrameWave {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 0 4px rgba(252,128,5,.90),
+        inset 0 0 70px 0 rgba(252,128,5,.30),
+        inset 0 0 30px 0 rgba(252,128,5,.24);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 0 4px rgba(252,128,5,1),
+        inset 0 0 120px 0 rgba(252,128,5,.55),
+        inset 0 0 56px 0 rgba(252,128,5,.42);
+    }
+  }
+  [data-theme="dark"] .cm-frame::before { animation: cmFrameWaveDark 3.4s ease-in-out infinite; }
+  @keyframes cmFrameWaveDark {
+    0%, 100% {
+      box-shadow:
+        inset 0 0 0 4px rgba(255,158,61,.95),
+        inset 0 0 85px 0 rgba(255,140,20,.45),
+        inset 0 0 38px 0 rgba(255,140,20,.34);
+    }
+    50% {
+      box-shadow:
+        inset 0 0 0 4px rgba(255,181,107,1),
+        inset 0 0 140px 0 rgba(255,140,20,.72),
+        inset 0 0 64px 0 rgba(255,140,20,.55);
+    }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .cm-frame::before, [data-theme="dark"] .cm-frame::before { animation:none; box-shadow: inset 0 0 0 4px rgba(252,128,5,.97), inset 0 0 95px 0 rgba(252,128,5,.42), inset 0 0 42px 0 rgba(252,128,5,.32); }
+  }
+
+  /* Pastille d'état — flotte sous la navbar par défaut, ne la recouvre jamais, et peut être
+     déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture. */
+  .cm-pill { position:fixed; top:calc(var(--nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--orange-500); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--shadow-lg); white-space:nowrap; cursor:grab; touch-action:none; }
+  .cm-pill.show { display:flex; }
+  .cm-pill.cm-dragging { cursor:grabbing; box-shadow:var(--shadow-lg), 0 0 0 2px rgba(255,255,255,.5); }
+  .cm-pill .cm-drag-handle { font-size:14px; opacity:.65; line-height:1; }
+  .cm-pill button { font-family:'League Spartan',sans-serif; font-weight:700; font-size:11.5px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.55); color:#fff; border-radius:50px; padding:5px 12px; cursor:pointer; }
+  .cm-pill button:hover { background:rgba(255,255,255,.34); }
+
+  .cm-pin { position:absolute; width:24px; height:24px; border-radius:50% 50% 50% 4px; background:var(--orange-500); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-100%) rotate(-45deg); box-shadow:var(--shadow-md); z-index:840; cursor:pointer; }
+  .cm-pin span { transform:rotate(45deg); }
+  .cm-pin:hover { filter:brightness(1.08); }
+
+  /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
+  .cm-box { position:absolute; border:2px dashed var(--orange-500); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
+  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); }
+  /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
+     Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
+     en cours de saisie est rattaché. */
+  .cm-box.cm-box-editing { border-style:solid; border-width:2.5px; background:rgba(252,128,5,.14); }
+
+  /* Surlignage du texte sélectionné */
+  mark.cm-highlight { background:rgba(252,128,5,.32); color:inherit; border-radius:2px; padding:0 1px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+  [data-theme="dark"] mark.cm-highlight { background:rgba(252,128,5,.42); }
+
+  .cm-popup { position:absolute; z-index:950; width:260px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg); padding:12px; }
+  .cm-popup .cm-zone { font-family:'League Spartan',sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--teal-500); margin-bottom:6px; max-height:48px; overflow-y:auto; }
+  .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--border); border-radius:8px; padding:8px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); background:var(--bg); margin-bottom:8px; box-sizing:border-box; }
+  .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .cm-popup button { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; border-radius:7px; padding:6px 12px; border:none; cursor:pointer; }
+  .cm-popup .cm-cancel { background:transparent; color:var(--textm); }
+  .cm-popup .cm-cancel:hover { color:var(--text2); }
+  .cm-popup .cm-save { background:var(--teal-500); color:#fff; }
+  .cm-popup .cm-save:hover { background:var(--teal-700); }
+  .cm-popup .cm-delete { background:transparent; color:var(--textm); margin-right:auto; padding:6px 8px; }
+  .cm-popup .cm-delete:hover { color:#e5484d; }
+
+  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; background:var(--surface); border-left:1px solid var(--border); box-shadow:var(--shadow-lg); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms var(--ease-enter); }
+  .cm-panel.show { transform:translateX(0); }
+  .cm-panel-head { padding:16px 16px 12px; border-bottom:1px solid var(--border2); }
+  .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:'League Spartan',sans-serif; font-weight:700; font-size:13.5px; color:var(--text); }
+  .cm-panel-head-row button { background:none; border:none; color:var(--textm); cursor:pointer; font-size:16px; line-height:1; }
+  .cm-panel-head-row button:hover { color:var(--text); }
+  .cm-panel-sub { font-size:11px; color:var(--textm); margin-top:3px; }
+  .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
+  .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
+  .cm-panel-item:hover { background:var(--bg); }
+  .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--orange-500); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; margin-top:1px; }
+  .cm-panel-item .body { flex:1; min-width:0; }
+  .cm-panel-item .zone { font-size:10.5px; color:var(--teal-500); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
+  .cm-panel-item .txt { font-size:12.5px; color:var(--text2); line-height:1.4; word-wrap:break-word; }
+  .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--textm); cursor:pointer; font-size:13px; }
+  .cm-panel-item .del:hover { color:var(--orange-500); }
+  .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--textm); font-size:12.5px; line-height:1.5; }
+  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--border2); display:flex; gap:6px; }
+  .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
+  .cm-panel-foot button { flex:1; font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:8px 4px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; }
+  .cm-panel-foot button:hover { border-color:var(--teal-500); color:var(--teal-500); }
+  .cm-panel-foot button.primary { background:var(--teal-500); color:#fff; border-color:var(--teal-500); }
+  .cm-panel-foot button.primary:hover { background:var(--teal-700); }
+
+  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; background:var(--text); color:#fff; font-family:'DM Sans',sans-serif; font-size:12.5px; padding:8px 16px; border-radius:20px; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none; transition:opacity 200ms ease; white-space:nowrap; max-width:90vw; }
+  .cm-status.show { opacity:1; }
+  @media (max-width:700px) {
+    .cm-panel { width:86vw; }
+    .cm-popup { width:80vw; max-width:280px; }
+    .cm-pill { max-width:92vw; white-space:normal; text-align:left; }
+  }

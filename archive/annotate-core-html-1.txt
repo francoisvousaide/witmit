@@ -1,0 +1,28 @@
+<div class="cm-frame cm-ui" id="cmFrame"></div>
+
+<div class="cm-pill cm-ui" id="cmPill" title="Glisse la pastille pour la déplacer">
+  <span class="cm-drag-handle" aria-hidden="true">⠿</span>
+  🖊️ Clique = pastille · Glisse = encadre une zone · Maj + glisse = surligne du texte
+  <button onclick="cmToggle(false)">Terminer</button>
+</div>
+
+<div class="cm-panel cm-ui" id="cmPanel">
+  <div class="cm-panel-head">
+    <div class="cm-panel-head-row">
+      <span>Commentaires — <span id="cmPanelCount">0</span></span>
+      <button onclick="cmTogglePanel(false)" aria-label="Fermer">✕</button>
+    </div>
+    <div class="cm-panel-sub" id="cmPanelSub"></div>
+  </div>
+  <div class="cm-panel-list" id="cmList"></div>
+  <div class="cm-panel-foot">
+    <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
+    <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
+  </div>
+  <div class="cm-panel-foot">
+    <button onclick="cmCopy()">📋 Copier</button>
+    <button class="primary" onclick="cmSendMail()">📧 Envoyer</button>
+  </div>
+</div>
+
+<div class="cm-status cm-ui" id="cmStatus"></div>

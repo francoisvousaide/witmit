@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TellUs — Accueil — Direction V3</title>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal-50:#EAF4F5; --teal-100:#CCE0E3; --teal-500:#35838E; --teal-700:#235259; --teal-900:#112830;
+  --orange-500:#FC8005; --yellow-500:#FFDE03; --olive-500:#72A304; --olive-100:#E8F5D6;
+  --bg:#F5F4F0; --surface:#FFFFFF; --border:#E0DDD5; --border2:#ECEAE4;
+  --text:#1A1917; --text2:#515151; --textm:#9E9B93;
+  --nav-h:56px;
+  --transition: 170ms ease;
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-component: cubic-bezier(0.32, 0.72, 0, 1);
+  --shadow-xs: 0 1px 2px rgba(17,40,48,.05);
+  --shadow-sm: 0 1px 3px rgba(17,40,48,.07), 0 1px 2px rgba(17,40,48,.04);
+  --shadow-md: 0 4px 12px rgba(17,40,48,.10), 0 2px 4px rgba(17,40,48,.06);
+  --shadow-lg: 0 12px 32px rgba(17,40,48,.14), 0 4px 8px rgba(17,40,48,.08);
+  --shadow-glow: 0 0 0 3px rgba(53,131,142,.15), 0 4px 16px rgba(53,131,142,.18);
+  --r-card: 14px; --r-btn: 8px;
+}
+[data-theme="dark"] {
+  --bg:#0D1F24; --surface:#152A31; --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.05);
+  --text:#F0F6F7; --text2:#A8C4C9; --textm:#6B9099;
+  --teal-100:rgba(53,131,142,0.25); --teal-700:#7BBFC8; --olive-100:rgba(114,163,4,0.15);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.25);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.25);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.3);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans','Open Sauce Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;animation:page-fade 240ms ease both;}
+@keyframes page-fade{from{opacity:0;}to{opacity:1;}}
+:focus-visible{outline:none;box-shadow:var(--shadow-glow);border-radius:6px;}
+
+/* NAVBAR — simplifiée : pas de liens de module, on n'est encore entré dans aucun */
+.navbar{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:radial-gradient(140% 180% at 12% 0%, rgba(2,213,220,.15), transparent 55%),var(--teal-700);display:flex;align-items:center;padding:0 20px;z-index:300;box-shadow:var(--shadow-sm);}
+[data-theme="dark"] .navbar{background:radial-gradient(140% 180% at 12% 0%, rgba(2,213,220,.12), transparent 55%),var(--teal-900);}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,.4);font-family:'League Spartan',sans-serif;font-weight:700;}
+.nav-name{font-family:'League Spartan',sans-serif;font-size:16px;font-weight:700;color:rgba(255,255,255,.97);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.3);flex-shrink:0;}
+
+/* HERO */
+.page{max-width:1160px;margin:0 auto;padding:calc(var(--nav-h) + 40px) 28px 80px;}
+.hero{margin-bottom:36px;opacity:0;animation:enter-up 380ms var(--ease-enter) both;}
+.hero-eyebrow{font-family:'League Spartan',sans-serif;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--teal-500);margin-bottom:8px;}
+.hero h1{font-family:'League Spartan',sans-serif;font-size:30px;font-weight:800;letter-spacing:-.5px;color:var(--text);margin-bottom:8px;}
+.hero p{font-size:15px;color:var(--text2);font-weight:400;line-height:1.6;max-width:640px;}
+
+/* GRID */
+.modules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media (max-width:1024px){.modules-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:640px){.modules-grid{grid-template-columns:1fr;} .page{padding-left:16px;padding-right:16px;}}
+
+.mcard{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:22px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-sm);opacity:0;animation:enter-up 380ms var(--ease-enter) both;transition:box-shadow 200ms ease, transform 200ms var(--ease-enter);}
+.mcard:nth-child(1){animation-delay:40ms}
+.mcard:nth-child(2){animation-delay:80ms}
+.mcard:nth-child(3){animation-delay:120ms}
+.mcard:nth-child(4){animation-delay:160ms}
+.mcard:nth-child(5){animation-delay:200ms}
+.mcard:nth-child(6){animation-delay:240ms}
+.mcard:nth-child(7){animation-delay:280ms}
+
+.mcard.active{cursor:pointer;}
+.mcard.active:hover{box-shadow:var(--shadow-md);transform:translateY(-3px);border-color:var(--teal-100);}
+.mcard.disabled{opacity:.6 !important;cursor:not-allowed;}
+.mcard.disabled .mcard-icon{filter:grayscale(1);}
+
+.mcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.mcard-icon{width:44px;height:44px;border-radius:12px;background:var(--teal-50);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+[data-theme="dark"] .mcard-icon{background:rgba(53,131,142,.15);}
+
+.mstatus{font-family:'League Spartan',sans-serif;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 9px;border-radius:50px;white-space:nowrap;}
+.mstatus.actif{background:var(--olive-100);color:#3D6002;}
+[data-theme="dark"] .mstatus.actif{background:rgba(114,163,4,.15);color:#A8D060;}
+.mstatus.bientot{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100);}
+[data-theme="dark"] .mstatus.bientot{background:rgba(53,131,142,.1);border-color:rgba(53,131,142,.25);}
+.mstatus.v2{background:var(--border2);color:var(--textm);border:1px solid var(--border);}
+.mstatus.idee{background:transparent;color:var(--textm);border:1px dashed var(--border);}
+
+.mcard-title{font-family:'League Spartan',sans-serif;font-size:16px;font-weight:700;color:var(--text);line-height:1.3;}
+.mcard-desc{font-size:13px;color:var(--text2);line-height:1.55;flex:1;}
+.mcard-cta{font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;color:var(--teal-500);display:flex;align-items:center;gap:5px;margin-top:4px;transition:gap 150ms var(--ease-enter);}
+.mcard.active:hover .mcard-cta{gap:9px;}
+.mcard-note{font-size:12px;color:var(--textm);font-style:italic;margin-top:4px;}
+
+/* CONTRÔLES MAQUETTE */
+.mock-controls{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:600;}
+.mock-btn{background:rgba(255,255,255,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:50px;padding:6px 14px;font-size:12px;font-family:'League Spartan',sans-serif;font-weight:600;color:var(--text2);cursor:pointer;box-shadow:var(--shadow-md);transition:all var(--transition);}
+[data-theme="dark"] .mock-btn{background:rgba(21,42,49,.75);}
+.mock-btn:hover{border-color:var(--teal-500);color:var(--teal-500);}
+
+@keyframes enter-up{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important;}}
+
+
+
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="nav-brand" href="#">
+    <div class="nav-logo">logo</div>
+    <span class="nav-name">TellUs Cultures</span>
+  </a>
+  <div class="nav-right">
+    <div class="nav-avatar">MA</div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="hero">
+    <div class="hero-eyebrow">Accueil</div>
+    <h1>Bonjour Marine 👋</h1>
+    <p>Choisis un module pour continuer. En V1, seul « Collecte, Validation &amp; Archivage » est ouvert (il couvre la proposition, la file d'attente comité et l'archivage) — les autres arrivent au fil des besoins de l'association, sans jamais complexifier ce qui existe déjà.</p>
+  </div>
+
+  <div class="modules-grid">
+
+    <div class="mcard active" onclick="location.hash='#eic'">
+      <div class="mcard-top">
+        <div class="mcard-icon">🗂️</div>
+        <span class="mstatus actif">Actif</span>
+      </div>
+      <div class="mcard-title">Collecte, Validation &amp; Archivage</div>
+      <div class="mcard-desc">Proposer une expérience, la faire valider par le comité, consulter et archiver la base des EIC.</div>
+      <div class="mcard-cta">Ouvrir le module →</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">🗳️</div>
+        <span class="mstatus bientot">V1 bis</span>
+      </div>
+      <div class="mcard-title">Comité de validation</div>
+      <div class="mcard-desc">Outil multi-utilisateur dédié à l'examen collectif : présentation des EIC adaptée au comité, plusieurs membres agissant en même temps sur une même fiche (édition, commentaires partagés).</div>
+      <div class="mcard-note">La file d'attente et la fiche de validation existent dès le V1 — elles font partie du module Collecte, Validation &amp; Archivage ci-dessus, pas de celui-ci.</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">🎭</div>
+        <span class="mstatus bientot">En préparation</span>
+      </div>
+      <div class="mcard-title">Sélection, Exploitation &amp; Animation</div>
+      <div class="mcard-desc">Composer des sélections d'EIC, préparer et suivre les ateliers et animations.</div>
+      <div class="mcard-note">Mécanisme des Sélections déjà en germe dans le modèle de données.</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">🤝</div>
+        <span class="mstatus v2">V2</span>
+      </div>
+      <div class="mcard-title">Client, Partenaire &amp; Institutionnel</div>
+      <div class="mcard-desc">Accès dédié pour les partenaires et clients, sur des sélections d'EIC qui leur sont taguées.</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">📣</div>
+        <span class="mstatus v2">V2</span>
+      </div>
+      <div class="mcard-title">Communication &amp; Réseaux sociaux</div>
+      <div class="mcard-desc">Diffusion des extraits d'EIC et des médias validés sur les canaux de l'association.</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">🪪</div>
+        <span class="mstatus bientot">En germe</span>
+      </div>
+      <div class="mcard-title">Adhésion</div>
+      <div class="mcard-desc">Suivi des statuts d'adhésion et de la relation des membres à l'association.</div>
+    </div>
+
+    <div class="mcard disabled">
+      <div class="mcard-top">
+        <div class="mcard-icon">🔍</div>
+        <span class="mstatus idee">Idée</span>
+      </div>
+      <div class="mcard-title">Recherche de partenariats</div>
+      <div class="mcard-desc">Module pas encore défini — identifié lors de la réunion du 27/08.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mock-controls cm-ui">
+  <button class="cm-toggle-btn cm-ui" onclick="cmToggle()" id="cmToggleBtn" title="Mode commentaire"><span class="cm-btn-off">💬</span><span class="cm-btn-on" style="display:none;">✕</span></button>
+  <button class="cm-toggle-btn cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" title="Voir les commentaires de cette page">📋<span class="cm-count-badge" id="cmCount" data-zero="1"></span></button>
+  <button class="mock-btn" id="themeBtn" onclick="toggleTheme()">🌙 Mode sombre</button>
+</div>
+
+<script>
+function toggleTheme(){
+  const d = document.documentElement;
+  d.dataset.theme = d.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.getElementById('themeBtn').textContent = d.dataset.theme === 'dark' ? '☀️ Mode clair' : '🌙 Mode sombre';
+}
+</script>
+
+
+<script src="../../src/annotate.js" data-project="tellus"></script>
+</body>
+</html>

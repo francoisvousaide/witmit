@@ -1,0 +1,13 @@
+{
+  "name": "annotate-widget",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Annotate — widget d'annotation visuelle autonome (V1, mode maquette / localStorage)",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
