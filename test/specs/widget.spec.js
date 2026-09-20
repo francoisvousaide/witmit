@@ -216,6 +216,25 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin')).toHaveCount(0);
     });
 
+    test('11b. ouvrir le tiroir abandonne une bulle non enregistrée', async ({ page }) => {
+      await H.activate(page);
+      const box = await H.visibleBox(page, P.pinTarget);
+      await page.mouse.click(box.x + 5, box.y + 5);
+      await page.locator('.cm-popup textarea').fill('pas enregistré');
+      await page.locator('#cmPanelBtn').click();
+      await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
+      await expect(page.locator('.cm-box-editing')).toHaveCount(0);
+      expect(await H.stored(page, P.key)).toHaveLength(0);
+      // même chose si le clic simple est encore en attente (moins de 250 ms)
+      await page.mouse.click(30, 400); // referme le tiroir
+      await page.mouse.click(box.x + 5, box.y + 5);
+      await page.locator('#cmPanelBtn').click();
+      await page.waitForTimeout(400);
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
+      await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+    });
+
     test('12. en mode annotation, un clic sur un bouton de la page ne déclenche pas son action', async ({ page }) => {
       await H.activate(page);
       const btn = page.locator(P.blockedButton);

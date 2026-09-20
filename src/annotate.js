@@ -1443,6 +1443,11 @@
   window.cmTogglePanel = function (force) {
     var panel = document.getElementById('cmPanel');
     var show = (typeof force === 'boolean') ? force : !panel.classList.contains('show');
+    if (show) {
+      // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
+      clearTimeout(clickTimer); clickTimer = null;
+      closePopup(true);
+    }
     panel.classList.toggle('show', show);
   };
 
