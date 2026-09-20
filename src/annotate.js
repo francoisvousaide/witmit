@@ -15,7 +15,9 @@
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
-    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || ''
+    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
+    // data-click-delay="250" : attendre un éventuel double-clic avant d'ouvrir la bulle du clic simple (essai)
+    clickDelay: parseInt((SCRIPT_EL && SCRIPT_EL.getAttribute('data-click-delay')) || '0', 10) || 0
   };
 
   var CSS = `
@@ -117,11 +119,17 @@
   /* Encadré ajustable tant que sa bulle est ouverte : déplaçable au centre, 8 poignées pour redimensionner */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
   body .cm-box.cm-box-editable { cursor:move; }
-  .cm-handle { position:absolute; width:10px; height:10px; background:#fff; border:2px solid var(--cm-orange); border-radius:2px; box-sizing:border-box; }
-  body .cm-ui .cm-handle-nw { left:-6px; top:-6px; cursor:nwse-resize; } body .cm-ui .cm-handle-se { right:-6px; bottom:-6px; cursor:nwse-resize; }
-  body .cm-ui .cm-handle-ne { right:-6px; top:-6px; cursor:nesw-resize; } body .cm-ui .cm-handle-sw { left:-6px; bottom:-6px; cursor:nesw-resize; }
-  body .cm-ui .cm-handle-n { left:calc(50% - 5px); top:-6px; cursor:ns-resize; } body .cm-ui .cm-handle-s { left:calc(50% - 5px); bottom:-6px; cursor:ns-resize; }
-  body .cm-ui .cm-handle-w { left:-6px; top:calc(50% - 5px); cursor:ew-resize; } body .cm-ui .cm-handle-e { right:-6px; top:calc(50% - 5px); cursor:ew-resize; }
+  .cm-handle { position:absolute; box-sizing:border-box; }
+  /* coins : petits points ronds discrets */
+  .cm-handle-nw, .cm-handle-ne, .cm-handle-se, .cm-handle-sw { width:9px; height:9px; border-radius:50%; background:#fff; border:1.5px solid var(--cm-orange); box-shadow:0 1px 3px rgba(0,0,0,.25); opacity:.85; }
+  .cm-box-editable:hover .cm-handle { opacity:1; }
+  /* côtés : zones de saisie invisibles (le curseur change) */
+  .cm-handle-n, .cm-handle-s { left:8px; right:8px; height:8px; }
+  .cm-handle-e, .cm-handle-w { top:8px; bottom:8px; width:8px; }
+  body .cm-ui .cm-handle-nw { left:-5px; top:-5px; cursor:nwse-resize; } body .cm-ui .cm-handle-se { right:-5px; bottom:-5px; cursor:nwse-resize; }
+  body .cm-ui .cm-handle-ne { right:-5px; top:-5px; cursor:nesw-resize; } body .cm-ui .cm-handle-sw { left:-5px; bottom:-5px; cursor:nesw-resize; }
+  body .cm-ui .cm-handle-n { top:-4px; cursor:ns-resize; } body .cm-ui .cm-handle-s { bottom:-4px; cursor:ns-resize; }
+  body .cm-ui .cm-handle-w { left:-4px; cursor:ew-resize; } body .cm-ui .cm-handle-e { right:-4px; cursor:ew-resize; }
   /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
   body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved { display:none; }
   body:not(.cm-active) mark.cm-highlight { background:transparent; }
@@ -240,6 +248,7 @@
   var STORAGE_KEY = 'annotate_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
+  var CLICK_DELAY = CONFIG.clickDelay;
 
   var allComments = [];    // TOUTES les pages
   var active = false;
@@ -1071,24 +1080,19 @@
 
     if (dragTextMode) {
       var quoted = liveTextRange ? liveTextRange.toString().trim() : '';
-      if (liveTextRange && quoted) {
-        var rangeClone = liveTextRange.cloneRange();
-        var marks = highlightRange(rangeClone);
-        var anchorRect = marks.length ? marks[0].getBoundingClientRect() : { left: e.clientX, top: e.clientY };
-        var px = anchorRect.left + window.scrollX, py = anchorRect.top + window.scrollY;
-        var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
-        openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
-          { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
-      } else {
-        var zoneT = detectZone(e.target);
-        var cptT = cornerAnchorPoint(zoneT.el, e.pageX, e.pageY);
-        openPopup(cptT.x, cptT.y, zoneT.label, {
-          type: 'pin', pinX: cptT.x, pinY: cptT.y,
-          pointAnchor: anchorForPoint(cptT.x, cptT.y, zoneT.el), outlineEl: zoneT.el
-        });
-      }
+      if (liveTextRange && quoted) openTextPopup(liveTextRange, e);
+      else openPinPopup(e.target, e.pageX, e.pageY);
       liveTextRange = null; dragStartCaret = null;
       return;
+    }
+
+    // Double-clic = le mot, triple-clic = le paragraphe (la sélection native étant coupée en mode
+    // annotation, on calcule nous-mêmes les limites).
+    if (e.detail === 2 || e.detail === 3) {
+      clearTimeout(clickTimer);
+      if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
+      var r = e.detail === 2 ? wordRangeAt(e.clientX, e.clientY) : blockRangeAt(e.target);
+      if (r && r.toString().trim()) { openTextPopup(r, e); return; }
     }
 
     var dx = e.pageX - dragStart.x, dy = e.pageY - dragStart.y;
@@ -1108,12 +1112,61 @@
     }
 
     if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
-    var zone = detectZone(e.target);
-    var cpt = cornerAnchorPoint(zone.el, e.pageX, e.pageY);
+    if (e.detail > 3) return;
+    var target = e.target, pX = e.pageX, pY = e.pageY;
+    if (CLICK_DELAY > 0) {
+      // Variante "on attend un éventuel double-clic" avant d'ouvrir la bulle du clic simple
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(function () { openPinPopup(target, pX, pY); }, CLICK_DELAY);
+    } else {
+      openPinPopup(target, pX, pY);
+    }
+  }
+
+  var clickTimer = null;
+
+  function openPinPopup(target, pageX, pageY) {
+    var zone = detectZone(target);
+    var cpt = cornerAnchorPoint(zone.el, pageX, pageY);
     openPopup(cpt.x, cpt.y, zone.label, {
       type: 'pin', pinX: cpt.x, pinY: cpt.y,
       pointAnchor: anchorForPoint(cpt.x, cpt.y, zone.el), outlineEl: zone.el
     });
+  }
+
+  function openTextPopup(range, e) {
+    var quoted = range.toString().trim();
+    var marks = highlightRange(range.cloneRange());
+    var anchorRect = marks.length ? marks[0].getBoundingClientRect() : { left: e.clientX, top: e.clientY };
+    var px = anchorRect.left + window.scrollX, py = anchorRect.top + window.scrollY;
+    var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
+    openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
+      { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
+  }
+
+  /* Le mot sous le pointeur : lettres (accents compris), chiffres, apostrophes et traits d'union. */
+  function wordRangeAt(clientX, clientY) {
+    var caret = caretRangeAt(clientX, clientY);
+    if (!caret || caret.startContainer.nodeType !== 3) return null;
+    var node = caret.startContainer, text = node.textContent, i = caret.startOffset;
+    var isWordChar = function (ch) { return /[\p{L}\p{N}'’\-]/u.test(ch); };
+    var a = i, b = i;
+    if (!(isWordChar(text[i] || '') || isWordChar(text[i - 1] || ''))) return null; // clic sur un espace
+    while (a > 0 && isWordChar(text[a - 1])) a--;
+    while (b < text.length && isWordChar(text[b])) b++;
+    if (a === b) return null;
+    var r = document.createRange();
+    r.setStart(node, a); r.setEnd(node, b);
+    return r;
+  }
+  /* Le paragraphe : l'élément de texte visé (ou le premier bloc qui l'entoure). */
+  function blockRangeAt(target) {
+    var el = detectZone(target).el || target;
+    while (el && el !== document.body && !isTextLeaf(el) && /^inline/.test(getComputedStyle(el).display)) el = el.parentElement;
+    if (!el || el === document.body || inUi(el)) return null;
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    return r;
   }
 
   function onClickCapture(e) {
