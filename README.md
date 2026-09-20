@@ -23,6 +23,13 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 - **Catégorie** proposée automatiquement d'après le texte, par règles de mots-clés locales (aucune IA, rien ne sort du navigateur) : bug visuel, bug fonctionnel, ajustement visuel, texte à changer, changement de comportement, suggestion, question, à classer (défaut). Modifiable dans la bulle ; un choix manuel n'est plus écrasé.
 - **Bloc technique** capturé à l'enregistrement : sélecteur(s) DOM de la ou des cibles, libellés, type, citation, page (sans paramètres d'URL), position relative, fenêtre, navigateur/OS, thème, 5 dernières erreurs console (vues depuis le chargement du script — placer la balise dans `<head>`), date. Visible dans la liste sous « détails techniques ».
 
+## Statut (étape 3)
+
+- Chaque ticket est **nouveau** par défaut ; le rond ✓ dans la liste le marque **traité** (repères grisés sur la page, item estompé, date de traitement enregistrée) ; recliquer le rouvre.
+- Le badge du bouton 📋 compte ce qu'il **reste** à traiter sur la page ; l'en-tête du tiroir détaille restants / traités / total site.
+- « Masquer les traités » (mémorisé) cache les tickets traités dans la liste et sur la page.
+- Le rapport texte marque les tickets traités (`· TRAITÉ`). La suppression individuelle (✕) est conservée.
+
 ## Développement
 
 ```bash

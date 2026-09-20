@@ -123,6 +123,10 @@
   .cm-pin { transition:background-color 600ms ease; }
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
+  /* Ticket traité : repères grisés et discrets */
+  .cm-box-saved.cm-done { border-color:#A8A6A0; background:rgba(160,160,160,.05); opacity:.7; }
+  .cm-pin.cm-done { background:#A8A6A0; opacity:.8; }
+  #cmLinks line.cm-done { stroke:#A8A6A0; }
   /* Commentaire actif (bulle ouverte) : couleur teal, plus marqué — teal clair sur fond sombre */
   .cm-box-saved.cm-focus { border-color:var(--cm-teal); border-width:2.5px; background:rgba(53,131,142,.12); }
   .cm-pin.cm-focus { background:var(--cm-teal); }
@@ -217,6 +221,14 @@
   .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
   .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--cm-bg); border-radius:6px; color:var(--cm-text2); max-height:160px; overflow:auto; }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
+  .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .cm-panel-item .st { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--cm-border); background:transparent; color:transparent; cursor:pointer; font-size:11px; line-height:1; padding:0; }
+  .cm-panel-item .st:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
+  .cm-panel-item.cm-done .st { background:var(--cm-teal); border-color:var(--cm-teal); color:#fff; }
+  .cm-panel-item.cm-done .num { background:var(--cm-text-muted); }
+  .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
+  .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:'League Spartan',sans-serif; font-size:10px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; background:transparent; color:var(--cm-text-muted); padding:1px 7px; cursor:pointer; }
+  .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
   .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
   .cm-panel-item .del:hover { color:var(--cm-orange); }
   .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--cm-text-muted); font-size:12.5px; line-height:1.5; }
@@ -567,6 +579,7 @@
     var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved:not(.cm-box-editable), #cmLinks');
     for (var i = 0; i < old.length; i++) old[i].remove();
     pageComments().forEach(function (c, i) {
+      if (hideDone() && isDone(c)) return;
       var anchorEl = null;
       // Sélection multiple : on ne garde que les cibles actuellement visibles ; la pastille principale va sur la première.
       var multi = null;
@@ -652,6 +665,11 @@
       pin.onclick = openEditor;
       document.body.appendChild(pin);
     });
+    pageComments().forEach(function (c) {
+      if (!isDone(c)) return;
+      var els = document.querySelectorAll('.cm-box-saved[data-id="' + c.id + '"], .cm-pin[data-id="' + c.id + '"], #cmLinks line[data-id="' + c.id + '"]');
+      for (var d = 0; d < els.length; d++) els[d].classList.add('cm-done');
+    });
     if (focusedId) applyFocus(focusedId, true);
     if (flashId) applyFocus(flashId, true);
     // Survol d'une pastille : les cadres de son commentaire s'allument (utile pour un groupe d'éléments)
@@ -713,13 +731,33 @@
   });
   domObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true, subtree: true });
 
+  /* ---------- statut d'un ticket : nouveau (défaut) / traité ---------- */
+  function isDone(c) { return c.status === 'traite'; }
+  var HIDE_DONE_KEY = 'annotate_hide_done';
+  function hideDone() { try { return localStorage.getItem(HIDE_DONE_KEY) === '1'; } catch (e) { return false; } }
+  window.cmToggleStatus = function (id) {
+    var c = allComments.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    c.status = isDone(c) ? 'nouveau' : 'traite';
+    if (isDone(c)) c.doneAt = new Date().toISOString(); else delete c.doneAt;
+    persist(); renderList(); renderMarkers();
+    cmStatus(isDone(c) ? 'Marqué comme traité' : 'Rouvert');
+  };
+  window.cmToggleHideDone = function () {
+    try { localStorage.setItem(HIDE_DONE_KEY, hideDone() ? '0' : '1'); } catch (e) {}
+    renderList(); renderMarkers();
+  };
+
   function renderList() {
     var pc = pageComments();
+    var remaining = pc.filter(function (c) { return !isDone(c); });
+    var done = pc.length - remaining.length;
     var list = document.getElementById('cmList');
     var cmCountEl = document.getElementById('cmCount');
-    if (cmCountEl) { cmCountEl.textContent = pc.length || ''; cmCountEl.dataset.zero = pc.length ? '0' : '1'; }
+    // Le badge du bouton 📋 compte ce qu'il RESTE à traiter sur cette page
+    if (cmCountEl) { cmCountEl.textContent = remaining.length || ''; cmCountEl.dataset.zero = remaining.length ? '0' : '1'; }
     var panelBtnEl = document.getElementById('cmPanelBtn');
-    if (panelBtnEl) panelBtnEl.classList.toggle('cm-on', pc.length > 0);
+    if (panelBtnEl) panelBtnEl.classList.toggle('cm-on', remaining.length > 0);
     var panelCountEl = document.getElementById('cmPanelCount');
     if (panelCountEl) panelCountEl.textContent = pc.length;
     var subEl = document.getElementById('cmPanelSub');
@@ -727,7 +765,9 @@
       var nPages = {};
       allComments.forEach(function (c) { nPages[c.page] = true; });
       var nPagesCount = Object.keys(nPages).length;
-      subEl.textContent = allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site';
+      var siteRemaining = allComments.filter(function (c) { return !isDone(c); }).length;
+      subEl.innerHTML = cmEsc(remaining.length + ' restant(s)' + (done ? ' · ' + done + ' traité(s)' : '') + ' — ' + allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site' + (siteRemaining !== allComments.length ? ' (' + siteRemaining + ' restants)' : '')) +
+        (done ? ' <button class="cm-hide-done' + (hideDone() ? ' cm-on' : '') + '" onclick="cmToggleHideDone()">' + (hideDone() ? 'Afficher les traités' : 'Masquer les traités') + '</button>' : '');
     }
     if (!pc.length) {
       list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
@@ -735,7 +775,8 @@
     }
     var html = '';
     pc.forEach(function (c, i) {
-      html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + '" data-id="' + c.id + '">' +
+      if (hideDone() && isDone(c)) return;
+      html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + (isDone(c) ? ' cm-done' : '') + '" data-id="' + c.id + '">' +
         '<div class="num">' + (i + 1) + '</div>' +
         '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
           '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
@@ -743,9 +784,12 @@
           '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
           (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
           '</div></div>' +
-        '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
-        '</div>';
+        '<div class="cm-item-actions">' +
+          '<button class="st" onclick="cmToggleStatus(\'' + c.id + '\')" title="' + (isDone(c) ? 'Traité — cliquer pour rouvrir' : 'Marquer comme traité') + '" aria-label="Statut">✓</button>' +
+          '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
+        '</div></div>';
     });
+    if (!html) html = '<div class="cm-panel-empty">Tout est traité sur cette page 🎉</div>';
     list.innerHTML = html;
   }
 
@@ -1850,7 +1894,7 @@
       lines.push('=== ' + grp.title + ' (' + page + ') ===');
       grp.items.forEach(function (c) {
         n++;
-        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + '] — ' + categoryOf(c.category).label);
+        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + '] — ' + categoryOf(c.category).label + (isDone(c) ? ' · TRAITÉ' : ''));
         lines.push(c.text);
         lines.push('');
       });

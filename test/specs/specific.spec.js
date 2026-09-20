@@ -52,7 +52,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   await H.addPin(page, '#stepPanel1 .fcard-title', 'Depuis proposer');
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('#cmPanelSub')).toHaveText('2 au total sur 2 page(s) du site');
+  await expect(page.locator('#cmPanelSub')).toContainText('2 au total sur 2 page(s) du site');
   await expect(page.locator('.cm-panel-item')).toHaveCount(1); // la liste ne montre que la page courante
   await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
   const txt = await page.evaluate(() => navigator.clipboard.readText());
@@ -61,7 +61,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   expect(txt).toContain('#2 ['); // numérotation continue sur tout le site
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('#cmPanelSub')).toHaveText('0 au total sur 0 page(s) du site');
+  await expect(page.locator('#cmPanelSub')).toContainText('0 au total sur 0 page(s) du site');
 });
 
 test('Charger le script deux fois n’installe le widget qu’une fois', async ({ page }) => {
