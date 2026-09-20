@@ -479,7 +479,7 @@
     pc.forEach(function (c, i) {
       html += '<div class="cm-panel-item">' +
         '<div class="num">' + (i + 1) + '</div>' +
-        '<div class="body" onclick="cmFocus(\'' + c.id + '\')" title="Voir sur la page"><div class="zone">' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
+        '<div class="body" onclick="cmFocus(\'' + c.id + '\')" title="Voir sur la page"><div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
         '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
         '</div>';
     });
@@ -536,16 +536,23 @@
     cmStatus('Tous les commentaires du site ont été supprimés');
   };
 
-  /* ---------- détection de zone : générique, valable sur n'importe quelle page du site ----------
-     Pas de liste de classes propres à un seul écran : on repère tout conteneur dont la classe
-     contient "card", "panel", "section", "item" ou "block" (couvre .fcard/.qcard/.pcard/.mcard/
-     .eic-card/.auteur-card/.grille-card/.note-card/.requal-card/.filter-section... sans avoir à les
-     lister une par une), puis on cherche un titre à l'intérieur de la même façon générique. Le
-     dernier recours n'est JAMAIS le nom de balise ("div") — c'est un extrait du texte réel. */
+  /* ---------- détection de zone : générique, valable sur n'importe quelle page ----------
+     Deux idées, dans cet ordre, pour viser ce qu'un humain "voit" :
+       - du TEXTE : tout élément qui contient directement du texte est ciblable tel quel, quelle que
+         soit sa balise ou sa classe (pas seulement <p>, <h1>… ni une liste de classes connues) ;
+       - une BOÎTE : quand on clique dans le vide d'un bloc, on remonte à la boîte visuelle la plus
+         proche — celle qui a un fond, une bordure ou une ombre (ce que l'œil appelle une "carte").
+     La liste de motifs de classe (card, panel, section…) reste en secours pour les blocs sans style
+     propre. Le dernier recours n'est JAMAIS le nom de balise ("div") — c'est un extrait du texte réel. */
 
   var CARD_SELECTOR =
     '.fcard, .field, .recap-block, .navbar, .sticky-actions, .step, section, header, .mock-controls, ' +
     '[class*="card"], [class*="-panel"], [class*="section"], [class*="-item"], [class*="block"], [class*="drawer"], [class*="hero"]';
+  var ATOMIC_SELECTOR =
+    'button, a, input, select, textarea, label, summary, ' +
+    '[class*="icon"], [class*="badge"], [class*="chip"], [class*="tag"], [class*="pill"], svg';
+  var TITLE_SELECTOR =
+    '.fcard-title, .field-label, .recap-block-title, [class*="title"], [class*="-lbl"], [class*="label"], [class*="name"], h1, h2, h3, h4, legend, caption';
 
   function isTextLeaf(el) {
     if (!el || el.nodeType !== 1 || !el.textContent || !el.textContent.trim()) return false;
@@ -556,11 +563,59 @@
     return false;
   }
 
-  /* Détection de zone à granularité fine : selon l'endroit précis où l'on clique, on cible l'élément
-     le plus pertinent — pas toujours le plus gros conteneur qui l'entoure.
+  /* Une "boîte visuelle" : fond coloré, image de fond, ombre ou bordure visible. */
+  function isVisualBox(el) {
+    var cs = getComputedStyle(el);
+    if (cs.backgroundImage !== 'none' || cs.boxShadow !== 'none') return true;
+    var bg = cs.backgroundColor;
+    if (bg && bg !== 'transparent' && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(bg)) return true;
+    var sides = ['Top', 'Right', 'Bottom', 'Left'];
+    for (var i = 0; i < sides.length; i++) {
+      if (parseFloat(cs['border' + sides[i] + 'Width']) > 0 && cs['border' + sides[i] + 'Style'] !== 'none') return true;
+    }
+    return false;
+  }
+  function isContainer(el) {
+    return !!(el && el.nodeType === 1 && ((el.matches && el.matches(CARD_SELECTOR)) || isVisualBox(el)));
+  }
+
+  /* Extrait de texte lisible : les morceaux issus de blocs/liens/cellules différents sont séparés
+     par " · " (textContent brut les colle : "KIOSQUEVentesStocks"). */
+  function textExcerpt(el, max) {
+    if (!el) return '';
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        return (n.parentElement && n.parentElement.closest('.cm-ui')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var out = '', lastSeg = null, n;
+    while ((n = walker.nextNode())) {
+      var t = n.textContent.replace(/\s+/g, ' ').trim();
+      if (!t) continue;
+      var seg = n.parentElement;
+      while (seg && seg !== el && !(seg.matches('a, button, li, td, th, label, dt, dd') || !/^inline/.test(getComputedStyle(seg).display))) seg = seg.parentElement;
+      if (out) out += (lastSeg && seg !== lastSeg) ? ' · ' : ' ';
+      out += t;
+      lastSeg = seg;
+    }
+    out = out.replace(/\s+/g, ' ').trim();
+    return out.length > max ? out.slice(0, max) + '…' : out;
+  }
+
+  function containerLabel(container) {
+    var titleEl = container.querySelector && container.querySelector(TITLE_SELECTOR);
+    var label = '';
+    if (titleEl && titleEl !== container && !titleEl.closest('.cm-ui')) label = textExcerpt(titleEl, 60);
+    if (!label) label = textExcerpt(container, 50);
+    if (!label && container.className && typeof container.className === 'string') label = container.className.split(' ')[0];
+    return label || 'Élément de la page';
+  }
+
+  /* Détection à granularité fine : selon l'endroit précis où l'on clique, on cible l'élément le plus
+     pertinent — pas toujours le plus gros conteneur qui l'entoure.
        1) sur un bouton, lien, champ, icône, pilule, badge… → cet élément précis
-       2) sur du texte (paragraphe, span, item, titre…)      → ce nœud de texte précis
-       3) dans le vide (marge d'une carte, fond)             → on remonte à la carte/section générique */
+       2) sur du texte (quel que soit son balisage)          → ce texte précis
+       3) dans le vide (marge d'une carte, fond)             → la boîte visuelle la plus proche */
   function detectZone(el) {
     // Nos propres surlignages (<mark>) ne sont jamais un repère : ils disparaissent au rechargement.
     while (el && el.nodeType === 1 && el.classList.contains('cm-highlight')) el = el.parentElement;
@@ -568,14 +623,11 @@
       return { label: 'Zone générale de la page', el: null };
     }
 
-    var atomic = el.closest && el.closest(
-      'button, a, input, select, textarea, label, summary, ' +
-      '[class*="icon"], [class*="badge"], [class*="chip"], [class*="tag"], [class*="pill"], svg'
-    );
+    var atomic = el.closest && el.closest(ATOMIC_SELECTOR);
     if (atomic && !atomic.classList.contains('cm-ui') && !(atomic.matches && atomic.matches(CARD_SELECTOR))) {
       var atomicLabel =
         (atomic.getAttribute && (atomic.getAttribute('aria-label') || atomic.getAttribute('title'))) ||
-        (atomic.textContent && atomic.textContent.trim().slice(0, 60)) || '';
+        textExcerpt(atomic, 60);
       if (!atomicLabel && atomic.tagName) {
         var tag = atomic.tagName.toLowerCase();
         atomicLabel = tag === 'input' ? ('Champ ' + (atomic.getAttribute('placeholder') || atomic.type || '')).trim() : 'Élément (' + tag + ')';
@@ -583,37 +635,52 @@
       return { label: atomicLabel || 'Élément de la page', el: atomic };
     }
 
-    // Les libellés/indications de champ ne sont pas toujours de vraies balises sémantiques
-    // (<label>/<p>) — souvent de simples <div>/<span class="field-label|field-hint|...">.
-    // On les reconnaît aussi par motif de classe pour qu'un clic dessus cible CE texte précis,
-    // et non tout le bloc-champ qui l'entoure.
-    var textLeaf = el.closest && el.closest(
-      'p, span, li, h1, h2, h3, h4, h5, h6, dt, dd, td, th, blockquote, small, strong, em, ' +
-      '[class*="-label"], [class*="field-label"], [class*="-lbl"], [class*="-hint"], [class*="hint"], ' +
-      '[class*="caption"], [class*="helper"], [class*="-msg"], [class*="-note"]'
-    );
-    if (textLeaf && isTextLeaf(textLeaf) && !(textLeaf.closest('button, a, [class*="icon"], [class*="pill"]'))) {
-      var t = textLeaf.textContent.trim().replace(/\s+/g, ' ');
-      return { label: t.slice(0, 55) + (t.length > 55 ? '…' : ''), el: textLeaf };
+    // On remonte depuis le point cliqué : premier texte direct rencontré → c'est lui ;
+    // première boîte rencontrée avant ça → on s'arrête, c'est une boîte.
+    var node = el;
+    while (node && node !== document.body) {
+      if (isTextLeaf(node)) return { label: textExcerpt(node, 55), el: node };
+      if (isContainer(node)) break;
+      node = node.parentElement;
     }
+    var container = (node && node !== document.body) ? node : el;
+    return { label: containerLabel(container), el: container };
+  }
 
-    var labelled = el.closest && el.closest(CARD_SELECTOR);
-    var container = labelled || el;
-    var titleEl = container.querySelector && container.querySelector(
-      '.fcard-title, .field-label, .recap-block-title, [class*="title"], [class*="-lbl"], [class*="label"], h1, h2, h3, h4'
-    );
-    var label;
-    if (titleEl && titleEl !== container && titleEl.textContent.trim()) {
-      label = titleEl.textContent.trim().slice(0, 60);
-    } else if (container.textContent && container.textContent.trim()) {
-      var t2 = container.textContent.trim().replace(/\s+/g, ' ');
-      label = t2.slice(0, 50) + (t2.length > 50 ? '…' : '');
-    } else if (labelled && labelled.className) {
-      label = String(labelled.className).split(' ')[0];
-    } else {
-      label = 'Élément de la page';
+  /* Encadré dessiné à la main : on nomme la zone par les textes qu'elle contient ENTIÈREMENT
+     (jusqu'à 3), et on l'ancre au plus petit élément qui englobe tout le rectangle — pas à ce qui se
+     trouve par hasard au centre. */
+  function boxZone(bx, by, bw, bh, centerEl) {
+    var node = (centerEl && !inUi(centerEl)) ? centerEl : null;
+    var container = null;
+    while (node && node !== document.body && node !== document.documentElement) {
+      var r = node.getBoundingClientRect();
+      var L = r.left + window.scrollX, T = r.top + window.scrollY;
+      if (L <= bx + 1 && T <= by + 1 && L + r.width >= bx + bw - 1 && T + r.height >= by + bh - 1) { container = node; break; }
+      node = node.parentElement;
     }
+    var names = [], listed = [], extra = 0;
+    var candidates = (container || document.body).querySelectorAll('*');
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (!isTextLeaf(c) || inUi(c) || !isVisible(c)) continue;
+      var cr = c.getBoundingClientRect();
+      var cl = cr.left + window.scrollX, ct = cr.top + window.scrollY;
+      if (cl < bx - 1 || ct < by - 1 || cl + cr.width > bx + bw + 1 || ct + cr.height > by + bh + 1) continue;
+      var nested = listed.some(function (p) { return p.contains(c); });
+      if (nested) continue;
+      listed.push(c);
+      if (names.length < 3) names.push(textExcerpt(c, 30)); else extra++;
+    }
+    var label = names.length
+      ? 'Zone encadrée — ' + names.join(', ') + (extra ? ' (+' + extra + ')' : '')
+      : 'Zone encadrée — dans : ' + (container ? detectZone(container).label : 'la page');
     return { label: label, el: container };
+  }
+
+  /* Icône par type d'annotation — visible dans la bulle, la liste et le rapport. */
+  function typeIcon(type) {
+    return type === 'box' ? '🔲' : type === 'text' ? '✏️' : '📍';
   }
 
   /* Contour PERSISTANT qui confirme visuellement l'objet visé par le commentaire en cours de saisie —
@@ -745,7 +812,7 @@
     pop.style.left = left + 'px';
     pop.style.top = (y + 10) + 'px';
     pop.innerHTML =
-      '<div class="cm-zone">' + cmEsc(zone) + '</div>' +
+      '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
       '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne)">' +
       (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea>' +
       '<div class="cm-popup-actions">' +
@@ -920,7 +987,7 @@
       var bx = Math.min(dragStart.x, e.pageX), by = Math.min(dragStart.y, e.pageY);
       var bw = Math.abs(dx), bh = Math.abs(dy);
       var centerEl = document.elementFromPoint(bx + bw / 2 - window.scrollX, by + bh / 2 - window.scrollY);
-      var zoneB = detectZone(centerEl);
+      var zoneB = boxZone(bx, by, bw, bh, centerEl);
       openPopup(bx, by + bh, zoneB.label, {
         type: 'box', box: { x: bx, y: by, w: bw, h: bh }, boxEl: dragBoxEl,
         boxAnchor: anchorForBox(bx, by, bw, bh, zoneB.el)
@@ -1076,7 +1143,7 @@
       lines.push('=== ' + grp.title + ' (' + page + ') ===');
       grp.items.forEach(function (c) {
         n++;
-        lines.push('#' + n + ' [' + c.zone + ']');
+        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + ']');
         lines.push(c.text);
         lines.push('');
       });

@@ -212,7 +212,7 @@ for (const P of PAGES) {
       const b = await H.visibleBox(page, P.blockedButton);
       await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
       await expect(page.locator('.cm-popup')).toBeVisible();
-      await expect(page.locator('.cm-popup .cm-zone')).toContainText((await btn.innerText()).trim().slice(0, 8));
+      await expect(page.locator('.cm-popup .cm-zone')).toContainText((await btn.innerText()).trim().split('\n')[0].slice(0, 8));
       await expect(page.locator('body')).toHaveClass(/cm-active/);
       expect(page.url()).toBe(urlBefore); // un lien href="#" n'a pas navigué
     });
