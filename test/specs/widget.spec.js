@@ -146,12 +146,46 @@ for (const P of PAGES) {
       expect(Math.abs(pinAfter.y - after.y)).toBeLessThan(30);
     });
 
-    test('10. les commentaires survivent au rechargement de la page', async ({ page }) => {
+    test('10. les commentaires survivent au rechargement de la page (pastille, contour, surlignage)', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Persistant');
+      const t = await H.visibleBox(page, P.textTarget);
+      const y = t.y + Math.min(10, t.height / 2);
+      await H.drag(page, t.x + 2, y, t.x + Math.min(t.width - 2, 160), y, { shift: true });
+      await page.locator('.cm-popup textarea').fill('Texte persistant');
+      await page.locator('.cm-popup textarea').press('Enter');
+      const quoteBefore = await page.locator('mark.cm-highlight').allInnerTexts();
       await page.reload();
-      await expect(page.locator('.cm-pin')).toHaveCount(1);
-      await expect(page.locator('#cmCount')).toHaveText('1');
+      await expect(page.locator('#cmCount')).toHaveText('2');
+      await H.activate(page);
+      await expect(page.locator('.cm-pin')).toHaveCount(2);
+      await expect(page.locator('.cm-box-outline')).toHaveCount(1);      // contour de la pastille
+      await expect(page.locator('mark.cm-highlight').first()).toBeVisible(); // surlignage retrouvé
+      expect((await page.locator('mark.cm-highlight').allInnerTexts()).join('').trim()).toBe(quoteBefore.join('').trim());
+    });
+
+    test('10b. hors mode annotation, les repères sont masqués ; ils réapparaissent à l’activation', async ({ page }) => {
+      await H.activate(page);
+      await H.addPin(page, P.pinTarget, 'Discret');
+      await expect(page.locator('.cm-pin')).toBeVisible();
+      await expect(page.locator('.cm-box-outline')).toBeVisible();
+      await H.deactivate(page);
+      await expect(page.locator('.cm-pin')).toBeHidden();
+      await expect(page.locator('.cm-box-outline')).toBeHidden();
+      await H.activate(page);
+      await expect(page.locator('.cm-pin')).toBeVisible();
+    });
+
+    test('10c. clic sur un commentaire de la liste → mode activé, repère mis en évidence', async ({ page }) => {
+      await H.activate(page);
+      await H.addPin(page, P.pinTarget, 'Retrouve-moi');
+      await H.deactivate(page);
+      await page.locator('#cmPanelBtn').click();
+      await page.locator('.cm-panel-item .body').click();
+      await expect(page.locator('body')).toHaveClass(/cm-active/);
+      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+      await expect(page.locator('.cm-pin')).toBeVisible();
+      await expect(page.locator('.cm-pin')).toHaveClass(/cm-flash/);
     });
 
     test('11. panneau : ouverture, liste, fermeture par clic extérieur, suppression ✕', async ({ page }) => {

@@ -113,6 +113,13 @@
   /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
   .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
   .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); }
+  .cm-box.cm-box-outline { border-width:1.5px; background:transparent; border-radius:4px; }
+  /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
+  body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved { display:none; }
+  body:not(.cm-active) mark.cm-highlight { background:transparent; }
+  /* Clignotement quand on cherche un commentaire depuis la liste */
+  .cm-flash { animation: cmFlash .4s ease-in-out 4; }
+  @keyframes cmFlash { 50% { filter:brightness(1.6); box-shadow:0 0 0 6px rgba(252,128,5,.45); } }
   /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
      Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
      en cours de saisie est rattaché. */
@@ -145,7 +152,7 @@
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
   .cm-panel-item:hover { background:var(--cm-bg); }
   .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--cm-orange); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; margin-top:1px; }
-  .cm-panel-item .body { flex:1; min-width:0; }
+  .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
   .cm-panel-item .zone { font-size:10.5px; color:var(--cm-teal); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
   .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
@@ -265,6 +272,7 @@
      géométrie ACTUELLE du conteneur — la pastille/l'encadré reste donc attaché à l'élément visé. */
 
   function getStablePath(el) {
+    while (el && el.nodeType === 1 && el.classList.contains('cm-highlight')) el = el.parentElement;
     if (!el || el === document.body || el === document.documentElement) return null;
     var path = [];
     var node = el;
@@ -362,21 +370,39 @@
     return r.width > 0 && r.height > 0;
   }
 
+  /* Dessine un cadre (encadré enregistré, ou contour fin de l'élément visé par une pastille) */
+  function drawSavedBox(x, y, w, h, extraClass, id) {
+    var box = document.createElement('div');
+    box.className = 'cm-box cm-box-saved cm-ui ' + (extraClass || '');
+    box.dataset.id = id;
+    box.style.left = x + 'px'; box.style.top = y + 'px';
+    box.style.width = Math.max(w, 4) + 'px'; box.style.height = Math.max(h, 4) + 'px';
+    document.body.appendChild(box);
+  }
+
   function renderMarkers() {
     var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved');
     for (var i = 0; i < old.length; i++) old[i].remove();
     pageComments().forEach(function (c, i) {
+      var anchorEl = null;
       if (c.anchor && c.anchor.path) {
-        var anchorEl = resolveStablePath(c.anchor.path);
+        anchorEl = resolveStablePath(c.anchor.path);
         if (!isVisible(anchorEl)) return; // étape/onglet masqué pour l'instant : on n'affiche pas ce repère
       }
       if (c.type === 'box') {
         var b = computeAbsoluteBox(c.anchor, c.fallback);
-        var box = document.createElement('div');
-        box.className = 'cm-box cm-box-saved cm-ui';
-        box.style.left = b.x + 'px'; box.style.top = b.y + 'px';
-        box.style.width = Math.max(b.w, 4) + 'px'; box.style.height = Math.max(b.h, 4) + 'px';
-        document.body.appendChild(box);
+        drawSavedBox(b.x, b.y, b.w, b.h, '', c.id);
+      }
+      if (c.type === 'pin' && anchorEl) {
+        // Contour fin persistant autour de l'objet visé : la pastille seule "flotte" visuellement.
+        var ar = anchorEl.getBoundingClientRect();
+        drawSavedBox(ar.left + window.scrollX, ar.top + window.scrollY, ar.width, ar.height, 'cm-box-outline', c.id);
+      }
+      if (c.type === 'text' && !(sessionMarks[c.id] && sessionMarks[c.id].length)) {
+        // Après un rechargement, le surlignage n'existe plus : on retrouve le passage cité et on le re-surligne.
+        var quote = c.quote || ((c.zone || '').indexOf('…') < 0 ? (c.zone || '').replace(/^«\s*|\s*»$/g, '') : '');
+        var range = quote ? findTextRange(anchorEl || document.body, quote) : null;
+        if (range) sessionMarks[c.id] = highlightRange(range);
       }
       var pt;
       if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
@@ -387,6 +413,7 @@
       }
       var pin = document.createElement('div');
       pin.className = 'cm-pin cm-ui';
+      pin.dataset.id = c.id;
       pin.style.left = pt.x + 'px';
       pin.style.top = pt.y + 'px';
       pin.innerHTML = '<span>' + (i + 1) + '</span>';
@@ -412,7 +439,7 @@
      DOM et on ignore nos propres mutations (pastilles/encadrés/contour, tous marqués "cm-ui") pour
      ne jamais se redéclencher soi-même. */
   function isOwnNode(node) {
-    return !!(node && node.nodeType === 1 && (node.classList.contains('cm-ui') || (node.closest && node.closest('.cm-ui'))));
+    return !!(node && node.nodeType === 1 && (node.classList.contains('cm-ui') || node.classList.contains('cm-highlight') || (node.closest && node.closest('.cm-ui'))));
   }
   var moTimer = null;
   var domObserver = new MutationObserver(function (mutations) {
@@ -452,12 +479,29 @@
     pc.forEach(function (c, i) {
       html += '<div class="cm-panel-item">' +
         '<div class="num">' + (i + 1) + '</div>' +
-        '<div class="body"><div class="zone">' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
+        '<div class="body" onclick="cmFocus(\'' + c.id + '\')" title="Voir sur la page"><div class="zone">' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
         '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
         '</div>';
     });
     list.innerHTML = html;
   }
+
+  /* Clic sur un commentaire de la liste : on active le mode (les repères ne sont visibles qu'en mode
+     annotation), on fait défiler jusqu'au repère et on le fait clignoter pour le retrouver d'un coup d'œil. */
+  window.cmFocus = function (id) {
+    cmTogglePanel(false);
+    if (!active) cmToggle(true);
+    renderMarkers();
+    var targets = document.querySelectorAll('.cm-pin[data-id="' + id + '"], .cm-box-saved[data-id="' + id + '"]');
+    if (!targets.length) { cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)'); return; }
+    targets[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    for (var i = 0; i < targets.length; i++) {
+      (function (el) {
+        el.classList.add('cm-flash');
+        setTimeout(function () { el.classList.remove('cm-flash'); }, 1600);
+      })(targets[i]);
+    }
+  };
 
   window.cmDeleteById = function (id) {
     if (sessionMarks[id]) { unwrapMarks(sessionMarks[id]); delete sessionMarks[id]; }
@@ -518,6 +562,8 @@
        2) sur du texte (paragraphe, span, item, titre…)      → ce nœud de texte précis
        3) dans le vide (marge d'une carte, fond)             → on remonte à la carte/section générique */
   function detectZone(el) {
+    // Nos propres surlignages (<mark>) ne sont jamais un repère : ils disparaissent au rechargement.
+    while (el && el.nodeType === 1 && el.classList.contains('cm-highlight')) el = el.parentElement;
     if (!el || el === document.body || el === document.documentElement) {
       return { label: 'Zone générale de la page', el: null };
     }
@@ -610,6 +656,27 @@
   }
 
   /* ---------- surlignage de texte (sélection robuste multi-nœuds) ---------- */
+
+  /* Retrouve un passage de texte (cité mot pour mot) dans un élément, même s'il est réparti sur
+     plusieurs nœuds de texte — sert à re-surligner après un rechargement de page. */
+  function findTextRange(root, quote) {
+    if (!root || !quote) return null;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) { return (n.parentElement && n.parentElement.closest('.cm-ui')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; }
+    });
+    var nodes = [], full = '', n;
+    while ((n = walker.nextNode())) { nodes.push({ node: n, start: full.length }); full += n.textContent; }
+    var idx = full.indexOf(quote);
+    if (idx < 0) return null;
+    var end = idx + quote.length;
+    var range = document.createRange(), started = false;
+    for (var i = 0; i < nodes.length; i++) {
+      var s0 = nodes[i].start, len = nodes[i].node.textContent.length;
+      if (!started && idx < s0 + len) { range.setStart(nodes[i].node, idx - s0); started = true; }
+      if (started && end <= s0 + len) { range.setEnd(nodes[i].node, end - s0); return range; }
+    }
+    return null;
+  }
 
   function highlightRange(range) {
     var marks = [];
@@ -724,7 +791,7 @@
           } else {
             c.anchor = meta.pointAnchor;
             c.fallback = { x: meta.pinX, y: meta.pinY };
-            if (meta.type === 'text' && meta.marks) sessionMarks[id] = meta.marks;
+            if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
           }
           allComments.push(c);
           cmStatus('Commentaire enregistré');
@@ -833,7 +900,7 @@
         var px = anchorRect.left + window.scrollX, py = anchorRect.bottom + window.scrollY;
         var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
         openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
-          { type: 'text', marks: marks, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
+          { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
       } else {
         var zoneT = detectZone(e.target);
         var cptT = cornerAnchorPoint(zoneT.el, e.pageX, e.pageY);
