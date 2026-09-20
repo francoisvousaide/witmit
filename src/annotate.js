@@ -118,6 +118,7 @@
   .cm-pin span { transform:rotate(45deg); }
   .cm-pin:hover { filter:brightness(1.08); }
   /* Pastilles réduites des autres éléments d'une sélection multiple (même numéro) */
+  .cm-pin { transition:background-color 500ms ease; }
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
   /* Commentaire actif (bulle ouverte) : couleur teal, plus marqué — teal clair sur fond sombre */
@@ -136,7 +137,7 @@
 
   /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
   .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
-  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); }
+  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); transition:border-color 500ms ease, background-color 500ms ease; }
   .cm-box.cm-box-outline { border-width:1.5px; background:transparent; border-radius:4px; }
   /* Encadré ajustable tant que sa bulle est ouverte : déplaçable au centre, 8 poignées pour redimensionner */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
@@ -467,7 +468,6 @@
       /* Ouvre la bulle d'édition de ce commentaire (toutes les pastilles du groupe y mènent) */
       function openEditor(e) {
         e.stopPropagation();
-        setFocused(c.id);
         var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
         var editPt = computeAbsolutePoint(c.anchor, c.fallback);
         var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
@@ -641,6 +641,27 @@
       els[i].classList.toggle('cm-focus-light', on && isDarkBehind(els[i]));
     }
   }
+  /* Juste après un enregistrement : le repère reste en teal un instant, puis repasse à l'orange
+     en douceur avec une onde — on voit ce qu'on vient de commenter. */
+  var savedTimer = null;
+  function flashSaved(id) {
+    clearTimeout(savedTimer);
+    applyFocus(id, true);
+    savedTimer = setTimeout(function () {
+      if (focusedId === id) return; // rouverte entre-temps : on la laisse en couleur "actif"
+      var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i], light = el.classList.contains('cm-focus-light');
+        el.classList.remove('cm-focus', 'cm-focus-light');
+        if (el.classList.contains('cm-box-saved')) { el.classList.add(light ? 'cm-ola-light' : 'cm-ola'); }
+      }
+      setTimeout(function () {
+        var done = document.querySelectorAll('.cm-ola, .cm-ola-light');
+        for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
+      }, 2100);
+    }, 900);
+  }
+
   function setFocused(id) {
     if (focusedId && focusedId !== id) applyFocus(focusedId, false);
     focusedId = id || null;
@@ -1109,8 +1130,9 @@
   }
 
   function openPopup(x, y, zone, meta) {
-    closePopup(true);
+    closePopup(true); // (efface aussi la couleur "actif" de la bulle précédente)
     var isEdit = !!(meta && meta.existing);
+    setFocused(isEdit ? meta.existing.id : null);
     if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
     if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + meta.existing.id + '"]'); // (re)trouvé après un éventuel re-rendu
     if (meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
@@ -1154,6 +1176,7 @@
       e.stopPropagation();
       var text = ta.value.trim();
       endBoxEdit(meta);
+      var savedId = null;
       if (text) {
         var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
         // Sélection multiple (ou modifiée) : libellé, ancrage de la pastille et liste des cibles recalculés
@@ -1167,12 +1190,14 @@
           };
         }
         if (isEdit) {
+          savedId = meta.existing.id;
           meta.existing.text = text;
           if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; }
           if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
           cmStatus('Commentaire modifié');
         } else {
           var id = uid();
+          savedId = id;
           var c = { id: id, type: meta.type, page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
           if (meta.type === 'box') {
             c.anchor = desc ? desc.anchor : meta.boxAnchor;
@@ -1199,6 +1224,7 @@
       pop.remove();
       pendingPopup = null;
       setFocused(null);
+      if (savedId) flashSaved(savedId);
     };
     pendingPopup = pop;
   }

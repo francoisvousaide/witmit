@@ -216,6 +216,34 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin')).toHaveCount(0);
     });
 
+    test('10d. passer d’un commentaire à l’autre garde la couleur active à jour ; après enregistrement, teal puis orange', async ({ page }) => {
+      await H.activate(page);
+      await H.addPin(page, P.pinTarget, 'Premier');
+      // juste après l'enregistrement : encore en teal, puis retour à l'orange
+      await expect(page.locator('.cm-pin').first()).toHaveClass(/cm-focus/);
+      await expect(page.locator('.cm-pin').first()).not.toHaveClass(/cm-focus/, { timeout: 3000 });
+      await H.addPin(page, P.boxTarget, 'Second');
+      await page.waitForTimeout(1200);
+      // clic sur une pastille alors qu'une bulle est déjà ouverte → la nouvelle prend la couleur
+      const pins = page.locator('.cm-pin');
+      await pins.nth(0).click();
+      await expect(pins.nth(0)).toHaveClass(/cm-focus/);
+      await pins.nth(1).click();
+      await expect(pins.nth(1)).toHaveClass(/cm-focus/);
+      await expect(pins.nth(0)).not.toHaveClass(/cm-focus/);
+      // depuis la liste, en changeant d'item
+      await page.keyboard.press('Escape');
+      await H.deactivate(page);
+      await page.locator('#cmPanelBtn').click();
+      await page.locator('.cm-panel-item .body').nth(0).click();
+      await expect(page.locator('.cm-panel-item').nth(0)).toHaveClass(/cm-current/);
+      await page.locator('.cm-panel-item .body').nth(1).click();
+      await expect(page.locator('.cm-panel-item').nth(1)).toHaveClass(/cm-current/);
+      await expect(page.locator('.cm-panel-item').nth(0)).not.toHaveClass(/cm-current/);
+      await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
+      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
+    });
+
     test('11b. ouvrir le tiroir abandonne une bulle non enregistrée', async ({ page }) => {
       await H.activate(page);
       const box = await H.visibleBox(page, P.pinTarget);
