@@ -15,7 +15,9 @@
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
-    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || ''
+    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
+    // data-multi-lines="true" : relier par des lignes fines les éléments d'une sélection multiple
+    multiLines: !!(SCRIPT_EL && /^(true|1|oui)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
   };
 
   var CSS = `
@@ -109,6 +111,14 @@
   .cm-pin { position:absolute; width:24px; height:24px; border-radius:50% 50% 50% 4px; background:var(--cm-orange); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-100%) rotate(-45deg); box-shadow:var(--cm-shadow-md); z-index:840; cursor:pointer; }
   .cm-pin span { transform:rotate(45deg); }
   .cm-pin:hover { filter:brightness(1.08); }
+  /* Pastilles réduites des autres éléments d'une sélection multiple (même numéro) */
+  .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
+  /* Survol d'une pastille : les cadres du même commentaire s'allument */
+  .cm-box-saved.cm-glow { box-shadow:0 0 0 3px rgba(252,128,5,.35); }
+  .cm-pin.cm-glow { filter:brightness(1.12); }
+  #cmLinks { position:absolute; left:0; top:0; pointer-events:none; z-index:835; overflow:visible; }
+  #cmLinks line { stroke:var(--cm-orange, #FC8005); stroke-width:1; stroke-dasharray:3 3; opacity:.7; }
+  body:not(.cm-active) #cmLinks { display:none; }
 
   /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
   .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
@@ -196,7 +206,7 @@
 
 <div class="cm-pill cm-ui" id="cmPill" title="Glisse la pastille pour la déplacer">
   <span class="cm-drag-handle" aria-hidden="true">⠿</span>
-  🖊️ Clique = pastille · Glisse = encadre une zone · Maj + glisse = surligne du texte
+  🖊️ Clic = élément · ⌘/Ctrl+clic = plusieurs · Glisser = zone · Maj+glisser = texte
   <button onclick="cmToggle(false)">Terminer</button>
 </div>
 
@@ -402,11 +412,18 @@
   function renderMarkers() {
     // Un encadré en cours d'ajustement (poignées visibles) est conservé tel quel : le redessiner ferait
     // "lâcher" la souris en plein glisser.
-    var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved:not(.cm-box-editable)');
+    var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved:not(.cm-box-editable), #cmLinks');
     for (var i = 0; i < old.length; i++) old[i].remove();
     pageComments().forEach(function (c, i) {
       var anchorEl = null;
-      if (c.anchor && c.anchor.path) {
+      // Sélection multiple : on ne garde que les cibles actuellement visibles ; la pastille principale va sur la première.
+      var multi = null;
+      if (c.type === 'pin' && c.targets && c.targets.length > 1) {
+        multi = [];
+        c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (isVisible(el)) multi.push(el); });
+        if (!multi.length) return;
+        anchorEl = multi[0];
+      } else if (c.anchor && c.anchor.path) {
         anchorEl = resolveStablePath(c.anchor.path);
         if (!isVisible(anchorEl)) return; // étape/onglet masqué pour l'instant : on n'affiche pas ce repère
       }
@@ -416,9 +433,11 @@
         if (!document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) drawSavedBox(boxGeom.x, boxGeom.y, boxGeom.w, boxGeom.h, '', c.id);
       }
       if (c.type === 'pin' && anchorEl) {
-        // Contour fin persistant autour de l'objet visé : la pastille seule "flotte" visuellement.
-        var ar = anchorEl.getBoundingClientRect();
-        drawSavedBox(ar.left + window.scrollX, ar.top + window.scrollY, ar.width, ar.height, 'cm-box-outline', c.id);
+        // Contour fin persistant autour de chaque objet visé : la pastille seule "flotte" visuellement.
+        (multi || [anchorEl]).forEach(function (el) {
+          var ar = el.getBoundingClientRect();
+          drawSavedBox(ar.left + window.scrollX, ar.top + window.scrollY, ar.width, ar.height, 'cm-box-outline', c.id);
+        });
       }
       if (c.type === 'text' && !(sessionMarks[c.id] && sessionMarks[c.id].length)) {
         // Après un rechargement, le surlignage n'existe plus : on retrouve le passage cité et on le re-surligne.
@@ -427,7 +446,21 @@
         if (range) sessionMarks[c.id] = highlightRange(range);
       }
       var pt;
-      if (boxGeom) {
+      if (multi) {
+        pt = cornerAnchorPoint(multi[0], 0, 0);
+        // Pastilles réduites, même numéro, sur les autres éléments du groupe (+ lignes fines si demandé)
+        multi.slice(1).forEach(function (el) {
+          var p2 = cornerAnchorPoint(el, 0, 0);
+          var sp = document.createElement('div');
+          sp.className = 'cm-pin cm-pin-secondary cm-ui';
+          sp.dataset.id = c.id;
+          sp.style.left = p2.x + 'px'; sp.style.top = p2.y + 'px';
+          sp.innerHTML = '<span>' + (i + 1) + '</span>';
+          sp.title = c.text;
+          document.body.appendChild(sp);
+          if (CONFIG.multiLines) drawLink(pt, p2, c.id);
+        });
+      } else if (boxGeom) {
         pt = { x: boxGeom.x + boxGeom.w - 3, y: boxGeom.y + 3 }; // coin haut-droit de l'encadré
       } else if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
         var mr = sessionMarks[c.id][0].getBoundingClientRect();
@@ -447,6 +480,12 @@
         var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
         var editPt = computeAbsolutePoint(c.anchor, c.fallback);
         var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
+        if (multi) {
+          editMeta.targets = [];
+          c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (el) editMeta.targets.push({ el: el, label: t.label }); });
+          editMeta.outlineEl = editMeta.targets.map(function (t) { return t.el; });
+          editPt = pt;
+        }
         if (c.type === 'text' && sessionMarks[c.id]) { editMeta.marks = sessionMarks[c.id]; editMeta.outlineEl = null; }
         if (c.type === 'box') {
           editMeta.boxEl = document.querySelector('.cm-box-saved[data-id="' + c.id + '"]');
@@ -457,6 +496,31 @@
       };
       document.body.appendChild(pin);
     });
+    // Survol d'une pastille : les cadres de son commentaire s'allument (utile pour un groupe d'éléments)
+    var pins = document.querySelectorAll('.cm-pin');
+    for (var k = 0; k < pins.length; k++) {
+      pins[k].onmouseenter = function () { glow(this.dataset.id, true); };
+      pins[k].onmouseleave = function () { glow(this.dataset.id, false); };
+    }
+  }
+  function glow(id, on) {
+    var frames = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"]');
+    for (var i = 0; i < frames.length; i++) frames[i].classList.toggle('cm-glow', on);
+  }
+  /* Ligne fine pointillée entre la pastille principale et une pastille secondaire (option data-multi-lines) */
+  function drawLink(a, b, id) {
+    var svg = document.getElementById('cmLinks');
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.id = 'cmLinks'; svg.setAttribute('class', 'cm-ui');
+      document.body.appendChild(svg);
+    }
+    svg.style.width = document.documentElement.scrollWidth + 'px';
+    svg.style.height = document.documentElement.scrollHeight + 'px';
+    var l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', a.x); l.setAttribute('y1', a.y); l.setAttribute('x2', b.x); l.setAttribute('y2', b.y);
+    l.setAttribute('data-id', id);
+    svg.appendChild(l);
   }
 
   var resizeTimer = null;
@@ -713,6 +777,13 @@
     return { label: label, el: container };
   }
 
+  /* Libellé d'une sélection de plusieurs éléments : « 3 éléments — A, B, C (+n) » */
+  function multiLabel(targets) {
+    if (targets.length === 1) return targets[0].label;
+    var names = targets.slice(0, 3).map(function (t) { return t.label; });
+    return targets.length + ' éléments — ' + names.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : '');
+  }
+
   /* Icône par type d'annotation — visible dans la bulle, la liste et le rapport. */
   function typeIcon(type) {
     return type === 'box' ? '🔲' : type === 'text' ? '✏️' : '📍';
@@ -721,31 +792,33 @@
   /* Contour PERSISTANT qui confirme visuellement l'objet visé par le commentaire en cours de saisie —
      reste affiché tant que le popup est ouvert (jusqu'à Enregistrer, Annuler ou un clic ailleurs), et
      se recale si la page est redimensionnée pendant ce temps. */
-  var editOutlineEl = null;
-  var editOutlineTarget = null;
+  var editOutlines = []; // [{ el, box }] — un contour par élément visé (plusieurs en sélection multiple)
 
   function positionEditOutline() {
-    if (!editOutlineEl || !editOutlineTarget) return;
-    var r = editOutlineTarget.getBoundingClientRect();
-    editOutlineEl.style.left = (r.left + window.scrollX) + 'px';
-    editOutlineEl.style.top = (r.top + window.scrollY) + 'px';
-    editOutlineEl.style.width = Math.max(r.width, 4) + 'px';
-    editOutlineEl.style.height = Math.max(r.height, 4) + 'px';
+    editOutlines.forEach(function (o) {
+      var r = o.el.getBoundingClientRect();
+      o.box.style.left = (r.left + window.scrollX) + 'px';
+      o.box.style.top = (r.top + window.scrollY) + 'px';
+      o.box.style.width = Math.max(r.width, 4) + 'px';
+      o.box.style.height = Math.max(r.height, 4) + 'px';
+    });
   }
-  function showEditOutline(el) {
+  function showEditOutline(els) {
     hideEditOutline();
-    if (!el) return;
-    var r = el.getBoundingClientRect();
-    if (r.width < 2 || r.height < 2) return;
-    editOutlineEl = document.createElement('div');
-    editOutlineEl.className = 'cm-box cm-ui cm-box-editing';
-    document.body.appendChild(editOutlineEl);
-    editOutlineTarget = el;
+    (Array.isArray(els) ? els : [els]).forEach(function (el) {
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      var box = document.createElement('div');
+      box.className = 'cm-box cm-ui cm-box-editing';
+      document.body.appendChild(box);
+      editOutlines.push({ el: el, box: box });
+    });
     positionEditOutline();
   }
   function hideEditOutline() {
-    if (editOutlineEl) { editOutlineEl.remove(); editOutlineEl = null; }
-    editOutlineTarget = null;
+    editOutlines.forEach(function (o) { o.box.remove(); });
+    editOutlines = [];
   }
 
   /* Point d'ancrage "coin" de l'élément visé plutôt que le pixel brut du clic — la pastille reste
@@ -930,7 +1003,8 @@
     if (!meta) return null;
     if (meta.type === 'box' && meta.box) return meta.box;
     if (meta.marks && meta.marks.length) return unionRect(meta.marks);
-    if (meta.outlineEl) return rectOf(meta.outlineEl);
+    if (meta.targets && meta.targets.length > 1) return unionRect(meta.targets.map(function (t) { return t.el; }));
+    if (meta.outlineEl) return unionRect(Array.isArray(meta.outlineEl) ? meta.outlineEl : [meta.outlineEl]);
     return null;
   }
   function placePopup(pop, R, fallbackX, fallbackY) {
@@ -1017,9 +1091,20 @@
       endBoxEdit(meta);
       if (text) {
         var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
+        // Sélection multiple (ou modifiée) : libellé, ancrage de la pastille et liste des cibles recalculés
+        var multi = null;
+        if (meta.type === 'pin' && meta.targets && meta.targets.length && (meta.targets.length > 1 || meta.targetsChanged)) {
+          var first = meta.targets[0].el, cptM = cornerAnchorPoint(first, meta.pinX, meta.pinY);
+          multi = {
+            zone: multiLabel(meta.targets),
+            anchor: anchorForPoint(cptM.x, cptM.y, first), fallback: { x: cptM.x, y: cptM.y },
+            targets: meta.targets.length > 1 ? meta.targets.map(function (t) { return { path: getStablePath(t.el), label: t.label }; }) : undefined
+          };
+        }
         if (isEdit) {
           meta.existing.text = text;
           if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; }
+          if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
           cmStatus('Commentaire modifié');
         } else {
           var id = uid();
@@ -1031,6 +1116,7 @@
           } else {
             c.anchor = meta.pointAnchor;
             c.fallback = { x: meta.pinX, y: meta.pinY };
+            if (multi) { c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
             if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
           }
           allComments.push(c);
@@ -1058,6 +1144,8 @@
   }
 
   var dragTextMode = false;
+  var multiMode = false;
+  var MULTI_KEY = /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent || '') ? '⌘' : 'Ctrl';
   var dragStartCaret = null;
   var liveTextRange = null;
 
@@ -1084,6 +1172,7 @@
     if (s) s.removeAllRanges();
     dragging = true;
     dragTextMode = e.shiftKey;
+    multiMode = e.metaKey || e.ctrlKey; // ⌘+clic (Mac) / Ctrl+clic : sélection multiple
     dragStart = { x: e.pageX, y: e.pageY };
     dragStartCaret = dragTextMode ? caretRangeAt(e.clientX, e.clientY) : null;
     liveTextRange = null;
@@ -1143,6 +1232,16 @@
       return;
     }
 
+    // ⌘/Ctrl+clic : ajoute (ou retire) l'élément visé au commentaire "élément" en cours
+    if (multiMode) {
+      multiMode = false;
+      if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
+      flushPendingClick();
+      if (pendingPopup && pendingPopup._meta && pendingPopup._meta.type === 'pin') toggleMultiTarget(e.target);
+      else openPinPopup(e.target, e.pageX, e.pageY);
+      return;
+    }
+
     // Double-clic = le mot, triple-clic = le paragraphe (la sélection native étant coupée en mode
     // annotation, on calcule nous-mêmes les limites).
     if (e.detail === 2 || e.detail === 3) {
@@ -1173,17 +1272,44 @@
     // On attend un court instant : si un double-clic suit, c'est lui qui gagne (pas de bulle intermédiaire).
     var target = e.target, pX = e.pageX, pY = e.pageY;
     clearTimeout(clickTimer);
-    clickTimer = setTimeout(function () { if (active) openPinPopup(target, pX, pY); }, CLICK_DELAY);
+    pendingClick = { target: target, x: pX, y: pY };
+    clickTimer = setTimeout(function () { clickTimer = null; if (active) openPinPopup(target, pX, pY); }, CLICK_DELAY);
   }
-  var clickTimer = null;
+  var clickTimer = null, pendingClick = null;
+  /* Un clic simple encore en attente (délai double-clic) est ouvert tout de suite — utile quand on
+     enchaîne clic puis Maj+clic très vite pour une sélection multiple. */
+  function flushPendingClick() {
+    if (!clickTimer) return;
+    clearTimeout(clickTimer); clickTimer = null;
+    if (pendingClick) openPinPopup(pendingClick.target, pendingClick.x, pendingClick.y);
+  }
 
   function openPinPopup(target, pageX, pageY) {
     var zone = detectZone(target);
     var cpt = cornerAnchorPoint(zone.el, pageX, pageY);
     openPopup(cpt.x, cpt.y, zone.label, {
       type: 'pin', pinX: cpt.x, pinY: cpt.y,
-      pointAnchor: anchorForPoint(cpt.x, cpt.y, zone.el), outlineEl: zone.el
+      pointAnchor: anchorForPoint(cpt.x, cpt.y, zone.el), outlineEl: zone.el,
+      targets: zone.el ? [{ el: zone.el, label: zone.label }] : []
     });
+  }
+
+  /* Sélection multiple : ⌘+clic (Mac) / Ctrl+clic pendant qu'une bulle "élément" est ouverte ajoute
+     l'élément visé au groupe (ou le retire s'il y est déjà). Un seul commentaire, un cadre par élément. */
+  function toggleMultiTarget(target) {
+    var meta = pendingPopup._meta;
+    var zone = detectZone(target);
+    if (!zone.el) return;
+    meta.targets = meta.targets || [];
+    var idx = -1;
+    meta.targets.forEach(function (t, i) { if (t.el === zone.el) idx = i; });
+    if (idx >= 0) { if (meta.targets.length === 1) return; meta.targets.splice(idx, 1); }
+    else meta.targets.push({ el: zone.el, label: zone.label });
+    meta.targetsChanged = true;
+    showEditOutline(meta.targets.map(function (t) { return t.el; }));
+    var zoneEl = pendingPopup.querySelector('.cm-zone');
+    if (zoneEl) zoneEl.textContent = typeIcon('pin') + ' ' + multiLabel(meta.targets);
+    cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés — ' + MULTI_KEY + '+clic pour en ajouter ou retirer' : '1 élément sélectionné');
   }
 
   function openTextPopup(range, e) {
