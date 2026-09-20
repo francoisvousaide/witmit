@@ -686,8 +686,8 @@
     ta.addEventListener('blur', function () { finish(true); });
   }
 
-  /* À la fermeture d'une bulle : le repère du commentaire reste en teal ~1 s, puis repasse à
-     l'orange en fondu avec une onde — on voit ce qu'on vient de commenter. Les éléments sont créés
+  /* Après un ENREGISTREMENT : le repère du commentaire reste en teal ~1 s, puis repasse à l'orange
+     en fondu avec une onde — on voit ce qu'on vient de commenter (rien de tel pour Annuler/Échap). Les éléments sont créés
      directement en teal (flashId) pour que l'effet soit net même si les repères sont redessinés. */
   var flashId = null, flashTimer = null;
   function flashSaved(id) {
@@ -1118,11 +1118,9 @@
       renderMarkers(); // encadré existant déplacé puis annulé : on le remet à sa place enregistrée
     }
     hideEditOutline();
-    var closedId = meta && meta.existing ? meta.existing.id : null;
     pendingPopup.remove();
     pendingPopup = null;
-    setFocused(null);
-    if (closedId) flashSaved(closedId);
+    setFocused(null); // Annuler / Échap : retour à l'orange immédiat (l'effet teal → orange est réservé à l'enregistrement)
   }
 
   /* ---------- placement de la bulle : jamais par-dessus ce qu'elle commente ----------

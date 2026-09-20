@@ -248,10 +248,17 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-panel-item').nth(0)).not.toHaveClass(/cm-current/);
       await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
-      // fermer une bulle existante par Échap déclenche aussi l'effet teal → orange
+      // fermer une bulle par Échap ou Annuler : retour à l'orange immédiat (pas d'effet, réservé à l'enregistrement)
       await page.locator('#cmPanel .cm-panel-head-row button').click();
       await page.locator('.cm-pin').nth(0).click();
       await page.keyboard.press('Escape');
+      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
+      await page.locator('.cm-pin').nth(0).click();
+      await page.locator('.cm-popup .cm-cancel').click();
+      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
+      // …alors qu'Enregistrer sur un commentaire existant le déclenche
+      await page.locator('.cm-pin').nth(0).click();
+      await page.locator('.cm-popup textarea').press('Enter');
       await expect(page.locator('.cm-pin').nth(0)).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
     });
