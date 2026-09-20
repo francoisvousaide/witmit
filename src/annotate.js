@@ -118,7 +118,7 @@
   .cm-pin span { transform:rotate(45deg); }
   .cm-pin:hover { filter:brightness(1.08); }
   /* Pastilles réduites des autres éléments d'une sélection multiple (même numéro) */
-  .cm-pin { transition:background-color 500ms ease; }
+  .cm-pin { transition:background-color 600ms ease; }
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
   /* Commentaire actif (bulle ouverte) : couleur teal, plus marqué — teal clair sur fond sombre */
@@ -137,7 +137,8 @@
 
   /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
   .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
-  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); transition:border-color 500ms ease, background-color 500ms ease; }
+  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); transition:border-color 600ms ease, background-color 600ms ease; }
+  .cm-box-saved.cm-focus, .cm-pin.cm-focus { transition:none; } /* entrée en teal immédiate, sortie fondue */
   .cm-box.cm-box-outline { border-width:1.5px; background:transparent; border-radius:4px; }
   /* Encadré ajustable tant que sa bulle est ouverte : déplaçable au centre, 8 poignées pour redimensionner */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
@@ -202,6 +203,7 @@
   .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--cm-orange); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; margin-top:1px; }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
   .cm-panel-item .zone { font-size:10.5px; color:var(--cm-teal); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
+  .cm-panel-item textarea.cm-inline-edit { width:100%; box-sizing:border-box; resize:none; border:1px solid var(--cm-teal); border-radius:6px; padding:5px 6px; font-family:'DM Sans',sans-serif; font-size:12.5px; line-height:1.4; color:var(--cm-text); background:var(--cm-bg); }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
   .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
   .cm-panel-item .del:hover { color:var(--cm-orange); }
@@ -521,6 +523,7 @@
       document.body.appendChild(pin);
     });
     if (focusedId) applyFocus(focusedId, true);
+    if (flashId) applyFocus(flashId, true);
     // Survol d'une pastille : les cadres de son commentaire s'allument (utile pour un groupe d'éléments)
     var pins = document.querySelectorAll('.cm-pin');
     for (var k = 0; k < pins.length; k++) {
@@ -604,7 +607,7 @@
     pc.forEach(function (c, i) {
       html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + '" data-id="' + c.id + '">' +
         '<div class="num">' + (i + 1) + '</div>' +
-        '<div class="body" onclick="cmFocus(\'' + c.id + '\')" title="Voir sur la page"><div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
+        '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici"><div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
         '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
         '</div>';
     });
@@ -613,26 +616,101 @@
 
   /* Clic sur un commentaire de la liste : on active le mode (les repères ne sont visibles qu'en mode
      annotation), on fait défiler jusqu'au repère et on le fait clignoter pour le retrouver d'un coup d'œil. */
+  /* Sélection d'un item à l'APPUI de la souris (pas au relâchement) : si un autre item était en cours
+     d'édition, sa fermeture décale la liste et le relâchement tomberait ailleurs. */
+  window.cmFocusDown = function (e, id) {
+    if (e.target && e.target.tagName === 'TEXTAREA') return; // clic dans le champ déjà ouvert : placement du curseur normal
+    if (e.button !== 0) return;
+    e.preventDefault(); // garde le focus dans le champ d'édition qu'on va ouvrir
+    cmFocus(id);
+  };
+
   window.cmFocus = function (id) {
     if (!active) cmToggle(true);
+    closePopup(true);
     renderMarkers();
+    setFocused(id);
     var frame = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
     var targets = frame ? [frame] : (sessionMarks[id] || []);
     var pin = document.querySelector('.cm-pin[data-id="' + id + '"]');
     var scrollEl = targets[0] || pin;
-    if (!scrollEl) { cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)'); return; }
-    scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    var olaClass = isDarkBehind(scrollEl) ? 'cm-ola-light' : 'cm-ola'; // onde claire sur fond sombre
-    targets.forEach(function (el) {
-      el.classList.remove('cm-ola', 'cm-ola-light');
-      void el.offsetWidth; // relance l'animation si on reclique
-      el.classList.add(olaClass);
-      setTimeout(function () { el.classList.remove(olaClass); }, 2100);
-    });
-    if (pin) pin.click(); // et on ouvre directement la bulle du commentaire
+    if (scrollEl) {
+      scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      var olaClass = isDarkBehind(scrollEl) ? 'cm-ola-light' : 'cm-ola';
+      targets.forEach(function (el) {
+        el.classList.remove('cm-ola', 'cm-ola-light');
+        void el.offsetWidth;
+        el.classList.add(olaClass);
+        setTimeout(function () { el.classList.remove(olaClass); }, 2100);
+      });
+    } else {
+      cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)');
+    }
+    editInList(id);
   };
 
-  /* Commentaire "actif" (bulle ouverte) : ses cadres, pastilles et lignes changent de couleur */
+  /* Modification du texte directement dans la liste : Entrée = enregistrer, Maj+Entrée = nouvelle
+     ligne, Échap = annuler, clic ailleurs = enregistrer. */
+  function editInList(id) {
+    var item = document.querySelector('.cm-panel-item[data-id="' + id + '"]');
+    if (!item || item.querySelector('textarea')) return;
+    var c = allComments.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    var txt = item.querySelector('.txt');
+    var ta = document.createElement('textarea');
+    ta.className = 'cm-inline-edit';
+    ta.value = c.text;
+    txt.replaceWith(ta);
+    ta.style.height = Math.max(ta.scrollHeight, 40) + 'px';
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    var finished = false;
+    function finish(save) {
+      if (finished) return;
+      finished = true;
+      var v = ta.value.trim();
+      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus('Commentaire modifié'); }
+      // On remet le texte en place SANS redessiner la liste : un clic en cours sur un autre item
+      // (qui a provoqué ce blur) doit atteindre sa cible.
+      var div = document.createElement('div');
+      div.className = 'txt';
+      div.textContent = c.text;
+      ta.replaceWith(div);
+      if (save && v && v === c.text) renderMarkers(); // met à jour l'info-bulle des pastilles
+    }
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+    });
+    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 40) + 'px'; });
+    ta.addEventListener('blur', function () { finish(true); });
+  }
+
+  /* À la fermeture d'une bulle : le repère du commentaire reste en teal ~1 s, puis repasse à
+     l'orange en fondu avec une onde — on voit ce qu'on vient de commenter. Les éléments sont créés
+     directement en teal (flashId) pour que l'effet soit net même si les repères sont redessinés. */
+  var flashId = null, flashTimer = null;
+  function flashSaved(id) {
+    clearTimeout(flashTimer);
+    flashId = id;
+    applyFocus(id, true);
+    flashTimer = setTimeout(function () {
+      flashId = null;
+      if (focusedId === id) return; // rouvert entre-temps : reste en couleur "actif"
+      var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i], light = el.classList.contains('cm-focus-light');
+        el.classList.remove('cm-focus', 'cm-focus-light');
+        if (el.classList.contains('cm-box-saved')) el.classList.add(light ? 'cm-ola-light' : 'cm-ola');
+      }
+      setTimeout(function () {
+        var done = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]');
+        for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
+      }, 2100);
+    }, 1000);
+  }
+
+  /* Commentaire "actif" (bulle ouverte ou sélectionné dans la liste) : ses cadres, pastilles et lignes changent de couleur */
   var focusedId = null;
   function applyFocus(id, on) {
     var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
@@ -641,27 +719,6 @@
       els[i].classList.toggle('cm-focus-light', on && isDarkBehind(els[i]));
     }
   }
-  /* Juste après un enregistrement : le repère reste en teal un instant, puis repasse à l'orange
-     en douceur avec une onde — on voit ce qu'on vient de commenter. */
-  var savedTimer = null;
-  function flashSaved(id) {
-    clearTimeout(savedTimer);
-    applyFocus(id, true);
-    savedTimer = setTimeout(function () {
-      if (focusedId === id) return; // rouverte entre-temps : on la laisse en couleur "actif"
-      var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
-      for (var i = 0; i < els.length; i++) {
-        var el = els[i], light = el.classList.contains('cm-focus-light');
-        el.classList.remove('cm-focus', 'cm-focus-light');
-        if (el.classList.contains('cm-box-saved')) { el.classList.add(light ? 'cm-ola-light' : 'cm-ola'); }
-      }
-      setTimeout(function () {
-        var done = document.querySelectorAll('.cm-ola, .cm-ola-light');
-        for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
-      }, 2100);
-    }, 900);
-  }
-
   function setFocused(id) {
     if (focusedId && focusedId !== id) applyFocus(focusedId, false);
     focusedId = id || null;
@@ -1061,9 +1118,11 @@
       renderMarkers(); // encadré existant déplacé puis annulé : on le remet à sa place enregistrée
     }
     hideEditOutline();
+    var closedId = meta && meta.existing ? meta.existing.id : null;
     pendingPopup.remove();
     pendingPopup = null;
     setFocused(null);
+    if (closedId) flashSaved(closedId);
   }
 
   /* ---------- placement de la bulle : jamais par-dessus ce qu'elle commente ----------
@@ -1475,6 +1534,7 @@
       closePopup(true);
     }
     panel.classList.toggle('show', show);
+    if (!show && !pendingPopup) setFocused(null);
   };
 
   // Un clic en dehors du tiroir "Commentaires" le referme — et ne fait QUE ça : il ne crée pas

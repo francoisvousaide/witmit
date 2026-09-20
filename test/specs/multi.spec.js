@@ -91,7 +91,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
     await page.locator('.cm-panel-item .body').click();
-    await expect(page.locator('.cm-popup textarea')).toHaveValue('groupe');
+    await expect(page.locator('.cm-panel-item textarea')).toHaveValue('groupe');
     await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(2);
   });
 

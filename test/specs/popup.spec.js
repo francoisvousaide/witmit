@@ -120,6 +120,7 @@ test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', as
   await page.locator('#cmPanelBtn').click();
   await page.locator('.cm-panel-item .body').click();
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola-light/);
+  await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus-light/);
   await page.goto(H.fileUrl('tellus-accueil.html'));
   await H.clearStorage(page); await page.reload(); await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'clair');

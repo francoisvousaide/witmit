@@ -186,13 +186,19 @@ for (const P of PAGES) {
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
-      await expect(page.locator('.cm-popup textarea')).toHaveValue('Retrouve-moi'); // et la bulle s'ouvre
-      await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus/);   // cadre et pastille changent de couleur…
+      await expect(page.locator('.cm-popup')).toHaveCount(0);                // pas de bulle…
+      await expect(page.locator('.cm-panel-item textarea')).toHaveValue('Retrouve-moi'); // …on modifie dans la liste
+      await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus/);   // cadre et pastille en couleur active
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-panel-item')).toHaveClass(/cm-current/);  // l'item est marqué dans la liste
-      await page.keyboard.press('Escape');
-      await expect(page.locator('.cm-panel-item')).not.toHaveClass(/cm-current/);
-      await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);       // …jusqu'à la fermeture de la bulle
+      await page.locator('.cm-panel-item textarea').fill('Modifié depuis la liste');
+      await page.locator('.cm-panel-item textarea').press('Enter');
+      await expect(page.locator('.cm-panel-item .txt')).toHaveText('Modifié depuis la liste');
+      expect((await H.stored(page, P.key))[0].text).toBe('Modifié depuis la liste');
+      await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);           // toujours sélectionné
+      await page.locator('#cmPanel .cm-panel-head-row button').click();      // fermer le tiroir → fin de sélection
+      await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);
+      await page.locator('#cmPanelBtn').click();
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await page.waitForTimeout(400);
@@ -241,7 +247,13 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-panel-item').nth(1)).toHaveClass(/cm-current/);
       await expect(page.locator('.cm-panel-item').nth(0)).not.toHaveClass(/cm-current/);
       await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
-      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
+      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
+      // fermer une bulle existante par Échap déclenche aussi l'effet teal → orange
+      await page.locator('#cmPanel .cm-panel-head-row button').click();
+      await page.locator('.cm-pin').nth(0).click();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.cm-pin').nth(0)).toHaveClass(/cm-focus/);
+      await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
     });
 
     test('11b. ouvrir le tiroir abandonne une bulle non enregistrée', async ({ page }) => {
@@ -329,6 +341,7 @@ for (const P of PAGES) {
     test('16. couleurs : la pastille est orange même sans variables CSS TellUs', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
+      await page.waitForTimeout(1800); // laisse passer l'effet teal "vient d'être commenté"
       const pinBg = await page.locator('.cm-pin').evaluate((el) => getComputedStyle(el).backgroundColor);
       expect(pinBg).toBe('rgb(252, 128, 5)');
       await page.locator('.cm-pin').click();
