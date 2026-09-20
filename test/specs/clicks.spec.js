@@ -38,6 +38,25 @@ test.describe('Double et triple clic (Kiosque)', () => {
   });
 });
 
+test('clic simple : la bulle attend ~250 ms ; double-clic : aucune bulle intermédiaire', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  const b = await H.visibleBox(page, 'tbody tr:nth-child(1) td:nth-child(2)');
+  await page.mouse.click(b.x + 12, b.y + b.height / 2);
+  await page.waitForTimeout(80);
+  await expect(page.locator('.cm-popup')).toHaveCount(0);
+  await expect(page.locator('.cm-popup')).toBeVisible({ timeout: 1000 });
+  await page.keyboard.press('Escape');
+  const seen = [];
+  await page.exposeFunction('cmSeen', (t) => seen.push(t));
+  await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-zone'); if (z) window.cmSeen(z.textContent.slice(0, 2)); }).observe(document.body, { childList: true, subtree: true }));
+  await page.mouse.dblclick(b.x + 12, b.y + b.height / 2);
+  await expect(page.locator('.cm-popup .cm-zone')).toHaveText('✏️ « Boulangerie »');
+  await page.waitForTimeout(400);
+  expect(seen.filter((t) => t.startsWith('📍'))).toHaveLength(0);
+});
+
 // La bulle ne recouvre jamais ce qu'elle commente, quel que soit le type et la place à l'écran.
 function overlap(a, b) { return !(a.x + a.width <= b.x || a.x >= b.x + b.width || a.y + a.height <= b.y || a.y >= b.y + b.height); }
 

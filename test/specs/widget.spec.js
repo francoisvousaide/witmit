@@ -138,9 +138,9 @@ for (const P of PAGES) {
       await page.waitForTimeout(400); // le recalcul est différé de 150 ms
       const after = await page.locator(P.pinTarget).first().boundingBox();
       const pinAfter = await page.locator('.cm-pin').boundingBox();
-      // Point d'ancrage = coin haut-droit de l'élément visé, avant comme après.
-      const dxBefore = Math.abs((pinBefore.x + pinBefore.width) - (before.x + before.width));
-      const dxAfter = Math.abs((pinAfter.x + pinAfter.width) - (after.x + after.width));
+      // Point d'ancrage = coin haut-gauche de l'élément visé, avant comme après.
+      const dxBefore = Math.abs((pinBefore.x + pinBefore.width / 2) - before.x);
+      const dxAfter = Math.abs((pinAfter.x + pinAfter.width / 2) - after.x);
       expect(dxBefore).toBeLessThan(30);
       expect(dxAfter).toBeLessThan(30);
       expect(Math.abs(pinAfter.y - after.y)).toBeLessThan(30);
@@ -186,8 +186,10 @@ for (const P of PAGES) {
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
-      await page.mouse.click(30, 400); // clic en dehors → le bloc se referme
+      await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+      await page.waitForTimeout(400);
+      await expect(page.locator('.cm-popup')).toHaveCount(0); // …et ne crée rien (mode actif pourtant)
     });
 
     test('11. panneau : ouverture, liste, fermeture par clic extérieur, suppression ✕', async ({ page }) => {

@@ -250,6 +250,7 @@
   var STORAGE_KEY = 'annotate_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
+  var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
 
   var allComments = [];    // TOUTES les pages
   var active = false;
@@ -745,12 +746,13 @@
   }
 
   /* Point d'ancrage "coin" de l'élément visé plutôt que le pixel brut du clic — la pastille reste
-     ainsi visuellement rattachée à un repère fixe et prévisible de l'objet commenté. */
+     ainsi visuellement rattachée à un repère fixe et prévisible : le coin haut-gauche (comme pour
+     les encadrés et les surlignages). */
   function cornerAnchorPoint(el, fallbackX, fallbackY) {
     if (!el) return { x: fallbackX, y: fallbackY };
     var r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) return { x: fallbackX, y: fallbackY };
-    return { x: r.right + window.scrollX - 3, y: r.top + window.scrollY + 3 };
+    return { x: r.left + window.scrollX + 3, y: r.top + window.scrollY + 3 };
   }
 
   /* ---------- surlignage de texte (sélection robuste multi-nœuds) ---------- */
@@ -1073,6 +1075,7 @@
 
   function onMouseDown(e) {
     if (!active || inUi(e.target)) return;
+    if (swallowClick) { e.preventDefault(); dragging = false; return; } // ce clic a servi à fermer le tiroir
     e.preventDefault(); // on gère nous-mêmes le glisser — aucune sélection/drag natif ne doit démarrer
     var s = window.getSelection();
     if (s) s.removeAllRanges();
@@ -1121,6 +1124,7 @@
   }
 
   function onMouseUp(e) {
+    if (swallowClick) { swallowClick = false; dragging = false; return; }
     if (!active || !dragging) { dragging = false; return; }
     dragging = false;
     var s = window.getSelection();
@@ -1139,6 +1143,7 @@
     // Double-clic = le mot, triple-clic = le paragraphe (la sélection native étant coupée en mode
     // annotation, on calcule nous-mêmes les limites).
     if (e.detail === 2 || e.detail === 3) {
+      clearTimeout(clickTimer);
       if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
       var r = e.detail === 2 ? wordRangeAt(e.clientX, e.clientY) : blockRangeAt(e.target);
       if (r && r.toString().trim()) { openTextPopup(r, e); return; }
@@ -1162,8 +1167,12 @@
 
     if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
     if (e.detail > 3) return;
-    openPinPopup(e.target, e.pageX, e.pageY);
+    // On attend un court instant : si un double-clic suit, c'est lui qui gagne (pas de bulle intermédiaire).
+    var target = e.target, pX = e.pageX, pY = e.pageY;
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(function () { if (active) openPinPopup(target, pX, pY); }, CLICK_DELAY);
   }
+  var clickTimer = null;
 
   function openPinPopup(target, pageX, pageY) {
     var zone = detectZone(target);
@@ -1228,6 +1237,7 @@
     btn.querySelector('.cm-btn-off').style.display = active ? 'none' : 'inline';
     btn.querySelector('.cm-btn-on').style.display = active ? 'inline' : 'none';
     if (!active) {
+      clearTimeout(clickTimer);
       closePopup(true);
       if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
       dragging = false;
@@ -1241,13 +1251,16 @@
     panel.classList.toggle('show', show);
   };
 
-  // Un clic en dehors du tiroir "Commentaires" le referme.
+  // Un clic en dehors du tiroir "Commentaires" le referme — et ne fait QUE ça : il ne crée pas
+  // d'annotation (ce listener est enregistré avant onMouseDown, il passe donc en premier).
+  var swallowClick = false;
   document.addEventListener('mousedown', function (e) {
     var panel = document.getElementById('cmPanel');
     if (!panel || !panel.classList.contains('show')) return;
     if (panel.contains(e.target)) return;
     if (e.target.closest && e.target.closest('#cmPanelBtn')) return;
     cmTogglePanel(false);
+    swallowClick = active && !inUi(e.target);
   }, true);
 
   /* ---------- pastille d'état déplaçable (comme les panneaux des maquettes) ---------- */

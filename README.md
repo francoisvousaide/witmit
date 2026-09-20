@@ -13,7 +13,7 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 - `data-project` : nom du projet — sert de clé de stockage (partagée entre toutes les pages du projet) et de titre du rapport.
 - `data-email` : facultatif, destinataire du bouton « Envoyer ».
 - Si la page contient déjà des boutons `#cmToggleBtn` / `#cmPanelBtn` (maquettes TellUs), ils sont réutilisés ; sinon deux boutons flottants apparaissent en bas à droite.
-- Gestes en mode annotation : clic = élément · double-clic = mot · triple-clic = paragraphe · glisser = encadré (ajustable tant que sa bulle est ouverte) · Maj+glisser = sélection de texte précise.
+- Gestes en mode annotation : clic = élément (bulle après 250 ms, le temps d'un éventuel double-clic) · double-clic = mot · triple-clic = paragraphe · glisser = encadré (ajustable tant que sa bulle est ouverte) · Maj+glisser = sélection de texte précise.
 - Raccourci : `Alt+A` (Windows/Linux) · `⌥+A` (Mac) — ignoré pendant la saisie dans un champ. `Échap` annule la bulle ou quitte le mode.
 
 ## Développement
