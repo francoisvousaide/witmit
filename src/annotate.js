@@ -16,6 +16,8 @@
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
+    // data-drawer="overlay" : le tiroir recouvre la page au lieu de la pousser (par défaut : "push")
+    drawer: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-drawer')) === 'overlay' ? 'overlay' : 'push',
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
     multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
   };
@@ -1533,7 +1535,53 @@
     }
     panel.classList.toggle('show', show);
     if (!show && !pendingPopup) setFocused(null);
+    if (CONFIG.drawer === 'push') pushPage(show ? panel.offsetWidth : 0);
   };
+
+  /* ---------- le tiroir POUSSE la page au lieu de la recouvrir ----------
+     Une page ne peut pas rétrécir sa propre fenêtre (seule une extension de navigateur le peut) :
+     on donne à la page une marge droite de la largeur du tiroir, et on ajuste "au mieux" les
+     éléments que la page a fixés à l'écran (barre de navigation, boutons flottants), qui ignorent
+     les marges : les larges sont rétrécis, les petits ancrés à droite sont décalés. Tout est rétabli
+     à la fermeture. */
+  var pushedEls = []; // [{ el, cssText }] pour restaurer
+  var pushWidth = 0;
+  function pushPage(width) {
+    // 1) restaurer l'état précédent
+    pushedEls.forEach(function (r) { r.el.style.cssText = r.cssText; });
+    pushedEls = [];
+    pushWidth = width;
+    var root = document.documentElement;
+    var vw = root.clientWidth; // largeur de la fenêtre (la marge de <html> ne la change pas)
+    if (!root.style.transition) {
+      root.style.transition = 'margin-right 240ms ease';
+      root.addEventListener('transitionend', function (e) { if (e.propertyName === 'margin-right') renderMarkers(); });
+    }
+    root.style.marginRight = width ? width + 'px' : '';
+    if (!width) { setTimeout(renderMarkers, 260); return; }
+    // 2) éléments fixés à l'écran qui passeraient sous le tiroir
+    var all = document.body.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.closest('#cmPanel, #cmFrame, #cmPill, #cmStatus, #cmLinks, .cm-popup, .cm-pin, .cm-box')) continue;
+      var cs = getComputedStyle(el);
+      if (cs.position !== 'fixed' || cs.display === 'none') continue;
+      var r = el.getBoundingClientRect();
+      if (r.width === 0 || r.right <= vw - width) continue; // ne déborde pas sous le tiroir
+      pushedEls.push({ el: el, cssText: el.style.cssText });
+      if (r.width >= vw * 0.9) {
+        // élément pleine largeur (barre de navigation) : on le rétrécit
+        el.style.maxWidth = 'calc(100% - ' + width + 'px)';
+        if (cs.left === 'auto' && cs.right !== 'auto') el.style.right = (parseFloat(cs.right) + width) + 'px';
+      } else {
+        // petit élément ancré à droite (boutons flottants) : on le décale
+        var t = cs.transform && cs.transform !== 'none' ? cs.transform + ' ' : '';
+        el.style.transform = t + 'translateX(-' + width + 'px)';
+      }
+    }
+    setTimeout(renderMarkers, 260);
+  }
+  window.addEventListener('resize', function () { if (pushWidth) pushPage(pushWidth); });
 
   // Un clic en dehors du tiroir "Commentaires" le referme — et ne fait QUE ça : il ne crée pas
   // d'annotation (ce listener est enregistré avant onMouseDown, il passe donc en premier).
