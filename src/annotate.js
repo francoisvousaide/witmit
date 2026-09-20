@@ -16,6 +16,9 @@
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
+    // data-capture="false" : pas de capture d'écran des encadrés ; data-html2canvas="…" : autre adresse de la bibliothèque
+    capture: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-capture') || '')),
+    html2canvasUrl: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-html2canvas')) || 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
     // data-drawer="overlay" : le tiroir recouvre la page au lieu de la pousser (par défaut : "push")
     drawer: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-drawer')) === 'overlay' ? 'overlay' : 'push',
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
@@ -228,6 +231,10 @@
   .cm-panel-item .cm-st-resolu { color:var(--cm-text-muted); background:var(--cm-bg); }
   .cm-panel-item .cm-feedback { margin-top:5px; font-size:11.5px; line-height:1.4; color:var(--cm-text2); background:rgba(53,131,142,.08); border-left:2px solid var(--cm-teal); padding:4px 8px; border-radius:0 6px 6px 0; }
   .cm-panel-item .cm-feedback-q { background:rgba(245,166,35,.12); border-left-color:#E6A023; }
+  .cm-panel-item img.cm-shot { display:block; max-width:100%; max-height:110px; margin-top:6px; border:1px solid var(--cm-border2); border-radius:6px; cursor:zoom-in; background:#fff; }
+  .cm-lightbox { position:fixed; inset:0; z-index:990; background:rgba(0,0,0,.72); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; cursor:zoom-out; }
+  .cm-lightbox img { max-width:92vw; max-height:86vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.5); background:#fff; }
+  .cm-lightbox .cm-lightbox-hint { color:#fff; font-family:'League Spartan',sans-serif; font-size:12px; opacity:.8; }
   .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--cm-text2); padding-left:6px; }
   .cm-panel-item .cm-when { color:var(--cm-text-muted); font-size:10.5px; }
   .cm-panel-item .reopen { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
@@ -858,6 +865,7 @@
         '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
           '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
           '<div class="txt">' + cmEsc(c.text) + '</div>' +
+          (c.shot && c.shot.dataUrl ? '<img class="cm-shot" src="' + c.shot.dataUrl + '" alt="Capture" title="Voir la capture" onmousedown="event.stopPropagation()" onclick="cmShowShot(\'' + c.id + '\')">' : '') +
           (c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">↳ ' + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
           (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(c.complementMessage) + '</div>' : '') +
           (c.feedbackMessage && c.status !== 'complement' ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
@@ -1574,7 +1582,7 @@
           meta.existing.text = text;
           meta.existing.category = catSel.value;
           meta.existing.categoryManual = catTouched;
-          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; }
+          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; (function (ex, bx) { setTimeout(function () { captureFor(ex, bx); }, 60); })(meta.existing, meta.box); }
           if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
           if (desc || multi) { var prev = meta.existing.tech || {}; meta.existing.tech = captureTech(meta.existing); meta.existing.tech.date = prev.date || meta.existing.tech.date; meta.existing.tech.consoleErrors = prev.consoleErrors || []; }
           cmStatus('Commentaire modifié');
@@ -1597,6 +1605,7 @@
           c.tech = captureTech(c);
           allComments.push(c);
           cmStatus('Commentaire enregistré');
+          if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback); }, 60); }
         }
         persist(); renderMarkers(); renderList();
       } else if (!isEdit && meta.type === 'text' && meta.marks) {
@@ -2005,6 +2014,87 @@
     statusTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
   }
 
+  /* ---------- capture d'écran d'un encadré ----------
+     html2canvas (bibliothèque libre, MIT) est chargée UNIQUEMENT au premier encadré enregistré, jamais
+     avant. L'image est réduite (800 px max) et compressée en JPEG pour tenir dans le stockage local
+     (~5 Mo au total) ; au-delà d'un budget de 3 Mo d'images, les plus anciennes sont retirées (le ticket
+     reste, seule l'image part). Nos propres calques (cadres, pastilles…) sont exclus du rendu. */
+  var IMAGE_BUDGET = 3 * 1024 * 1024, IMAGE_MAX_W = 800;
+  var h2cPromise = null;
+  function loadHtml2canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (h2cPromise) return h2cPromise;
+    h2cPromise = new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = CONFIG.html2canvasUrl;
+      sc.onload = function () { window.html2canvas ? resolve(window.html2canvas) : reject(new Error('html2canvas absent')); };
+      sc.onerror = function () { h2cPromise = null; reject(new Error('chargement impossible')); };
+      document.head.appendChild(sc);
+    });
+    return h2cPromise;
+  }
+  function pageBackground() {
+    var cands = [document.body, document.documentElement];
+    for (var i = 0; i < cands.length; i++) {
+      var bg = getComputedStyle(cands[i]).backgroundColor;
+      if (bg && bg !== 'transparent' && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(bg)) return bg;
+    }
+    return '#ffffff';
+  }
+  function captureBox(box) {
+    return loadHtml2canvas().then(function (h2c) {
+      return h2c(document.body, {
+        x: box.x, y: box.y, width: Math.max(1, Math.round(box.w)), height: Math.max(1, Math.round(box.h)),
+        scale: Math.min(window.devicePixelRatio || 1, 2), useCORS: true, logging: false,
+        backgroundColor: pageBackground(), // le JPEG n'a pas de transparence : on prend le fond réel de la page
+        ignoreElements: function (el) { return !!(el.closest && el.closest('.cm-ui, mark.cm-highlight')); }
+      });
+    }).then(function (canvas) {
+      var ratio = Math.min(1, IMAGE_MAX_W / canvas.width);
+      var out = canvas;
+      if (ratio < 1) {
+        out = document.createElement('canvas');
+        out.width = Math.round(canvas.width * ratio); out.height = Math.round(canvas.height * ratio);
+        out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+      }
+      return { dataUrl: out.toDataURL('image/jpeg', 0.72), width: out.width, height: out.height };
+    });
+  }
+  function enforceImageBudget() {
+    var withShot = allComments.filter(function (c) { return c.shot && c.shot.dataUrl; })
+      .sort(function (a, b) { return (a.shot.at || a.date) < (b.shot.at || b.date) ? -1 : 1; });
+    var total = withShot.reduce(function (n, c) { return n + c.shot.dataUrl.length; }, 0);
+    while (total > IMAGE_BUDGET && withShot.length) {
+      var oldest = withShot.shift();
+      total -= oldest.shot.dataUrl.length;
+      oldest.shot = { dropped: true, at: oldest.shot.at };
+    }
+  }
+  function captureFor(c, box) {
+    if (!CONFIG.capture || !box) return;
+    cmStatus('Capture de la zone…');
+    captureBox(box).then(function (img) {
+      var live = findComment(c.id);
+      if (!live) return;
+      live.shot = { dataUrl: img.dataUrl, width: img.width, height: img.height, at: new Date().toISOString() };
+      enforceImageBudget();
+      persist(); renderList();
+      cmStatus('Capture enregistrée (' + Math.round(img.dataUrl.length / 1024) + ' Ko)');
+    }).catch(function (err) {
+      cmStatus('Capture impossible (' + (err && err.message || 'erreur') + ') — le commentaire est bien enregistré');
+    });
+  }
+  window.cmShowShot = function (id) {
+    var c = findComment(id);
+    if (!c || !c.shot || !c.shot.dataUrl) return;
+    var ov = document.createElement('div');
+    ov.className = 'cm-lightbox cm-ui';
+    ov.innerHTML = '<img alt="Capture de la zone commentée"><div class="cm-lightbox-hint">Cliquer pour fermer</div>';
+    ov.querySelector('img').src = c.shot.dataUrl;
+    ov.onclick = function () { ov.remove(); };
+    document.body.appendChild(ov);
+  };
+
   /* ---------- rapport : un fichier Markdown = texte lisible + bloc JSON par ticket ----------
      Périmètre par défaut « nouveautés » : tickets nouveaux + réponses aux compléments, toutes les
      pages du projet ouvertes dans ce navigateur. « Complet » : tout, tous statuts.
@@ -2035,7 +2125,8 @@
       cree_le: c.date, rapport: reportId,
       remplace_version_du: c.supersedes || undefined,
       reponses: c.replies && c.replies.length ? c.replies.map(function (r) { return { date: r.date, texte: r.text }; }) : undefined,
-      complement_demande: c.complementMessage || undefined
+      complement_demande: c.complementMessage || undefined,
+      capture: c.shot && c.shot.dataUrl ? 'image ci-dessus (' + c.shot.width + '×' + c.shot.height + ')' : undefined
     };
   }
   function buildReportMd(items, reportId, full) {
@@ -2064,6 +2155,7 @@
         if (c.complementMessage) { L.push('> ❔ Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '') + ' : ' + c.complementMessage); }
         (c.replies || []).forEach(function (r) { L.push('> ↳ Réponse du ' + frDate(r.date) + ' : ' + r.text); });
         if (c.complementMessage || (c.replies && c.replies.length)) L.push('');
+        if (c.shot && c.shot.dataUrl) { L.push('![Capture de la zone](' + c.shot.dataUrl + ')'); L.push(''); }
         L.push('```json');
         L.push(JSON.stringify(ticketJson(c, reportId), null, 2));
         L.push('```');

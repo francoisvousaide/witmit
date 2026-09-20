@@ -18,7 +18,7 @@ assert n == 1, "fragment HTML introuvable"
 html, n = re.subn(r"<script>\n/\* ===== MODULE COMMENTAIRES v1 — voir[^\n]*\n.*?</script>\n", "", html, count=1, flags=re.S)
 assert n == 1, "bloc JS introuvable"
 # 4) une seule ligne à la place
-tag = '<script src="%s" data-project="tellus"></script>\n</body>' % js_rel
+tag = '<script src="%s" data-project="tellus" data-html2canvas="../vendor/html2canvas.min.js"></script>\n</body>' % js_rel
 html, n = re.subn(r"</body>", tag, html, count=1)
 assert n == 1, "</body> introuvable"
 

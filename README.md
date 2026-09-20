@@ -36,6 +36,13 @@ nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte
 - **Retour** (📥 Coller un retour) : bloc texte, une ligne par ticket — `<id> pris_en_compte`, `<id> resolu | message`, `<id> complement | question`. Statuts tolérants (« pris en compte », « vu », « corrigé », « fait », « question »…). Historique conservé par ticket.
 - Le badge 📋 compte ce qu'il reste à traiter ; « Masquer les résolus » (mémorisé).
 
+## Capture d'écran (étape 5)
+
+- Chaque **encadré** enregistré reçoit une capture de la zone (bibliothèque libre `html2canvas`, chargée depuis jsDelivr **uniquement** au premier encadré, jamais avant). Image réduite à 800 px max, JPEG, nos calques exclus ; refaite si l'encadré est ajusté.
+- Vignette dans la liste (clic = plein écran), image embarquée dans le rapport `.md` et mentionnée dans le JSON.
+- Budget : 3 Mo d'images au total dans le stockage local ; au-delà, les plus anciennes sont retirées (le ticket reste).
+- `data-capture="false"` désactive ; `data-html2canvas="…"` pour une autre adresse (ex. copie locale, hors ligne).
+
 ## Développement
 
 ```bash
@@ -45,6 +52,7 @@ npm test               # suite Playwright (3 pages : 2 maquettes TellUs + 1 page
 ```
 
 - `src/annotate.js` — le widget (CSS + interface + logique dans un seul fichier).
+- `test/vendor/html2canvas.min.js` — copie locale de la bibliothèque, utilisée par les pages de test (pas de réseau pendant les tests).
 - `test/pages/` — pages de test. Les copies TellUs sont générées par `tools/strip-tellus-module.py` à partir des maquettes d'origine (jamais modifiées).
 - `archive/` — les 3 fichiers sources d'origine (référence, plus utilisés).
 - `CADRAGE-2026-09-18.md` — décisions produit (roadmap V1 → V4).
