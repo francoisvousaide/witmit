@@ -18,6 +18,11 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 - Gestes en mode annotation : clic = élément (bulle après 250 ms, le temps d'un éventuel double-clic) · ⌘/Ctrl+clic = ajoute un élément au commentaire en cours (sélection multiple : un cadre par élément, même numéro) · double-clic = mot · triple-clic = paragraphe · glisser = encadré (ajustable tant que sa bulle est ouverte) · Maj+glisser = sélection de texte précise.
 - Raccourci : `Alt+A` (Windows/Linux) · `⌥+A` (Mac) — ignoré pendant la saisie dans un champ. `Échap` annule la bulle ou quitte le mode.
 
+## Fiche d'un ticket (étape 2)
+
+- **Catégorie** proposée automatiquement d'après le texte, par règles de mots-clés locales (aucune IA, rien ne sort du navigateur) : bug visuel, bug fonctionnel, ajustement visuel, texte à changer, changement de comportement, suggestion, question, à classer (défaut). Modifiable dans la bulle ; un choix manuel n'est plus écrasé.
+- **Bloc technique** capturé à l'enregistrement : sélecteur(s) DOM de la ou des cibles, libellés, type, citation, page (sans paramètres d'URL), position relative, fenêtre, navigateur/OS, thème, 5 dernières erreurs console (vues depuis le chargement du script — placer la balise dans `<head>`), date. Visible dans la liste sous « détails techniques ».
+
 ## Développement
 
 ```bash

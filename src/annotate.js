@@ -181,6 +181,9 @@
   .cm-popup { position:absolute; z-index:950; width:260px; background:var(--cm-surface); border:1px solid var(--cm-border); border-radius:12px; box-shadow:var(--cm-shadow-lg); padding:12px; }
   .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:'League Spartan',sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-teal); margin-bottom:6px; max-height:48px; overflow-y:auto; }
   .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--cm-border); border-radius:8px; padding:8px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--cm-text); background:var(--cm-bg); margin-bottom:8px; box-sizing:border-box; }
+  .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 8px; }
+  .cm-popup .cm-cat { flex:1; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--cm-text); background:var(--cm-bg); border:1px solid var(--cm-border); border-radius:7px; padding:5px 6px; }
+  .cm-popup .cm-cat-auto { font-family:'League Spartan',sans-serif; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-text-muted); border:1px solid var(--cm-border); border-radius:10px; padding:2px 6px; }
   .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
   .cm-popup button { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; border-radius:7px; padding:6px 12px; border:none; cursor:pointer; }
   .cm-popup .cm-cancel { background:transparent; color:var(--cm-text-muted); }
@@ -206,6 +209,13 @@
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
   .cm-panel-item .zone { font-size:10.5px; color:var(--cm-teal); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
   .cm-panel-item textarea.cm-inline-edit { width:100%; box-sizing:border-box; resize:none; border:1px solid var(--cm-teal); border-radius:6px; padding:5px 6px; font-family:'DM Sans',sans-serif; font-size:12.5px; line-height:1.4; color:var(--cm-text); background:var(--cm-bg); }
+  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:5px; }
+  .cm-panel-item .cm-cat-chip { font-size:10.5px; color:var(--cm-text2); background:var(--cm-bg); border:1px solid var(--cm-border2); border-radius:10px; padding:1px 7px; white-space:nowrap; }
+  .cm-panel-item details.cm-tech { font-size:10.5px; color:var(--cm-text-muted); }
+  .cm-panel-item details.cm-tech summary { cursor:pointer; list-style:none; }
+  .cm-panel-item details.cm-tech summary::before { content:'▸ '; }
+  .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
+  .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--cm-bg); border-radius:6px; color:var(--cm-text2); max-height:160px; overflow:auto; }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
   .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
   .cm-panel-item .del:hover { color:var(--cm-orange); }
@@ -277,8 +287,126 @@
     }
   }
 
+  /* ---------- catégories : règles par mots-clés, 100 % locales (aucune IA, rien ne sort) ----------
+     La catégorie est proposée d'après le texte du commentaire et reste modifiable dans la bulle. */
+  var CATEGORIES = [
+    { key: 'bug-visuel',      icon: '🐞', label: 'Bug visuel',
+      words: ['casse', 'deborde', 'chevauche', 'decale', 'coupe', 'tronque', 'mal aligne', 'superpose', 'disparait', "ne s'affiche pas", 'ne s affiche pas', 'illisible', 'flou', 'pixelise', 'deforme', 'ecrase'] },
+    { key: 'bug-fonctionnel', icon: '⚙️', label: 'Bug fonctionnel',
+      words: ['ne marche pas', 'ne fonctionne pas', 'marche pas', 'fonctionne pas', 'erreur', 'plante', 'bloque', 'rien ne se passe', 'impossible de', 'ne repond pas', "ne s'enregistre pas", 'ne s enregistre pas', 'crash', 'boucle', 'bug', 'ne se charge pas', 'ne charge pas', 'pas a jour', 'rafraichi', 'actualise', 'perdu', 'vide'] },
+    { key: 'ajustement',      icon: '📐', label: 'Ajustement visuel',
+      words: ['trop grand', 'trop petit', 'trop large', 'trop etroit', 'trop haut', 'trop bas', 'plus grand', 'plus petit', 'plus large', 'plus etroit', 'agrandir', 'reduire', 'espace', 'marge', 'align', 'centr', 'couleur', 'police', 'gras', 'taille', 'contraste', 'arrondi', 'ombre', 'bordure', 'padding', 'largeur', 'hauteur'] },
+    { key: 'texte',           icon: '✏️', label: 'Texte à changer',
+      words: ['faute', 'orthographe', 'typo', 'reformuler', 'remplacer par', 'renommer', 'libelle', 'wording', 'majuscule', 'accent', 'traduire', 'traduction', 'ecrire', 'formulation', 'coquille', 'pluriel', 'singulier'] },
+    { key: 'comportement',    icon: '🔁', label: 'Changement de comportement',
+      words: ['devrait', 'plutot que', 'au lieu de', 'quand on clique', 'quand je clique', 'a la place', 'ordre', 'enchainement', 'rediriger', 'ouvrir', 'fermer', 'par defaut', 'automatiquement', 'desactiver', 'activer', 'trier', 'filtrer'] },
+    { key: 'suggestion',      icon: '💡', label: 'Suggestion',
+      words: ['il faudrait', 'ce serait bien', 'idee', 'ajouter', 'proposer', 'on pourrait', 'manque', 'et si', 'pourquoi pas', 'serait mieux', 'penser a', 'prevoir'] },
+    { key: 'question',        icon: '❓', label: 'Question',
+      words: ['pourquoi', 'comment', 'est-ce que', 'est ce que', "c'est quoi", 'c est quoi', 'a quoi sert', 'que se passe', 'quelle est', 'quel est', 'peut-on', 'peut on'] },
+    { key: 'a-classer',       icon: '🏷️', label: 'À classer', words: [] }
+  ];
+  function categoryOf(key) {
+    for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].key === key) return CATEGORIES[i];
+    return CATEGORIES[CATEGORIES.length - 1];
+  }
+  function normalizeText(t) {
+    return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’]/g, "'").replace(/\s+/g, ' ').trim();
+  }
+  function categorize(text) {
+    var t = normalizeText(text);
+    if (!t) return 'a-classer';
+    var scores = {}, best = null, bestScore = 0;
+    CATEGORIES.forEach(function (cat) {
+      var n = 0;
+      cat.words.forEach(function (w) { if (t.indexOf(w) >= 0) n++; });
+      scores[cat.key] = n;
+      if (n > bestScore) { bestScore = n; best = cat.key; } // à égalité : l'ordre du tableau (premier gagne)
+    });
+    // Une négation « ne … pas » / « n'… pas » sans autre indice = quelque chose ne fait pas ce qu'il devrait
+    if (bestScore === 0 && /\b(?:ne (?:se |s')?\w+ pas|n'\w+ pas)\b/.test(t)) { scores['bug-fonctionnel'] = 1; bestScore = 1; best = 'bug-fonctionnel'; }
+    // Le « ? » final ne vaut « question » que si aucun mot de bug / ajustement n'est présent
+    if (/\?\s*$/.test(t) && !scores['bug-visuel'] && !scores['bug-fonctionnel'] && !scores['ajustement']) {
+      if (!best || best === 'suggestion' || best === 'comportement' || best === 'texte') return 'question';
+    }
+    return best || 'a-classer';
+  }
+  window.cmCategorize = categorize; // exposé pour les tests
+
+  /* ---------- erreurs console récentes : mémorisées dès le chargement du script ----------
+     (le script est présent dès l'ouverture de la page, donc toutes les erreurs de la visite sont vues,
+     mode annotation activé ou non). On garde les 20 dernières, tronquées — jamais envoyées nulle part. */
+  var recentErrors = [];
+  function noteError(msg) {
+    recentErrors.push({ time: new Date().toISOString(), message: String(msg || '').slice(0, 200) });
+    if (recentErrors.length > 20) recentErrors.shift();
+  }
+  window.addEventListener('error', function (e) { noteError(e.message + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')); });
+  window.addEventListener('unhandledrejection', function (e) { noteError('Promesse rejetée : ' + (e.reason && (e.reason.message || e.reason))); });
+  (function () {
+    var orig = console.error;
+    console.error = function () {
+      try { noteError(Array.prototype.map.call(arguments, function (a) { return (a && a.message) || (typeof a === 'object' ? JSON.stringify(a) : String(a)); }).join(' ')); } catch (err) {}
+      return orig.apply(console, arguments);
+    };
+  })();
+
   function boot() {
   injectUI();
+
+  /* ---------- bloc technique d'un ticket : tout est calculé localement, rien de personnel ---------- */
+  function browserInfo() {
+    var ua = navigator.userAgent || '';
+    var name = 'Navigateur';
+    if (navigator.brave) name = 'Brave';
+    else if (navigator.userAgentData && navigator.userAgentData.brands) {
+      var brands = navigator.userAgentData.brands.map(function (b) { return b.brand; }).filter(function (b) { return !/Not.?A.?Brand/i.test(b); });
+      name = brands.filter(function (b) { return b !== 'Chromium'; })[0] || brands[0] || name;
+    } else if (/Firefox\//.test(ua)) name = 'Firefox';
+    else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) name = 'Safari';
+    else if (/Edg\//.test(ua)) name = 'Edge';
+    else if (/Chrome\//.test(ua)) name = 'Chrome';
+    var engine = (ua.match(/(Chrome|Firefox|Version)\/(\d+)/) || [])[0] || '';
+    var os = /Mac/i.test(navigator.platform) ? 'macOS' : /Win/i.test(navigator.platform) ? 'Windows' : /Linux/i.test(navigator.platform) ? 'Linux' : /iPhone|iPad/i.test(ua) ? 'iOS' : /Android/i.test(ua) ? 'Android' : '';
+    return { name: name, engine: engine, os: os };
+  }
+  function themeInfo() {
+    var explicit = document.documentElement.getAttribute('data-theme') || document.body.getAttribute('data-theme');
+    if (explicit) return explicit;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre (système)' : 'clair (système)';
+  }
+  function captureTech(c) {
+    var selectors = c.targets ? c.targets.map(function (t) { return t.path; }) : (c.anchor && c.anchor.path ? [c.anchor.path] : []);
+    var labels = c.targets ? c.targets.map(function (t) { return t.label; }) : [c.zone];
+    var b = browserInfo();
+    return {
+      selectors: selectors,
+      labels: labels,
+      type: c.type === 'box' ? 'encadré' : c.type === 'text' ? 'texte' : (c.targets ? 'groupe' : 'clic'),
+      quote: c.quote || undefined,
+      position: c.anchor ? { relX: +(c.anchor.relX || 0).toFixed(3), relY: +(c.anchor.relY || 0).toFixed(3), relW: c.anchor.relW !== undefined ? +c.anchor.relW.toFixed(3) : undefined, relH: c.anchor.relH !== undefined ? +c.anchor.relH.toFixed(3) : undefined } : undefined,
+      page: { file: PAGE_FILE, title: PAGE_TITLE, path: location.pathname }, // pas de paramètres d'URL (peuvent contenir des données)
+      viewport: { width: window.innerWidth, height: window.innerHeight, scrollX: Math.round(window.scrollX), scrollY: Math.round(window.scrollY), pixelRatio: window.devicePixelRatio || 1 },
+      browser: b.name + (b.engine ? ' (' + b.engine + ')' : ''), os: b.os,
+      theme: themeInfo(),
+      consoleErrors: recentErrors.slice(-5),
+      date: new Date().toISOString()
+    };
+  }
+  function techSummary(tech) {
+    if (!tech) return '';
+    var lines = [];
+    (tech.selectors || []).forEach(function (sel, i) { lines.push((tech.selectors.length > 1 ? 'cible ' + (i + 1) + ' : ' : 'cible : ') + sel); });
+    if (tech.quote) lines.push('citation : « ' + tech.quote + ' »');
+    lines.push('page : ' + tech.page.file + (tech.page.title ? ' — ' + tech.page.title : ''));
+    lines.push('fenêtre : ' + tech.viewport.width + '×' + tech.viewport.height + (tech.viewport.pixelRatio !== 1 ? ' @' + tech.viewport.pixelRatio + 'x' : '') + ' · ' + tech.browser + (tech.os ? ' · ' + tech.os : '') + ' · thème ' + tech.theme);
+    if (tech.consoleErrors && tech.consoleErrors.length) {
+      lines.push('erreurs console (' + tech.consoleErrors.length + ') :');
+      tech.consoleErrors.forEach(function (e) { lines.push('  ' + e.time.slice(11, 19) + ' ' + e.message); });
+    }
+    return lines.join('\n');
+  }
+
   var PAGE_FILE = (location.pathname.split('/').pop() || document.title || 'page').toLowerCase();
   var PAGE_TITLE = document.title || PAGE_FILE;
   var STORAGE_KEY = 'annotate_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
@@ -609,7 +737,12 @@
     pc.forEach(function (c, i) {
       html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + '" data-id="' + c.id + '">' +
         '<div class="num">' + (i + 1) + '</div>' +
-        '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici"><div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
+        '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
+          '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
+          '<div class="txt">' + cmEsc(c.text) + '</div>' +
+          '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
+          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
+          '</div></div>' +
         '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
         '</div>';
     });
@@ -1201,6 +1334,9 @@
       '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
       '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
       (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea>' +
+      '<div class="cm-cat-row"><select class="cm-cat" title="Catégorie (proposée d’après le texte, modifiable)">' +
+      CATEGORIES.map(function (cat) { return '<option value="' + cat.key + '">' + cat.icon + ' ' + cat.label + '</option>'; }).join('') +
+      '</select><span class="cm-cat-auto">auto</span></div>' +
       '<div class="cm-popup-actions">' +
       (isEdit ? '<button class="cm-delete" title="Supprimer ce commentaire">🗑</button>' : '') +
       '<button class="cm-cancel">Annuler</button><button class="cm-save">Enregistrer</button></div>';
@@ -1211,6 +1347,15 @@
     var ta = pop.querySelector('textarea');
     ta.focus();
     if (isEdit) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); }
+
+    // Catégorie : proposée automatiquement pendant la frappe, tant que l'utilisateur ne l'a pas choisie lui-même
+    var catSel = pop.querySelector('.cm-cat'), catAuto = pop.querySelector('.cm-cat-auto');
+    var catTouched = !!(isEdit && meta.existing.categoryManual);
+    catSel.value = isEdit && meta.existing.category ? meta.existing.category : categorize(ta.value);
+    catAuto.style.display = catTouched ? 'none' : '';
+    ta.addEventListener('input', function () { if (!catTouched) catSel.value = categorize(ta.value); });
+    catSel.addEventListener('change', function () { catTouched = true; catAuto.style.display = 'none'; });
+    catSel.addEventListener('mousedown', function (e) { e.stopPropagation(); });
 
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1251,8 +1396,11 @@
         if (isEdit) {
           savedId = meta.existing.id;
           meta.existing.text = text;
+          meta.existing.category = catSel.value;
+          meta.existing.categoryManual = catTouched;
           if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; }
           if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
+          if (desc || multi) { var prev = meta.existing.tech || {}; meta.existing.tech = captureTech(meta.existing); meta.existing.tech.date = prev.date || meta.existing.tech.date; meta.existing.tech.consoleErrors = prev.consoleErrors || []; }
           cmStatus('Commentaire modifié');
         } else {
           var id = uid();
@@ -1268,6 +1416,9 @@
             if (multi) { c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
             if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
           }
+          c.category = catSel.value;
+          c.categoryManual = catTouched;
+          c.tech = captureTech(c);
           allComments.push(c);
           cmStatus('Commentaire enregistré');
         }
@@ -1699,7 +1850,7 @@
       lines.push('=== ' + grp.title + ' (' + page + ') ===');
       grp.items.forEach(function (c) {
         n++;
-        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + ']');
+        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + '] — ' + categoryOf(c.category).label);
         lines.push(c.text);
         lines.push('');
       });
