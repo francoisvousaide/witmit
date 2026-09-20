@@ -183,9 +183,11 @@ for (const P of PAGES) {
       await page.locator('#cmPanelBtn').click();
       await page.locator('.cm-panel-item .body').click();
       await expect(page.locator('body')).toHaveClass(/cm-active/);
-      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+      await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
-      await expect(page.locator('.cm-pin')).toHaveClass(/cm-flash/);
+      await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
+      await page.mouse.click(30, 400); // clic en dehors → le bloc se referme
+      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
     });
 
     test('11. panneau : ouverture, liste, fermeture par clic extérieur, suppression ✕', async ({ page }) => {

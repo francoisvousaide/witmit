@@ -120,22 +120,26 @@
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
   body .cm-box.cm-box-editable { cursor:move; }
   .cm-handle { position:absolute; box-sizing:border-box; }
-  /* coins : petits points ronds discrets */
-  .cm-handle-nw, .cm-handle-ne, .cm-handle-se, .cm-handle-sw { width:9px; height:9px; border-radius:50%; background:#fff; border:1.5px solid var(--cm-orange); box-shadow:0 1px 3px rgba(0,0,0,.25); opacity:.85; }
-  .cm-box-editable:hover .cm-handle { opacity:1; }
+  /* Seul repère visible : le petit grip à deux traits de l'angle bas-droit (comme celui d'une zone de texte) */
+  .cm-handle-se { width:14px; height:14px; right:1px; bottom:1px;
+    background: linear-gradient(135deg, transparent 0 55%, var(--cm-orange) 55% 62%, transparent 62% 76%, var(--cm-orange) 76% 83%, transparent 83%); opacity:.9; }
+  /* Autres coins : invisibles, saisissables ; de petits points apparaissent au survol de l'encadré */
+  .cm-handle-nw, .cm-handle-ne, .cm-handle-sw { width:10px; height:10px; }
+  .cm-handle-nw::after, .cm-handle-ne::after, .cm-handle-sw::after { content:''; position:absolute; inset:2px; border-radius:50%; background:var(--cm-orange); opacity:0; transition:opacity 150ms; }
+  .cm-box-editable:hover .cm-handle-nw::after, .cm-box-editable:hover .cm-handle-ne::after, .cm-box-editable:hover .cm-handle-sw::after { opacity:.7; }
   /* côtés : zones de saisie invisibles (le curseur change) */
   .cm-handle-n, .cm-handle-s { left:8px; right:8px; height:8px; }
   .cm-handle-e, .cm-handle-w { top:8px; bottom:8px; width:8px; }
-  body .cm-ui .cm-handle-nw { left:-5px; top:-5px; cursor:nwse-resize; } body .cm-ui .cm-handle-se { right:-5px; bottom:-5px; cursor:nwse-resize; }
+  body .cm-ui .cm-handle-nw { left:-5px; top:-5px; cursor:nwse-resize; } body .cm-ui .cm-handle-se { cursor:nwse-resize; }
   body .cm-ui .cm-handle-ne { right:-5px; top:-5px; cursor:nesw-resize; } body .cm-ui .cm-handle-sw { left:-5px; bottom:-5px; cursor:nesw-resize; }
   body .cm-ui .cm-handle-n { top:-4px; cursor:ns-resize; } body .cm-ui .cm-handle-s { bottom:-4px; cursor:ns-resize; }
   body .cm-ui .cm-handle-w { left:-4px; cursor:ew-resize; } body .cm-ui .cm-handle-e { right:-4px; cursor:ew-resize; }
   /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
   body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved { display:none; }
   body:not(.cm-active) mark.cm-highlight { background:transparent; }
-  /* Clignotement quand on cherche un commentaire depuis la liste */
-  .cm-flash { animation: cmFlash .4s ease-in-out 4; }
-  @keyframes cmFlash { 50% { filter:brightness(1.6); box-shadow:0 0 0 6px rgba(252,128,5,.45); } }
+  /* Onde douce autour du cadre quand on cherche un commentaire depuis la liste */
+  .cm-ola { animation: cmOla 1s ease-out 2; }
+  @keyframes cmOla { 0% { box-shadow:0 0 0 0 rgba(252,128,5,.55); } 100% { box-shadow:0 0 0 18px rgba(252,128,5,0); } }
   /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
      Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
      en cours de saisie est rattaché. */
@@ -516,18 +520,20 @@
   /* Clic sur un commentaire de la liste : on active le mode (les repères ne sont visibles qu'en mode
      annotation), on fait défiler jusqu'au repère et on le fait clignoter pour le retrouver d'un coup d'œil. */
   window.cmFocus = function (id) {
-    cmTogglePanel(false);
     if (!active) cmToggle(true);
     renderMarkers();
-    var targets = document.querySelectorAll('.cm-pin[data-id="' + id + '"], .cm-box-saved[data-id="' + id + '"]');
-    if (!targets.length) { cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)'); return; }
-    targets[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
-    for (var i = 0; i < targets.length; i++) {
-      (function (el) {
-        el.classList.add('cm-flash');
-        setTimeout(function () { el.classList.remove('cm-flash'); }, 1600);
-      })(targets[i]);
-    }
+    var frame = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
+    var targets = frame ? [frame] : (sessionMarks[id] || []);
+    var pin = document.querySelector('.cm-pin[data-id="' + id + '"]');
+    var scrollEl = targets[0] || pin;
+    if (!scrollEl) { cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)'); return; }
+    scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    targets.forEach(function (el) {
+      el.classList.remove('cm-ola');
+      void el.offsetWidth; // relance l'animation si on reclique
+      el.classList.add('cm-ola');
+      setTimeout(function () { el.classList.remove('cm-ola'); }, 2100);
+    });
   };
 
   window.cmDeleteById = function (id) {
