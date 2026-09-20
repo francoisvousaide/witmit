@@ -14,7 +14,6 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 - `data-email` : facultatif, destinataire du bouton « Envoyer ».
 - Si la page contient déjà des boutons `#cmToggleBtn` / `#cmPanelBtn` (maquettes TellUs), ils sont réutilisés ; sinon deux boutons flottants apparaissent en bas à droite.
 - Gestes en mode annotation : clic = élément · double-clic = mot · triple-clic = paragraphe · glisser = encadré (ajustable tant que sa bulle est ouverte) · Maj+glisser = sélection de texte précise.
-- `data-click-delay="250"` (essai) : attend un éventuel double-clic avant d'ouvrir la bulle du clic simple.
 - Raccourci : `Alt+A` (Windows/Linux) · `⌥+A` (Mac) — ignoré pendant la saisie dans un champ. `Échap` annule la bulle ou quitte le mode.
 
 ## Développement

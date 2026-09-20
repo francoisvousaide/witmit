@@ -15,9 +15,7 @@
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
-    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
-    // data-click-delay="250" : attendre un éventuel double-clic avant d'ouvrir la bulle du clic simple (essai)
-    clickDelay: parseInt((SCRIPT_EL && SCRIPT_EL.getAttribute('data-click-delay')) || '0', 10) || 0
+    email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || ''
   };
 
   var CSS = `
@@ -252,7 +250,6 @@
   var STORAGE_KEY = 'annotate_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
-  var CLICK_DELAY = CONFIG.clickDelay;
 
   var allComments = [];    // TOUTES les pages
   var active = false;
@@ -446,6 +443,7 @@
         var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
         var editPt = computeAbsolutePoint(c.anchor, c.fallback);
         var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
+        if (c.type === 'text' && sessionMarks[c.id]) { editMeta.marks = sessionMarks[c.id]; editMeta.outlineEl = null; }
         if (c.type === 'box') {
           editMeta.boxEl = document.querySelector('.cm-box-saved[data-id="' + c.id + '"]');
           editMeta.box = computeAbsoluteBox(c.anchor, c.fallback);
@@ -905,6 +903,54 @@
     pendingPopup = null;
   }
 
+  /* ---------- placement de la bulle : jamais par-dessus ce qu'elle commente ----------
+     On essaie dans l'ordre : sous la cible, au-dessus (en laissant la place à la pastille), à droite,
+     à gauche — première position qui tient dans l'écran sans chevaucher la cible. */
+  function rectOf(el) {
+    var r = el.getBoundingClientRect();
+    return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height };
+  }
+  function unionRect(els) {
+    var R = null;
+    for (var i = 0; i < els.length; i++) {
+      var r = rectOf(els[i]);
+      if (r.w === 0 && r.h === 0) continue;
+      if (!R) { R = r; continue; }
+      var x2 = Math.max(R.x + R.w, r.x + r.w), y2 = Math.max(R.y + R.h, r.y + r.h);
+      R.x = Math.min(R.x, r.x); R.y = Math.min(R.y, r.y); R.w = x2 - R.x; R.h = y2 - R.y;
+    }
+    return R;
+  }
+  function targetRectOf(meta) {
+    if (!meta) return null;
+    if (meta.type === 'box' && meta.box) return meta.box;
+    if (meta.marks && meta.marks.length) return unionRect(meta.marks);
+    if (meta.outlineEl) return rectOf(meta.outlineEl);
+    return null;
+  }
+  function placePopup(pop, R, fallbackX, fallbackY) {
+    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 28;
+    var vx = window.scrollX, vy = window.scrollY;
+    var vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    function clampX(x) { return Math.max(vx + 8, Math.min(x, vx + vw - W - 8)); }
+    function apply(x, y) { pop.style.left = x + 'px'; pop.style.top = y + 'px'; }
+    if (!R) { apply(clampX(fallbackX), fallbackY + 10); return; }
+    var cands = [
+      { x: R.x, y: R.y + R.h + gap },
+      { x: R.x, y: R.y - Hh - gap - pinRoom },
+      { x: R.x + R.w + gap, y: R.y },
+      { x: R.x - W - gap, y: R.y }
+    ];
+    for (var i = 0; i < cands.length; i++) {
+      var x = clampX(cands[i].x), y = cands[i].y;
+      if (y < vy + 8 || y + Hh > vy + vh - 8) continue;
+      var overlaps = !(x + W <= R.x || x >= R.x + R.w || y + Hh <= R.y || y >= R.y + R.h);
+      if (!overlaps) { apply(x, y); return; }
+    }
+    apply(clampX(R.x), R.y + R.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
+    pop.scrollIntoView({ block: 'nearest' });
+  }
+
   /* La bulle se déplace en la prenant par son bandeau (le libellé de zone). */
   function makePopupDraggable(pop, handle) {
     handle.title = 'Glisser pour déplacer la bulle';
@@ -927,9 +973,6 @@
     if (meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
     var pop = document.createElement('div');
     pop.className = 'cm-popup cm-ui';
-    var left = Math.max(10, Math.min(x, window.scrollX + document.documentElement.clientWidth - 280));
-    pop.style.left = left + 'px';
-    pop.style.top = (y + 10) + 'px';
     pop.innerHTML =
       '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
       '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
@@ -938,6 +981,7 @@
       (isEdit ? '<button class="cm-delete" title="Supprimer ce commentaire">🗑</button>' : '') +
       '<button class="cm-cancel">Annuler</button><button class="cm-save">Enregistrer</button></div>';
     document.body.appendChild(pop);
+    placePopup(pop, targetRectOf(meta), x, y);
     pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-zone'));
     var ta = pop.querySelector('textarea');
@@ -1095,7 +1139,6 @@
     // Double-clic = le mot, triple-clic = le paragraphe (la sélection native étant coupée en mode
     // annotation, on calcule nous-mêmes les limites).
     if (e.detail === 2 || e.detail === 3) {
-      clearTimeout(clickTimer);
       if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
       var r = e.detail === 2 ? wordRangeAt(e.clientX, e.clientY) : blockRangeAt(e.target);
       if (r && r.toString().trim()) { openTextPopup(r, e); return; }
@@ -1119,17 +1162,8 @@
 
     if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
     if (e.detail > 3) return;
-    var target = e.target, pX = e.pageX, pY = e.pageY;
-    if (CLICK_DELAY > 0) {
-      // Variante "on attend un éventuel double-clic" avant d'ouvrir la bulle du clic simple
-      clearTimeout(clickTimer);
-      clickTimer = setTimeout(function () { openPinPopup(target, pX, pY); }, CLICK_DELAY);
-    } else {
-      openPinPopup(target, pX, pY);
-    }
+    openPinPopup(e.target, e.pageX, e.pageY);
   }
-
-  var clickTimer = null;
 
   function openPinPopup(target, pageX, pageY) {
     var zone = detectZone(target);

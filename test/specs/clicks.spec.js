@@ -38,24 +38,55 @@ test.describe('Double et triple clic (Kiosque)', () => {
   });
 });
 
-test.describe('Variante délai 250 ms', () => {
-  test('clic simple : la bulle attend ~250 ms ; double-clic : pas de bulle intermédiaire', async ({ page }) => {
-    await page.goto(H.fileUrl('generic-dashboard-delai250.html'));
+// La bulle ne recouvre jamais ce qu'elle commente, quel que soit le type et la place à l'écran.
+function overlap(a, b) { return !(a.x + a.width <= b.x || a.x >= b.x + b.width || a.y + a.height <= b.y || a.y >= b.y + b.height); }
+
+test.describe('Placement de la bulle (Kiosque)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(H.fileUrl('generic-dashboard.html'));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
-    const b = await H.visibleBox(page, 'tbody tr:nth-child(1) td:nth-child(2)');
-    await page.mouse.click(b.x + 12, b.y + b.height / 2);
-    await page.waitForTimeout(80);
-    await expect(page.locator('.cm-popup')).toHaveCount(0);
-    await expect(page.locator('.cm-popup')).toBeVisible({ timeout: 1000 });
-    await page.keyboard.press('Escape');
-    // double-clic : on surveille qu'aucune bulle "📍" n'apparaisse avant la bulle "✏️"
-    const seen = [];
-    await page.exposeFunction('cmSeen', (t) => seen.push(t));
-    await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-zone'); if (z) window.cmSeen(z.textContent.slice(0, 2)); }).observe(document.body, { childList: true, subtree: true }));
+  });
+
+  test('texte sélectionné : la bulle est à côté du surlignage, pas dessus', async ({ page }) => {
+    const b = await H.visibleBox(page, 'tbody tr:first-child td:nth-child(2)');
     await page.mouse.dblclick(b.x + 12, b.y + b.height / 2);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('✏️ « Boulangerie »');
-    await page.waitForTimeout(400);
-    expect(seen.filter((t) => t.startsWith('📍'))).toHaveLength(0);
+    const mark = await page.locator('mark.cm-highlight').boundingBox();
+    const pop = await page.locator('.cm-popup').boundingBox();
+    expect(overlap(pop, mark)).toBe(false);
+    expect(pop.y).toBeGreaterThan(mark.y + mark.height); // ici : dessous
+  });
+
+  test('clic sur un élément : la bulle ne recouvre pas son cadre', async ({ page }) => {
+    const b = await H.visibleBox(page, '.kpi-tile:nth-child(2) .kpi-value');
+    await page.mouse.click(b.x + 5, b.y + 5);
+    const frame = await page.locator('.cm-box-editing').boundingBox();
+    const pop = await page.locator('.cm-popup').boundingBox();
+    expect(overlap(pop, frame)).toBe(false);
+  });
+
+  test('encadré : la bulle ne recouvre pas l’encadré, réouverture comprise', async ({ page }) => {
+    const t = await H.visibleBox(page, '.kpi-tile:nth-child(3)');
+    await H.drag(page, t.x - 4, t.y - 4, t.x + t.width + 4, t.y + t.height + 4);
+    let box = await page.locator('.cm-box-editable').boundingBox();
+    let pop = await page.locator('.cm-popup').boundingBox();
+    expect(overlap(pop, box)).toBe(false);
+    await page.locator('.cm-popup textarea').fill('x');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await page.locator('.cm-pin').click();
+    box = await page.locator('.cm-box-editable').boundingBox();
+    pop = await page.locator('.cm-popup').boundingBox();
+    expect(overlap(pop, box)).toBe(false);
+  });
+
+  test('cible en bas de l’écran : la bulle passe au-dessus et reste visible', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 520 });
+    const b = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)'); // dernière ligne, près du bas
+    await page.mouse.click(b.x + 5, b.y + 5);
+    const frame = await page.locator('.cm-box-editing').boundingBox();
+    const pop = await page.locator('.cm-popup').boundingBox();
+    expect(overlap(pop, frame)).toBe(false);
+    expect(pop.y + pop.height).toBeLessThanOrEqual(520);
+    expect(pop.y).toBeGreaterThanOrEqual(0);
   });
 });
