@@ -37,7 +37,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     expect(data[0].zone).toBe('3 éléments — 1 240 €, 37, En retard');
     expect(data[0].targets).toHaveLength(3);
     expect(data[0].targets[2].label).toBe('En retard');
-    await expect(page.locator('#cmLinks')).toHaveCount(0); // lignes : option non activée
+    await expect(page.locator('#cmLinks line')).toHaveCount(2); // lignes fines par défaut
   });
 
   test('⌘/Ctrl+clic sur un élément déjà sélectionné le retire ; on ne peut pas retirer le dernier', async ({ page }) => {
@@ -102,8 +102,8 @@ test.describe('Sélection multiple (Kiosque)', () => {
   });
 });
 
-test('option data-multi-lines : lignes fines entre les pastilles du groupe', async ({ page }) => {
-  await page.goto(H.fileUrl('generic-dashboard-lines.html'));
+test('data-multi-lines="false" : pas de lignes', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard-nolines.html'));
   await H.clearStorage(page);
   await page.reload(); await H.activate(page);
   const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
@@ -112,7 +112,6 @@ test('option data-multi-lines : lignes fines entre les pastilles du groupe', asy
   await shiftClick(page, '.kpi-tile:nth-child(3) .kpi-value');
   await page.locator('.cm-popup textarea').fill('g');
   await page.locator('.cm-popup textarea').press('Enter');
-  await expect(page.locator('#cmLinks line')).toHaveCount(1);
-  await H.deactivate(page);
-  await expect(page.locator('#cmLinks')).toBeHidden();
+  await expect(page.locator('.cm-pin')).toHaveCount(2);
+  await expect(page.locator('#cmLinks')).toHaveCount(0);
 });

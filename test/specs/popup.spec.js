@@ -111,3 +111,30 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await expect(page.locator('body')).toHaveClass(/cm-active/);
   });
 });
+
+test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload(); await H.activate(page);
+  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'sombre');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await page.locator('.cm-panel-item .body').click();
+  await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola-light/);
+  await page.goto(H.fileUrl('tellus-accueil.html'));
+  await H.clearStorage(page); await page.reload(); await H.activate(page);
+  await H.addPin(page, '.mcard.active .mcard-title', 'clair');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await page.locator('.cm-panel-item .body').click();
+  await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola(?!-light)/);
+});
+
+test('curseurs : main ouverte sur la poignée de la barre, flèche ailleurs, pointeur sur les boutons', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.activate(page);
+  const cur = (sel) => page.locator(sel).evaluate((el) => getComputedStyle(el).cursor);
+  expect(await cur('#cmPill .cm-drag-handle')).toBe('grab');
+  expect(await cur('#cmPill')).toBe('default');
+  expect(await cur('#cmPill button')).toBe('pointer');
+  expect(await cur('#cmToggleBtn')).toBe('pointer');
+});

@@ -186,6 +186,8 @@ for (const P of PAGES) {
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
+      await expect(page.locator('.cm-popup textarea')).toHaveValue('Retrouve-moi'); // et la bulle s'ouvre
+      await page.keyboard.press('Escape');
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await page.waitForTimeout(400);

@@ -16,8 +16,8 @@
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
-    // data-multi-lines="true" : relier par des lignes fines les éléments d'une sélection multiple
-    multiLines: !!(SCRIPT_EL && /^(true|1|oui)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
+    // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
+    multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
   };
 
   var CSS = `
@@ -53,7 +53,13 @@
   .cm-toggle-btn .cm-count-badge:empty, .cm-toggle-btn .cm-count-badge[data-zero="1"] { display:none; }
 
   body.cm-active { cursor: crosshair; }
-  body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: auto; }
+  body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: default; }
+  /* Curseurs de notre interface (la règle générique ci-dessus les neutraliserait) */
+  body.cm-active .cm-ui button, body.cm-active .cm-pin, body.cm-active .cm-panel-item .body, body.cm-active .cm-panel-item .del { cursor:pointer; }
+  body.cm-active .cm-popup .cm-zone { cursor:move; }
+  body.cm-active .cm-popup textarea { cursor:text; }
+  body .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
+  body .cm-pill.cm-dragging, body .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
   /* Cadre "vignette" — fort sur le bord, dégradé vers l'intérieur sur une distance fixe (même esprit que
      l'indicateur de contrôle de Claude in Chrome). Zéro impact sur la mise en page : position:fixed +
@@ -101,9 +107,9 @@
 
   /* Pastille d'état — flotte sous la navbar par défaut, ne la recouvre jamais, et peut être
      déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture. */
-  .cm-pill { position:fixed; top:calc(var(--cm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--cm-orange); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--cm-shadow-lg); white-space:nowrap; cursor:grab; touch-action:none; }
+  .cm-pill { position:fixed; top:calc(var(--cm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--cm-orange); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--cm-shadow-lg); white-space:nowrap; cursor:default; touch-action:none; }
   .cm-pill.show { display:flex; }
-  .cm-pill.cm-dragging { cursor:grabbing; box-shadow:var(--cm-shadow-lg), 0 0 0 2px rgba(255,255,255,.5); }
+  .cm-pill.cm-dragging { box-shadow:var(--cm-shadow-lg), 0 0 0 2px rgba(255,255,255,.5); }
   .cm-pill .cm-drag-handle { font-size:14px; opacity:.65; line-height:1; }
   .cm-pill button { font-family:'League Spartan',sans-serif; font-weight:700; font-size:11.5px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.55); color:#fff; border-radius:50px; padding:5px 12px; cursor:pointer; }
   .cm-pill button:hover { background:rgba(255,255,255,.34); }
@@ -115,6 +121,7 @@
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
   .cm-box-saved.cm-glow { box-shadow:0 0 0 3px rgba(252,128,5,.35); }
+  .cm-box-saved.cm-glow.cm-glow-light { box-shadow:0 0 0 3px rgba(255,255,255,.45); }
   .cm-pin.cm-glow { filter:brightness(1.12); }
   #cmLinks { position:absolute; left:0; top:0; pointer-events:none; z-index:835; overflow:visible; }
   #cmLinks line { stroke:var(--cm-orange, #FC8005); stroke-width:1; stroke-dasharray:3 3; opacity:.7; }
@@ -148,6 +155,8 @@
   /* Onde douce autour du cadre quand on cherche un commentaire depuis la liste */
   .cm-ola { animation: cmOla 1s ease-out 2; }
   @keyframes cmOla { 0% { box-shadow:0 0 0 0 rgba(252,128,5,.55); } 100% { box-shadow:0 0 0 18px rgba(252,128,5,0); } }
+  .cm-ola-light { animation: cmOlaLight 1s ease-out 2; } /* sur fond sombre : onde blanche */
+  @keyframes cmOlaLight { 0% { box-shadow:0 0 0 0 rgba(255,255,255,.7); } 100% { box-shadow:0 0 0 18px rgba(255,255,255,0); } }
   /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
      Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
      en cours de saisie est rattaché. */
@@ -505,7 +514,10 @@
   }
   function glow(id, on) {
     var frames = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"]');
-    for (var i = 0; i < frames.length; i++) frames[i].classList.toggle('cm-glow', on);
+    for (var i = 0; i < frames.length; i++) {
+      frames[i].classList.toggle('cm-glow', on);
+      frames[i].classList.toggle('cm-glow-light', on && isDarkBehind(frames[i]));
+    }
   }
   /* Ligne fine pointillée entre la pastille principale et une pastille secondaire (option data-multi-lines) */
   function drawLink(a, b, id) {
@@ -594,13 +606,30 @@
     var scrollEl = targets[0] || pin;
     if (!scrollEl) { cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)'); return; }
     scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    var olaClass = isDarkBehind(scrollEl) ? 'cm-ola-light' : 'cm-ola'; // onde claire sur fond sombre
     targets.forEach(function (el) {
-      el.classList.remove('cm-ola');
+      el.classList.remove('cm-ola', 'cm-ola-light');
       void el.offsetWidth; // relance l'animation si on reclique
-      el.classList.add('cm-ola');
-      setTimeout(function () { el.classList.remove('cm-ola'); }, 2100);
+      el.classList.add(olaClass);
+      setTimeout(function () { el.classList.remove(olaClass); }, 2100);
     });
+    if (pin) pin.click(); // et on ouvre directement la bulle du commentaire
   };
+
+  /* Le fond derrière un repère est-il sombre ? (premier ancêtre avec une couleur de fond opaque) */
+  function isDarkBehind(el) {
+    var node = el;
+    while (node && node !== document.documentElement) {
+      var bg = getComputedStyle(node).backgroundColor;
+      var m = bg && bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (m && (m[4] === undefined || parseFloat(m[4]) > 0.5) && !(node.classList && node.classList.contains('cm-ui'))) {
+        return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) < 128;
+      }
+      node = node.parentElement;
+    }
+    var hb = getComputedStyle(document.documentElement).backgroundColor.match(/\d+/g);
+    return !!(hb && hb.length >= 3 && (0.2126 * hb[0] + 0.7152 * hb[1] + 0.0722 * hb[2]) < 128 && (hb.length < 4 || parseFloat(hb[3]) > 0.5));
+  }
 
   window.cmDeleteById = function (id) {
     if (sessionMarks[id]) { unwrapMarks(sessionMarks[id]); delete sessionMarks[id]; }
