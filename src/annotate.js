@@ -410,9 +410,10 @@
         anchorEl = resolveStablePath(c.anchor.path);
         if (!isVisible(anchorEl)) return; // étape/onglet masqué pour l'instant : on n'affiche pas ce repère
       }
-      if (c.type === 'box' && !document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) {
-        var b = computeAbsoluteBox(c.anchor, c.fallback);
-        drawSavedBox(b.x, b.y, b.w, b.h, '', c.id);
+      var boxGeom = null;
+      if (c.type === 'box') {
+        boxGeom = computeAbsoluteBox(c.anchor, c.fallback);
+        if (!document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) drawSavedBox(boxGeom.x, boxGeom.y, boxGeom.w, boxGeom.h, '', c.id);
       }
       if (c.type === 'pin' && anchorEl) {
         // Contour fin persistant autour de l'objet visé : la pastille seule "flotte" visuellement.
@@ -426,7 +427,9 @@
         if (range) sessionMarks[c.id] = highlightRange(range);
       }
       var pt;
-      if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
+      if (boxGeom) {
+        pt = { x: boxGeom.x + boxGeom.w - 3, y: boxGeom.y + 3 }; // coin haut-droit de l'encadré
+      } else if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
         var mr = sessionMarks[c.id][0].getBoundingClientRect();
         pt = { x: mr.left + window.scrollX, y: mr.top + window.scrollY }; // début du passage, en haut à gauche : stable même sur plusieurs lignes
       } else {
@@ -746,13 +749,13 @@
   }
 
   /* Point d'ancrage "coin" de l'élément visé plutôt que le pixel brut du clic — la pastille reste
-     ainsi visuellement rattachée à un repère fixe et prévisible : le coin haut-gauche (comme pour
-     les encadrés et les surlignages). */
+     ainsi visuellement rattachée à un repère fixe et prévisible : le coin haut-droit (idem pour les
+     encadrés ; les surlignages de texte, eux, portent leur pastille au début du passage). */
   function cornerAnchorPoint(el, fallbackX, fallbackY) {
     if (!el) return { x: fallbackX, y: fallbackY };
     var r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) return { x: fallbackX, y: fallbackY };
-    return { x: r.left + window.scrollX + 3, y: r.top + window.scrollY + 3 };
+    return { x: r.right + window.scrollX - 3, y: r.top + window.scrollY + 3 };
   }
 
   /* ---------- surlignage de texte (sélection robuste multi-nœuds) ---------- */

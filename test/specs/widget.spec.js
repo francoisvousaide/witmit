@@ -138,9 +138,9 @@ for (const P of PAGES) {
       await page.waitForTimeout(400); // le recalcul est différé de 150 ms
       const after = await page.locator(P.pinTarget).first().boundingBox();
       const pinAfter = await page.locator('.cm-pin').boundingBox();
-      // Point d'ancrage = coin haut-gauche de l'élément visé, avant comme après.
-      const dxBefore = Math.abs((pinBefore.x + pinBefore.width / 2) - before.x);
-      const dxAfter = Math.abs((pinAfter.x + pinAfter.width / 2) - after.x);
+      // Point d'ancrage = coin haut-droit de l'élément visé, avant comme après.
+      const dxBefore = Math.abs((pinBefore.x + pinBefore.width / 2) - (before.x + before.width));
+      const dxAfter = Math.abs((pinAfter.x + pinAfter.width / 2) - (after.x + after.width));
       expect(dxBefore).toBeLessThan(30);
       expect(dxAfter).toBeLessThan(30);
       expect(Math.abs(pinAfter.y - after.y)).toBeLessThan(30);
