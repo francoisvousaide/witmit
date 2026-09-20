@@ -86,17 +86,28 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     expect(afterReload.x - before.x).toBeGreaterThan(250);
   });
 
-  test('pastille de texte : en haut à droite de la fin du passage, sans cacher le texte', async ({ page }) => {
+  test('pastille de texte : en haut à gauche, au début du passage, sans cacher le texte', async ({ page }) => {
     const t = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
     await H.drag(page, t.x + 2, t.y + 10, t.x + 120, t.y + 10, { shift: true });
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
-    const mark = await page.locator('mark.cm-highlight').last().boundingBox();
+    const mark = await page.locator('mark.cm-highlight').first().boundingBox();
     const pin = await page.locator('.cm-pin').boundingBox();
-    expect(pin.y + pin.height).toBeLessThanOrEqual(mark.y + 8);            // au-dessus du texte (la pointe inclinée peut effleurer)
-    expect(pin.x + pin.width / 2).toBeGreaterThan(mark.x + mark.width - 14); // au niveau de la fin du passage
+    expect(pin.y + pin.height).toBeLessThanOrEqual(mark.y + 8); // au-dessus du texte (la pointe inclinée peut effleurer)
+    expect(Math.abs(pin.x + pin.width / 2 - mark.x)).toBeLessThan(14); // au niveau du début du passage
     await page.reload(); await H.activate(page);
     const pin2 = await page.locator('.cm-pin').boundingBox();
     expect(Math.abs(pin2.x - pin.x)).toBeLessThan(3); // même position après rechargement
+  });
+
+  test('le raccourci est ignoré pendant la saisie dans un champ de la page', async ({ page }) => {
+    await H.deactivate(page);
+    await page.locator('#tabBtnForm').click();
+    await page.locator('#client').click();
+    await page.keyboard.press('Alt+KeyA');
+    await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+    await page.locator('h1').click();
+    await page.keyboard.press('Alt+KeyA');
+    await expect(page.locator('body')).toHaveClass(/cm-active/);
   });
 });

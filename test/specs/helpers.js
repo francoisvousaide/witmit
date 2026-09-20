@@ -6,7 +6,7 @@ const PAGES_DIR = path.resolve(__dirname, '..', 'pages');
 const fileUrl = (name) => 'file://' + path.join(PAGES_DIR, name);
 
 const IS_MAC = process.platform === 'darwin';
-const SHORTCUT = IS_MAC ? 'Alt+Shift+KeyC' : 'Alt+KeyC';
+const SHORTCUT = 'Alt+KeyA'; // identique sur toutes les plateformes
 
 async function clearStorage(page) {
   await page.evaluate(() => localStorage.clear());

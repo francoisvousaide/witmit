@@ -2,7 +2,7 @@
  * Annotate — widget d'annotation visuelle (V1, mode maquette / localStorage)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Usage : <script src="annotate.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
- * Raccourci : Alt+C (Windows/Linux) · ⌥+Maj+C (Mac)
+ * Raccourci : Alt+A (Windows/Linux) · ⌥+A (Mac)
  */
 (function () {
   if (window.__annotateLoaded) return; // chargé deux fois par erreur : on ne s'installe qu'une fois
@@ -416,8 +416,8 @@
       }
       var pt;
       if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
-        var mr = sessionMarks[c.id][sessionMarks[c.id].length - 1].getBoundingClientRect();
-        pt = { x: mr.right + window.scrollX, y: mr.top + window.scrollY }; // fin du passage, en haut à droite : ne cache pas le texte
+        var mr = sessionMarks[c.id][0].getBoundingClientRect();
+        pt = { x: mr.left + window.scrollX, y: mr.top + window.scrollY }; // début du passage, en haut à gauche : stable même sur plusieurs lignes
       } else {
         pt = computeAbsolutePoint(c.anchor, c.fallback);
       }
@@ -490,7 +490,7 @@
       subEl.textContent = allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site';
     }
     if (!pc.length) {
-      list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou Alt+C) puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
+      list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
       return;
     }
     var html = '';
@@ -1074,8 +1074,8 @@
       if (liveTextRange && quoted) {
         var rangeClone = liveTextRange.cloneRange();
         var marks = highlightRange(rangeClone);
-        var anchorRect = marks.length ? marks[marks.length - 1].getBoundingClientRect() : { right: e.clientX, top: e.clientY };
-        var px = anchorRect.right + window.scrollX, py = anchorRect.top + window.scrollY;
+        var anchorRect = marks.length ? marks[0].getBoundingClientRect() : { left: e.clientX, top: e.clientY };
+        var px = anchorRect.left + window.scrollX, py = anchorRect.top + window.scrollY;
         var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
         openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
           { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
@@ -1205,23 +1205,25 @@
     pill.addEventListener('pointercancel', endDrag);
   })();
 
-  // Raccourci clavier, différent selon la plateforme (on évite Ctrl/Cmd+Maj+C, déjà pris par
-  // l'inspecteur DevTools de Chrome, et Option+C seul sur Mac qui peut taper un caractère accentué) :
-  //  - Windows/Linux : Alt+C
-  //  - Mac            : Option (Alt) + Maj + C
+  // Raccourci clavier : Alt+A (Windows/Linux) / ⌥+A (Mac) — "A" comme Annotate, le même partout.
+  // Sur Mac, ⌥+A tape normalement "å" : on reconnaît la touche physique (e.code) et on ignore le
+  // raccourci quand on est en train d'écrire dans un champ, pour ne jamais gêner la saisie.
   var IS_MAC = /Mac|iPhone|iPod|iPad/i.test(
     (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || ''
   );
-  var SHORTCUT_LABEL = IS_MAC ? '⌥+Maj+C' : 'Alt+C';
+  var SHORTCUT_LABEL = IS_MAC ? '⌥+A' : 'Alt+A';
+  function isTypingIn(el) {
+    return !!(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)));
+  }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       if (pendingPopup) { e.preventDefault(); closePopup(true); }
       else if (active) { e.preventDefault(); cmToggle(false); }
       return;
     }
-    if (e.ctrlKey || e.metaKey || !e.altKey) return;
-    if (!(e.key === 'c' || e.key === 'C' || e.code === 'KeyC')) return;
-    if (IS_MAC ? !e.shiftKey : e.shiftKey) return;
+    if (e.ctrlKey || e.metaKey || e.shiftKey || !e.altKey) return;
+    if (e.code !== 'KeyA') return;
+    if (isTypingIn(e.target)) return;
     e.preventDefault();
     cmToggle();
   });
