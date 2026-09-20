@@ -114,6 +114,14 @@
   .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
   .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); }
   .cm-box.cm-box-outline { border-width:1.5px; background:transparent; border-radius:4px; }
+  /* Encadré ajustable tant que sa bulle est ouverte : déplaçable au centre, 8 poignées pour redimensionner */
+  .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
+  body .cm-box.cm-box-editable { cursor:move; }
+  .cm-handle { position:absolute; width:10px; height:10px; background:#fff; border:2px solid var(--cm-orange); border-radius:2px; box-sizing:border-box; }
+  body .cm-ui .cm-handle-nw { left:-6px; top:-6px; cursor:nwse-resize; } body .cm-ui .cm-handle-se { right:-6px; bottom:-6px; cursor:nwse-resize; }
+  body .cm-ui .cm-handle-ne { right:-6px; top:-6px; cursor:nesw-resize; } body .cm-ui .cm-handle-sw { left:-6px; bottom:-6px; cursor:nesw-resize; }
+  body .cm-ui .cm-handle-n { left:calc(50% - 5px); top:-6px; cursor:ns-resize; } body .cm-ui .cm-handle-s { left:calc(50% - 5px); bottom:-6px; cursor:ns-resize; }
+  body .cm-ui .cm-handle-w { left:-6px; top:calc(50% - 5px); cursor:ew-resize; } body .cm-ui .cm-handle-e { right:-6px; top:calc(50% - 5px); cursor:ew-resize; }
   /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
   body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved { display:none; }
   body:not(.cm-active) mark.cm-highlight { background:transparent; }
@@ -130,7 +138,7 @@
   [data-theme="dark"] mark.cm-highlight { background:rgba(252,128,5,.42); }
 
   .cm-popup { position:absolute; z-index:950; width:260px; background:var(--cm-surface); border:1px solid var(--cm-border); border-radius:12px; box-shadow:var(--cm-shadow-lg); padding:12px; }
-  .cm-popup .cm-zone { font-family:'League Spartan',sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-teal); margin-bottom:6px; max-height:48px; overflow-y:auto; }
+  .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:'League Spartan',sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-teal); margin-bottom:6px; max-height:48px; overflow-y:auto; }
   .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--cm-border); border-radius:8px; padding:8px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--cm-text); background:var(--cm-bg); margin-bottom:8px; box-sizing:border-box; }
   .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
   .cm-popup button { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; border-radius:7px; padding:6px 12px; border:none; cursor:pointer; }
@@ -381,7 +389,9 @@
   }
 
   function renderMarkers() {
-    var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved');
+    // Un encadré en cours d'ajustement (poignées visibles) est conservé tel quel : le redessiner ferait
+    // "lâcher" la souris en plein glisser.
+    var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved:not(.cm-box-editable)');
     for (var i = 0; i < old.length; i++) old[i].remove();
     pageComments().forEach(function (c, i) {
       var anchorEl = null;
@@ -389,7 +399,7 @@
         anchorEl = resolveStablePath(c.anchor.path);
         if (!isVisible(anchorEl)) return; // étape/onglet masqué pour l'instant : on n'affiche pas ce repère
       }
-      if (c.type === 'box') {
+      if (c.type === 'box' && !document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) {
         var b = computeAbsoluteBox(c.anchor, c.fallback);
         drawSavedBox(b.x, b.y, b.w, b.h, '', c.id);
       }
@@ -407,7 +417,7 @@
       var pt;
       if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
         var mr = sessionMarks[c.id][sessionMarks[c.id].length - 1].getBoundingClientRect();
-        pt = { x: mr.left + window.scrollX, y: mr.bottom + window.scrollY };
+        pt = { x: mr.right + window.scrollX, y: mr.top + window.scrollY }; // fin du passage, en haut à droite : ne cache pas le texte
       } else {
         pt = computeAbsolutePoint(c.anchor, c.fallback);
       }
@@ -422,7 +432,13 @@
         e.stopPropagation();
         var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
         var editPt = computeAbsolutePoint(c.anchor, c.fallback);
-        openPopup(editPt.x, editPt.y, c.zone, { type: c.type, existing: c, outlineEl: outlineTarget });
+        var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
+        if (c.type === 'box') {
+          editMeta.boxEl = document.querySelector('.cm-box-saved[data-id="' + c.id + '"]');
+          editMeta.box = computeAbsoluteBox(c.anchor, c.fallback);
+          editPt = { x: editMeta.box.x, y: editMeta.box.y + editMeta.box.h }; // sous l'encadré, pour laisser ses poignées accessibles
+        }
+        openPopup(editPt.x, editPt.y, c.zone, editMeta);
       };
       document.body.appendChild(pin);
     });
@@ -439,7 +455,9 @@
      DOM et on ignore nos propres mutations (pastilles/encadrés/contour, tous marqués "cm-ui") pour
      ne jamais se redéclencher soi-même. */
   function isOwnNode(node) {
-    return !!(node && node.nodeType === 1 && (node.classList.contains('cm-ui') || node.classList.contains('cm-highlight') || (node.closest && node.closest('.cm-ui'))));
+    if (!node) return false;
+    var el = node.nodeType === 1 ? node : node.parentElement; // un nœud texte (ex. message de statut) compte pour son parent
+    return !!(el && (el.classList.contains('cm-ui') || el.classList.contains('cm-highlight') || (el.closest && el.closest('.cm-ui'))));
   }
   var moTimer = null;
   var domObserver = new MutationObserver(function (mutations) {
@@ -790,22 +808,108 @@
 
   /* ---------- popup de saisie ---------- */
 
+  /* ---------- encadré ajustable (tant que sa bulle est ouverte) ----------
+     8 poignées pour redimensionner, le centre pour déplacer. À l'enregistrement, le libellé et
+     l'ancrage sont recalculés d'après la géométrie finale. */
+  function applyBoxStyle(el, b) {
+    el.style.left = b.x + 'px'; el.style.top = b.y + 'px';
+    el.style.width = Math.max(b.w, 4) + 'px'; el.style.height = Math.max(b.h, 4) + 'px';
+  }
+  function makeBoxEditable(boxEl, meta) {
+    if (!boxEl || boxEl.classList.contains('cm-box-editable')) return;
+    boxEl.classList.add('cm-box-editable');
+    ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(function (d) {
+      var h = document.createElement('div');
+      h.className = 'cm-handle cm-handle-' + d;
+      h.dataset.dir = d;
+      boxEl.appendChild(h);
+    });
+    boxEl.addEventListener('pointerdown', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      var dir = e.target.dataset.dir || 'move';
+      var start = { x: e.pageX, y: e.pageY, box: { x: meta.box.x, y: meta.box.y, w: meta.box.w, h: meta.box.h } };
+      try { boxEl.setPointerCapture(e.pointerId); } catch (err) {}
+      function onMove(ev) {
+        var dx = ev.pageX - start.x, dy = ev.pageY - start.y;
+        var b = { x: start.box.x, y: start.box.y, w: start.box.w, h: start.box.h };
+        if (dir === 'move') { b.x += dx; b.y += dy; }
+        else {
+          if (dir.indexOf('e') >= 0) b.w += dx;
+          if (dir.indexOf('s') >= 0) b.h += dy;
+          if (dir.indexOf('w') >= 0) { b.x += dx; b.w -= dx; }
+          if (dir.indexOf('n') >= 0) { b.y += dy; b.h -= dy; }
+          if (b.w < 12) { if (dir.indexOf('w') >= 0) b.x = start.box.x + start.box.w - 12; b.w = 12; }
+          if (b.h < 12) { if (dir.indexOf('n') >= 0) b.y = start.box.y + start.box.h - 12; b.h = 12; }
+        }
+        meta.box = b; meta.boxChanged = true;
+        applyBoxStyle(boxEl, b);
+      }
+      function onUp() {
+        boxEl.removeEventListener('pointermove', onMove);
+        boxEl.removeEventListener('pointerup', onUp);
+        boxEl.removeEventListener('pointercancel', onUp);
+      }
+      boxEl.addEventListener('pointermove', onMove);
+      boxEl.addEventListener('pointerup', onUp);
+      boxEl.addEventListener('pointercancel', onUp);
+    });
+  }
+  function endBoxEdit(meta) {
+    if (!meta || !meta.boxEl) return;
+    meta.boxEl.classList.remove('cm-box-editable');
+    var hs = meta.boxEl.querySelectorAll('.cm-handle');
+    for (var i = 0; i < hs.length; i++) hs[i].remove();
+  }
+  /* Élément de la page sous un point, en ignorant nos propres calques (encadrés, pastilles…) */
+  function pageElementAt(clientX, clientY) {
+    var list = document.elementsFromPoint ? document.elementsFromPoint(clientX, clientY) : [document.elementFromPoint(clientX, clientY)];
+    for (var i = 0; i < list.length; i++) if (list[i] && !inUi(list[i])) return list[i];
+    return null;
+  }
+  /* Libellé + ancrage d'un encadré d'après sa géométrie (à la création, ou après ajustement) */
+  function describeBox(b) {
+    var centerEl = pageElementAt(b.x + b.w / 2 - window.scrollX, b.y + b.h / 2 - window.scrollY);
+    var z = boxZone(b.x, b.y, b.w, b.h, centerEl);
+    return { label: z.label, anchor: anchorForBox(b.x, b.y, b.w, b.h, z.el) };
+  }
+
+  /* ---------- bulle de saisie ---------- */
+
   function closePopup(discard) {
     if (!pendingPopup) return;
-    if (discard && pendingPopup._meta && !pendingPopup._meta.existing) {
-      var meta = pendingPopup._meta;
+    var meta = pendingPopup._meta;
+    endBoxEdit(meta);
+    if (discard && meta && !meta.existing) {
       if (meta.type === 'text' && meta.marks) unwrapMarks(meta.marks);
       if (meta.type === 'box' && meta.boxEl) meta.boxEl.remove();
+    } else if (discard && meta && meta.existing && meta.boxChanged) {
+      renderMarkers(); // encadré existant déplacé puis annulé : on le remet à sa place enregistrée
     }
     hideEditOutline();
     pendingPopup.remove();
     pendingPopup = null;
   }
 
+  /* La bulle se déplace en la prenant par son bandeau (le libellé de zone). */
+  function makePopupDraggable(pop, handle) {
+    handle.title = 'Glisser pour déplacer la bulle';
+    handle.addEventListener('pointerdown', function (e) {
+      e.stopPropagation(); e.preventDefault();
+      var offX = e.pageX - pop.offsetLeft, offY = e.pageY - pop.offsetTop;
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      function onMove(ev) { pop.style.left = (ev.pageX - offX) + 'px'; pop.style.top = (ev.pageY - offY) + 'px'; }
+      function onUp() { handle.removeEventListener('pointermove', onMove); handle.removeEventListener('pointerup', onUp); }
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+    });
+  }
+
   function openPopup(x, y, zone, meta) {
     closePopup(true);
     var isEdit = !!(meta && meta.existing);
     if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
+    if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + meta.existing.id + '"]'); // (re)trouvé après un éventuel re-rendu
+    if (meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
     var pop = document.createElement('div');
     pop.className = 'cm-popup cm-ui';
     var left = Math.max(10, Math.min(x, window.scrollX + document.documentElement.clientWidth - 280));
@@ -813,13 +917,14 @@
     pop.style.top = (y + 10) + 'px';
     pop.innerHTML =
       '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
-      '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne)">' +
+      '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
       (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea>' +
       '<div class="cm-popup-actions">' +
       (isEdit ? '<button class="cm-delete" title="Supprimer ce commentaire">🗑</button>' : '') +
       '<button class="cm-cancel">Annuler</button><button class="cm-save">Enregistrer</button></div>';
     document.body.appendChild(pop);
     pop._meta = meta;
+    makePopupDraggable(pop, pop.querySelector('.cm-zone'));
     var ta = pop.querySelector('textarea');
     ta.focus();
     if (isEdit) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); }
@@ -835,6 +940,7 @@
     if (isEdit) {
       pop.querySelector('.cm-delete').onclick = function (e) {
         e.stopPropagation();
+        endBoxEdit(meta);
         window.cmDeleteById(meta.existing.id);
         hideEditOutline();
         pop.remove();
@@ -844,15 +950,18 @@
     pop.querySelector('.cm-save').onclick = function (e) {
       e.stopPropagation();
       var text = ta.value.trim();
+      endBoxEdit(meta);
       if (text) {
+        var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
         if (isEdit) {
           meta.existing.text = text;
+          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; }
           cmStatus('Commentaire modifié');
         } else {
           var id = uid();
-          var c = { id: id, type: meta.type, page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: zone, text: text, date: new Date().toISOString() };
+          var c = { id: id, type: meta.type, page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
           if (meta.type === 'box') {
-            c.anchor = meta.boxAnchor;
+            c.anchor = desc ? desc.anchor : meta.boxAnchor;
             c.fallback = meta.box;
             if (meta.boxEl) meta.boxEl.classList.add('cm-box-saved');
           } else {
@@ -868,6 +977,8 @@
         unwrapMarks(meta.marks);
       } else if (!isEdit && meta.type === 'box' && meta.boxEl) {
         meta.boxEl.remove();
+      } else if (isEdit && meta.boxChanged) {
+        renderMarkers();
       }
       hideEditOutline();
       pop.remove();
@@ -963,8 +1074,8 @@
       if (liveTextRange && quoted) {
         var rangeClone = liveTextRange.cloneRange();
         var marks = highlightRange(rangeClone);
-        var anchorRect = marks.length ? marks[marks.length - 1].getBoundingClientRect() : { left: e.clientX, bottom: e.clientY };
-        var px = anchorRect.left + window.scrollX, py = anchorRect.bottom + window.scrollY;
+        var anchorRect = marks.length ? marks[marks.length - 1].getBoundingClientRect() : { right: e.clientX, top: e.clientY };
+        var px = anchorRect.right + window.scrollX, py = anchorRect.top + window.scrollY;
         var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
         openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
           { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
@@ -986,7 +1097,7 @@
     if (dist > DRAG_THRESHOLD && dragBoxEl) {
       var bx = Math.min(dragStart.x, e.pageX), by = Math.min(dragStart.y, e.pageY);
       var bw = Math.abs(dx), bh = Math.abs(dy);
-      var centerEl = document.elementFromPoint(bx + bw / 2 - window.scrollX, by + bh / 2 - window.scrollY);
+      var centerEl = pageElementAt(bx + bw / 2 - window.scrollX, by + bh / 2 - window.scrollY);
       var zoneB = boxZone(bx, by, bw, bh, centerEl);
       openPopup(bx, by + bh, zoneB.label, {
         type: 'box', box: { x: bx, y: by, w: bw, h: bh }, boxEl: dragBoxEl,
@@ -1103,6 +1214,11 @@
   );
   var SHORTCUT_LABEL = IS_MAC ? '⌥+Maj+C' : 'Alt+C';
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (pendingPopup) { e.preventDefault(); closePopup(true); }
+      else if (active) { e.preventDefault(); cmToggle(false); }
+      return;
+    }
     if (e.ctrlKey || e.metaKey || !e.altKey) return;
     if (!(e.key === 'c' || e.key === 'C' || e.code === 'KeyC')) return;
     if (IS_MAC ? !e.shiftKey : e.shiftKey) return;
