@@ -120,6 +120,13 @@
   /* Pastilles réduites des autres éléments d'une sélection multiple (même numéro) */
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
+  /* Commentaire actif (bulle ouverte) : couleur teal, plus marqué — teal clair sur fond sombre */
+  .cm-box-saved.cm-focus { border-color:var(--cm-teal); border-width:2.5px; background:rgba(53,131,142,.12); }
+  .cm-pin.cm-focus { background:var(--cm-teal); }
+  #cmLinks line.cm-focus { stroke:var(--cm-teal); stroke-width:1.5; opacity:.95; }
+  .cm-box-saved.cm-focus.cm-focus-light { border-color:#7BD0DB; background:rgba(123,208,219,.14); }
+  .cm-pin.cm-focus.cm-focus-light { background:#5FBFCB; }
+  #cmLinks line.cm-focus.cm-focus-light { stroke:#7BD0DB; }
   .cm-box-saved.cm-glow { box-shadow:0 0 0 3px rgba(252,128,5,.35); }
   .cm-box-saved.cm-glow.cm-glow-light { box-shadow:0 0 0 3px rgba(255,255,255,.45); }
   .cm-pin.cm-glow { filter:brightness(1.12); }
@@ -160,7 +167,8 @@
   /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
      Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
      en cours de saisie est rattaché. */
-  .cm-box.cm-box-editing { border-style:solid; border-width:2.5px; background:rgba(252,128,5,.14); }
+  .cm-box.cm-box-editing { border-style:solid; border-width:2.5px; border-color:var(--cm-teal); background:rgba(53,131,142,.14); }
+  .cm-box.cm-box-editing.cm-focus-light { border-color:#7BD0DB; background:rgba(123,208,219,.16); }
 
   /* Surlignage du texte sélectionné */
   mark.cm-highlight { background:rgba(252,128,5,.32); color:inherit; border-radius:2px; padding:0 1px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
@@ -188,6 +196,8 @@
   .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
   .cm-panel-item:hover { background:var(--cm-bg); }
+  .cm-panel-item.cm-current { background:rgba(53,131,142,.10); box-shadow:inset 3px 0 0 var(--cm-teal); }
+  .cm-panel-item.cm-current .num { background:var(--cm-teal); }
   .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--cm-orange); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; margin-top:1px; }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
   .cm-panel-item .zone { font-size:10.5px; color:var(--cm-teal); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
@@ -454,6 +464,28 @@
         var range = quote ? findTextRange(anchorEl || document.body, quote) : null;
         if (range) sessionMarks[c.id] = highlightRange(range);
       }
+      /* Ouvre la bulle d'édition de ce commentaire (toutes les pastilles du groupe y mènent) */
+      function openEditor(e) {
+        e.stopPropagation();
+        setFocused(c.id);
+        var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
+        var editPt = computeAbsolutePoint(c.anchor, c.fallback);
+        var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
+        if (multi) {
+          editMeta.targets = [];
+          c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (el) editMeta.targets.push({ el: el, label: t.label }); });
+          editMeta.outlineEl = editMeta.targets.map(function (t) { return t.el; });
+          editPt = pt;
+        }
+        if (c.type === 'text' && sessionMarks[c.id]) { editMeta.marks = sessionMarks[c.id]; editMeta.outlineEl = null; }
+        if (c.type === 'box') {
+          editMeta.boxEl = document.querySelector('.cm-box-saved[data-id="' + c.id + '"]');
+          editMeta.box = computeAbsoluteBox(c.anchor, c.fallback);
+          editPt = { x: editMeta.box.x, y: editMeta.box.y + editMeta.box.h }; // sous l'encadré, pour laisser ses poignées accessibles
+        }
+        openPopup(editPt.x, editPt.y, c.zone, editMeta);
+      }
+
       var pt;
       if (multi) {
         pt = cornerAnchorPoint(multi[0], 0, 0);
@@ -466,6 +498,7 @@
           sp.style.left = p2.x + 'px'; sp.style.top = p2.y + 'px';
           sp.innerHTML = '<span>' + (i + 1) + '</span>';
           sp.title = c.text;
+          sp.onclick = openEditor;
           document.body.appendChild(sp);
           if (CONFIG.multiLines) drawLink(pt, p2, c.id);
         });
@@ -484,27 +517,10 @@
       pin.style.top = pt.y + 'px';
       pin.innerHTML = '<span>' + (i + 1) + '</span>';
       pin.title = c.text;
-      pin.onclick = function (e) {
-        e.stopPropagation();
-        var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
-        var editPt = computeAbsolutePoint(c.anchor, c.fallback);
-        var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
-        if (multi) {
-          editMeta.targets = [];
-          c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (el) editMeta.targets.push({ el: el, label: t.label }); });
-          editMeta.outlineEl = editMeta.targets.map(function (t) { return t.el; });
-          editPt = pt;
-        }
-        if (c.type === 'text' && sessionMarks[c.id]) { editMeta.marks = sessionMarks[c.id]; editMeta.outlineEl = null; }
-        if (c.type === 'box') {
-          editMeta.boxEl = document.querySelector('.cm-box-saved[data-id="' + c.id + '"]');
-          editMeta.box = computeAbsoluteBox(c.anchor, c.fallback);
-          editPt = { x: editMeta.box.x, y: editMeta.box.y + editMeta.box.h }; // sous l'encadré, pour laisser ses poignées accessibles
-        }
-        openPopup(editPt.x, editPt.y, c.zone, editMeta);
-      };
+      pin.onclick = openEditor;
       document.body.appendChild(pin);
     });
+    if (focusedId) applyFocus(focusedId, true);
     // Survol d'une pastille : les cadres de son commentaire s'allument (utile pour un groupe d'éléments)
     var pins = document.querySelectorAll('.cm-pin');
     for (var k = 0; k < pins.length; k++) {
@@ -586,7 +602,7 @@
     }
     var html = '';
     pc.forEach(function (c, i) {
-      html += '<div class="cm-panel-item">' +
+      html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + '" data-id="' + c.id + '">' +
         '<div class="num">' + (i + 1) + '</div>' +
         '<div class="body" onclick="cmFocus(\'' + c.id + '\')" title="Voir sur la page"><div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div><div class="txt">' + cmEsc(c.text) + '</div></div>' +
         '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
@@ -615,6 +631,24 @@
     });
     if (pin) pin.click(); // et on ouvre directement la bulle du commentaire
   };
+
+  /* Commentaire "actif" (bulle ouverte) : ses cadres, pastilles et lignes changent de couleur */
+  var focusedId = null;
+  function applyFocus(id, on) {
+    var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
+    for (var i = 0; i < els.length; i++) {
+      els[i].classList.toggle('cm-focus', on);
+      els[i].classList.toggle('cm-focus-light', on && isDarkBehind(els[i]));
+    }
+  }
+  function setFocused(id) {
+    if (focusedId && focusedId !== id) applyFocus(focusedId, false);
+    focusedId = id || null;
+    if (focusedId) applyFocus(focusedId, true);
+    // et dans la liste : l'item correspondant est mis en évidence
+    var items = document.querySelectorAll('.cm-panel-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.toggle('cm-current', items[i].dataset.id === focusedId);
+  }
 
   /* Le fond derrière un repère est-il sombre ? (premier ancêtre avec une couleur de fond opaque) */
   function isDarkBehind(el) {
@@ -839,7 +873,7 @@
       var r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) return;
       var box = document.createElement('div');
-      box.className = 'cm-box cm-ui cm-box-editing';
+      box.className = 'cm-box cm-ui cm-box-editing' + (isDarkBehind(el) ? ' cm-focus-light' : '');
       document.body.appendChild(box);
       editOutlines.push({ el: el, box: box });
     });
@@ -1008,6 +1042,7 @@
     hideEditOutline();
     pendingPopup.remove();
     pendingPopup = null;
+    setFocused(null);
   }
 
   /* ---------- placement de la bulle : jamais par-dessus ce qu'elle commente ----------
@@ -1108,6 +1143,7 @@
       pop.querySelector('.cm-delete').onclick = function (e) {
         e.stopPropagation();
         endBoxEdit(meta);
+        setFocused(null);
         window.cmDeleteById(meta.existing.id);
         hideEditOutline();
         pop.remove();
@@ -1162,6 +1198,7 @@
       hideEditOutline();
       pop.remove();
       pendingPopup = null;
+      setFocused(null);
     };
     pendingPopup = pop;
   }

@@ -74,6 +74,27 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await expect(page.locator('.cm-box-outline')).toHaveCount(3);
   });
 
+  test('clic sur une pastille réduite, ou dans la liste : la bulle du groupe s’ouvre, tout le groupe passe en couleur active', async ({ page }) => {
+    const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
+    await page.mouse.click(b.x + 5, b.y + 5);
+    await expect(page.locator('.cm-popup')).toBeVisible();
+    await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');
+    await page.locator('.cm-popup textarea').fill('groupe');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await page.locator('.cm-pin.cm-pin-secondary').click();
+    await expect(page.locator('.cm-popup textarea')).toHaveValue('groupe');
+    await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(2);
+    await expect(page.locator('.cm-pin.cm-focus')).toHaveCount(2);
+    await expect(page.locator('#cmLinks line.cm-focus')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.cm-focus')).toHaveCount(0);
+    await H.deactivate(page);
+    await page.locator('#cmPanelBtn').click();
+    await page.locator('.cm-panel-item .body').click();
+    await expect(page.locator('.cm-popup textarea')).toHaveValue('groupe');
+    await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(2);
+  });
+
   test('survol d’une pastille du groupe : tous ses cadres s’allument', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
     await page.mouse.click(b.x + 5, b.y + 5);

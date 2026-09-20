@@ -187,7 +187,12 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
       await expect(page.locator('.cm-popup textarea')).toHaveValue('Retrouve-moi'); // et la bulle s'ouvre
+      await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus/);   // cadre et pastille changent de couleur…
+      await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);
+      await expect(page.locator('.cm-panel-item')).toHaveClass(/cm-current/);  // l'item est marqué dans la liste
       await page.keyboard.press('Escape');
+      await expect(page.locator('.cm-panel-item')).not.toHaveClass(/cm-current/);
+      await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);       // …jusqu'à la fermeture de la bulle
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await page.waitForTimeout(400);
