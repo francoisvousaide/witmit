@@ -308,20 +308,25 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-popup')).toHaveCount(0); // le glisser de la pastille ne crée pas de commentaire
     });
 
-    test('14. Copier : rapport texte avec en-tête projet et numérotation', async ({ page }) => {
+    test('14. Copier : rapport Markdown avec en-tête projet, identifiant et numérotation', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Retour A');
       await H.addPin(page, P.boxTarget, 'Retour B');
       await H.deactivate(page);
       await page.locator('#cmPanelBtn').click();
+      page.once('dialog', (d) => d.dismiss()); // « Annuler » = rapport sans marquer les tickets
       await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
-      await expect(page.locator('#cmStatus')).toContainText('Copié');
+      await expect(page.locator('#cmStatus')).toContainText('copié');
       const txt = await page.evaluate(() => navigator.clipboard.readText());
-      expect(txt.split('\n')[0]).toBe(P.key.replace('annotate_', '').replace('_v1', '') + ' — Rapport de commentaires (site)');
-      expect(txt).toContain('#1 [');
-      expect(txt).toContain('#2 [');
+      const project = P.key.replace('annotate_', '').replace('_v1', '');
+      expect(txt.split('\n')[0]).toMatch(new RegExp('^# ' + project + ' — Rapport de retours R-\\d{4}-\\d{2}-\\d{2}-\\d+$'));
+      expect(txt).toContain('### #1 · ');
+      expect(txt).toContain('### #2 · ');
       expect(txt).toContain('Retour A');
       expect(txt).toContain('Retour B');
+      expect(txt).toContain('```json');
+      expect(txt).toContain('annotate-retour R-');
+      expect((await H.stored(page, P.key)).every((c) => c.status === 'nouveau')).toBe(true); // non marqués
     });
 
     test('15. Effacer (page) puis Vider tout (site) avec confirmation', async ({ page }) => {

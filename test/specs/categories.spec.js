@@ -115,8 +115,10 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     expect(data[1].tech.position.relW).toBeGreaterThan(0);
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
+    page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     const txt = await page.evaluate(() => navigator.clipboard.readText());
-    expect(txt).toContain('] — Ajustement visuel');
+    expect(txt).toContain(' — Ajustement visuel · nouveau');
+    expect(txt).toContain('"categorie": "Ajustement visuel"');
   });
 });

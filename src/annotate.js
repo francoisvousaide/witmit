@@ -221,18 +221,41 @@
   .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
   .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--cm-bg); border-radius:6px; color:var(--cm-text2); max-height:160px; overflow:auto; }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
+  .cm-panel-item .cm-status-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid transparent; }
+  .cm-panel-item .cm-st-signale { color:var(--cm-text2); background:var(--cm-bg); border-color:var(--cm-border2); }
+  .cm-panel-item .cm-st-pris_en_compte { color:var(--cm-teal); background:rgba(53,131,142,.10); }
+  .cm-panel-item .cm-st-complement { color:#8a5a00; background:rgba(245,166,35,.16); }
+  .cm-panel-item .cm-st-resolu { color:var(--cm-text-muted); background:var(--cm-bg); }
+  .cm-panel-item .cm-feedback { margin-top:5px; font-size:11.5px; line-height:1.4; color:var(--cm-text2); background:rgba(53,131,142,.08); border-left:2px solid var(--cm-teal); padding:4px 8px; border-radius:0 6px 6px 0; }
+  .cm-panel-item .cm-feedback-q { background:rgba(245,166,35,.12); border-left-color:#E6A023; }
+  .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--cm-text2); padding-left:6px; }
+  .cm-panel-item .cm-when { color:var(--cm-text-muted); font-size:10.5px; }
+  .cm-panel-item .reopen { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
+  .cm-panel-item .reopen:hover { color:var(--cm-teal); }
+  .cm-panel-item .st.cm-st-locked { display:inline-flex; align-items:center; justify-content:center; background:var(--cm-text-muted); border-color:var(--cm-text-muted); color:#fff; cursor:default; }
+  .cm-popup .cm-lock-line { font-size:11px; color:var(--cm-text-muted); margin:-2px 0 6px; }
+  .cm-popup.cm-locked textarea { background:transparent; color:var(--cm-text2); }
+  .cm-popup .cm-feedback { font-size:11.5px; line-height:1.4; color:var(--cm-text2); background:rgba(245,166,35,.12); border-left:2px solid #E6A023; padding:4px 8px; border-radius:0 6px 6px 0; margin-bottom:6px; }
+  .cm-popup .cm-reply-ta { min-height:50px; }
   .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .cm-panel-item .st { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--cm-border); background:transparent; color:transparent; cursor:pointer; font-size:11px; line-height:1; padding:0; }
   .cm-panel-item .st:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
-  .cm-panel-item.cm-done .st { background:var(--cm-teal); border-color:var(--cm-teal); color:#fff; }
-  .cm-panel-item.cm-done .num { background:var(--cm-text-muted); }
+    .cm-panel-item.cm-done .num { background:var(--cm-text-muted); }
   .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
   .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:'League Spartan',sans-serif; font-size:10px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; background:transparent; color:var(--cm-text-muted); padding:1px 7px; cursor:pointer; }
   .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
   .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
   .cm-panel-item .del:hover { color:var(--cm-orange); }
   .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--cm-text-muted); font-size:12.5px; line-height:1.5; }
-  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--cm-border2); display:flex; gap:6px; }
+  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--cm-border2); display:flex; gap:6px; flex-wrap:wrap; }
+  .cm-panel-report .cm-scope { flex-basis:100%; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--cm-text-muted); cursor:pointer; }
+  .cm-panel-report .cm-scope input { margin:0; }
+  .cm-feedback-box { border-top:1px solid var(--cm-border2); padding:10px; background:var(--cm-bg); }
+  .cm-feedback-box .cm-feedback-title { font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; color:var(--cm-text); margin-bottom:6px; }
+  .cm-feedback-box textarea { width:100%; box-sizing:border-box; min-height:84px; resize:vertical; border:1px solid var(--cm-border); border-radius:8px; padding:6px 8px; font-family:ui-monospace, Menlo, monospace; font-size:11px; line-height:1.4; color:var(--cm-text); background:var(--cm-surface); }
+  .cm-feedback-box .cm-feedback-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:6px; }
+  .cm-feedback-box .cm-feedback-actions button { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:6px 10px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
+  .cm-feedback-box .cm-feedback-actions button.primary { background:var(--cm-teal); color:#fff; border-color:var(--cm-teal); }
   .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
   .cm-panel-foot button { flex:1; font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:8px 4px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
   .cm-panel-foot button:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
@@ -265,11 +288,19 @@
     <div class="cm-panel-sub" id="cmPanelSub"></div>
   </div>
   <div class="cm-panel-list" id="cmList"></div>
-  <div class="cm-panel-foot">
+  <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
+    <div class="cm-feedback-title">Coller un retour</div>
+    <textarea placeholder="annotate-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea>
+    <div class="cm-feedback-actions"><button onclick="cmPasteFeedback(false)">Annuler</button><button class="primary" onclick="cmApplyFeedback()">Appliquer</button></div>
+  </div>
+  <div class="cm-panel-foot cm-panel-tools">
     <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
     <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
+    <button onclick="cmPasteFeedback()">📥 Coller un retour</button>
   </div>
-  <div class="cm-panel-foot">
+  <div class="cm-panel-foot cm-panel-report">
+    <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
+    <button onclick="cmExport()">📤 Télécharger</button>
     <button onclick="cmCopy()">📋 Copier</button>
     <button class="primary" onclick="cmSendMail()">📧 Envoyer</button>
   </div>
@@ -451,7 +482,13 @@
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       allComments = raw ? JSON.parse(raw) : [];
-      allComments.forEach(function (c) { if (!c.id) c.id = uid(); });
+      allComments.forEach(function (c) {
+        if (!c.id) c.id = uid();
+        if (!c.status || c.status === 'traite') { // anciens tickets : « traité » devient « résolu par moi »
+          if (c.status === 'traite') { c.status = 'resolu'; c.resolvedAt = c.doneAt || c.date; c.resolvedBy = 'moi'; delete c.doneAt; }
+          else c.status = 'nouveau';
+        }
+      });
     } catch (e) { allComments = []; }
   }
   function persist() {
@@ -731,17 +768,57 @@
   });
   domObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true, subtree: true });
 
-  /* ---------- statut d'un ticket : nouveau (défaut) / traité ---------- */
-  function isDone(c) { return c.status === 'traite'; }
+  /* ---------- cycle de vie d'un ticket ----------
+       nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte ──▶ résolu
+                                 │                        │
+                                 └──(retour)──▶ complément demandé ──(réponse + rapport)──▶ signalé
+       Un ticket qui a quitté « nouveau » n'est plus modifiable (texte, cibles, catégorie) ; seul un
+       « complément demandé » accepte une réponse, ajoutée au texte d'origine. Un « signalé » pas encore
+       pris en compte peut être rouvert (il redevient nouveau et remplacera l'ancien au prochain rapport).
+       Le ✓ manuel = « résolu par moi ». */
+  var STATUS = {
+    nouveau:        { icon: '',    label: 'Nouveau' },
+    signale:        { icon: '🔒', label: 'Signalé' },
+    pris_en_compte: { icon: '👁', label: 'Pris en compte' },
+    complement:     { icon: '❔', label: 'Complément demandé' },
+    resolu:         { icon: '✅', label: 'Résolu' }
+  };
+  function isDone(c) { return c.status === 'resolu'; }
+  function isEditable(c) { return !c.status || c.status === 'nouveau'; }
+  function frDate(iso) { try { return new Date(iso).toLocaleDateString('fr-FR'); } catch (e) { return ''; } }
+  function statusLabel(c) {
+    var st = STATUS[c.status] || STATUS.nouveau;
+    if (c.status === 'signale') return st.icon + ' Signalé le ' + frDate(c.signaledAt);
+    if (c.status === 'resolu') return st.icon + ' Résolu le ' + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
+    if (c.status === 'pris_en_compte') return st.icon + ' Pris en compte' + (c.ackAt ? ' le ' + frDate(c.ackAt) : '');
+    if (c.status === 'complement') return st.icon + ' Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '');
+    return '';
+  }
+  function pushHistory(c, entry) { (c.history = c.history || []).push(entry); }
   var HIDE_DONE_KEY = 'annotate_hide_done';
   function hideDone() { try { return localStorage.getItem(HIDE_DONE_KEY) === '1'; } catch (e) { return false; } }
-  window.cmToggleStatus = function (id) {
-    var c = allComments.filter(function (x) { return x.id === id; })[0];
-    if (!c) return;
-    c.status = isDone(c) ? 'nouveau' : 'traite';
-    if (isDone(c)) c.doneAt = new Date().toISOString(); else delete c.doneAt;
+  function findComment(id) { return allComments.filter(function (x) { return x.id === id; })[0]; }
+
+  /* ✓ manuel : résolu par moi (depuis n'importe quel statut sauf résolu) */
+  window.cmResolve = function (id) {
+    var c = findComment(id);
+    if (!c || isDone(c)) return;
+    if (pendingPopup && pendingPopup._meta && pendingPopup._meta.existing === c) closePopup(true);
+    c.status = 'resolu'; c.resolvedAt = new Date().toISOString(); c.resolvedBy = 'moi';
+    pushHistory(c, { date: c.resolvedAt, status: 'resolu', source: 'moi' });
     persist(); renderList(); renderMarkers();
-    cmStatus(isDone(c) ? 'Marqué comme traité' : 'Rouvert');
+    cmStatus('Marqué résolu (par toi) — verrouillé');
+  };
+  /* Rouvrir un ticket signalé pas encore pris en compte : redevient nouveau, modifiable ; le prochain
+     rapport le renverra avec la mention « remplace la version du … » */
+  window.cmReopen = function (id) {
+    var c = findComment(id);
+    if (!c || c.status !== 'signale') return;
+    c.supersedes = c.signaledAt;
+    c.status = 'nouveau'; delete c.signaledAt;
+    pushHistory(c, { date: new Date().toISOString(), status: 'nouveau', source: 'moi', message: 'rouvert' });
+    persist(); renderList(); renderMarkers();
+    cmStatus('Rouvert — modifiable, sera renvoyé au prochain rapport');
   };
   window.cmToggleHideDone = function () {
     try { localStorage.setItem(HIDE_DONE_KEY, hideDone() ? '0' : '1'); } catch (e) {}
@@ -766,8 +843,8 @@
       allComments.forEach(function (c) { nPages[c.page] = true; });
       var nPagesCount = Object.keys(nPages).length;
       var siteRemaining = allComments.filter(function (c) { return !isDone(c); }).length;
-      subEl.innerHTML = cmEsc(remaining.length + ' restant(s)' + (done ? ' · ' + done + ' traité(s)' : '') + ' — ' + allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site' + (siteRemaining !== allComments.length ? ' (' + siteRemaining + ' restants)' : '')) +
-        (done ? ' <button class="cm-hide-done' + (hideDone() ? ' cm-on' : '') + '" onclick="cmToggleHideDone()">' + (hideDone() ? 'Afficher les traités' : 'Masquer les traités') + '</button>' : '');
+      subEl.innerHTML = cmEsc(remaining.length + ' restant(s)' + (done ? ' · ' + done + ' résolu(s)' : '') + ' — ' + allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site' + (siteRemaining !== allComments.length ? ' (' + siteRemaining + ' restants)' : '')) +
+        (done ? ' <button class="cm-hide-done' + (hideDone() ? ' cm-on' : '') + '" onclick="cmToggleHideDone()">' + (hideDone() ? 'Afficher les résolus' : 'Masquer les résolus') + '</button>' : '');
     }
     if (!pc.length) {
       list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
@@ -781,15 +858,20 @@
         '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
           '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
           '<div class="txt">' + cmEsc(c.text) + '</div>' +
+          (c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">↳ ' + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
+          (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(c.complementMessage) + '</div>' : '') +
+          (c.feedbackMessage && c.status !== 'complement' ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
           '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
+          (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + cmEsc(statusLabel(c)) + '</span>' : '') +
           (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
           '</div></div>' +
         '<div class="cm-item-actions">' +
-          '<button class="st" onclick="cmToggleStatus(\'' + c.id + '\')" title="' + (isDone(c) ? 'Traité — cliquer pour rouvrir' : 'Marquer comme traité') + '" aria-label="Statut">✓</button>' +
+          (!isDone(c) ? '<button class="st" onclick="cmResolve(\'' + c.id + '\')" title="Marquer résolu (par moi) — verrouille le ticket" aria-label="Résoudre">✓</button>' : '<span class="st cm-st-locked" title="Résolu — verrouillé">✓</span>') +
+          (c.status === 'signale' ? '<button class="reopen" onclick="cmReopen(\'' + c.id + '\')" title="Rouvrir pour corriger (sera renvoyé au prochain rapport)" aria-label="Rouvrir">↩</button>' : '') +
           '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
         '</div></div>';
     });
-    if (!html) html = '<div class="cm-panel-empty">Tout est traité sur cette page 🎉</div>';
+    if (!html) html = '<div class="cm-panel-empty">Tout est résolu sur cette page 🎉</div>';
     list.innerHTML = html;
   }
 
@@ -828,13 +910,46 @@
     editInList(id);
   };
 
+  /* Complément demandé : on répond dans la liste (le texte d'origine n'est pas modifié). La réponse
+     partira dans le prochain rapport. */
+  function addReply(c, text) {
+    if (!text) return false;
+    (c.replies = c.replies || []).push({ date: new Date().toISOString(), text: text });
+    pushHistory(c, { date: new Date().toISOString(), status: 'complement', source: 'moi', message: 'réponse : ' + text });
+    persist(); renderList(); renderMarkers();
+    cmStatus('Réponse enregistrée — elle partira dans le prochain rapport');
+    return true;
+  }
+  function replyInList(item, c) {
+    var meta = item.querySelector('.cm-meta');
+    var ta = document.createElement('textarea');
+    ta.className = 'cm-inline-edit cm-inline-reply';
+    ta.placeholder = 'Ta réponse au complément demandé… (Entrée = enregistrer, Échap = annuler)';
+    meta.parentNode.insertBefore(ta, meta);
+    ta.focus();
+    var finished = false;
+    function finish(save) {
+      if (finished) return;
+      finished = true;
+      var v = ta.value.trim();
+      if (save && v) addReply(c, v); else ta.remove();
+    }
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+    });
+    ta.addEventListener('blur', function () { finish(true); });
+  }
+
   /* Modification du texte directement dans la liste : Entrée = enregistrer, Maj+Entrée = nouvelle
      ligne, Échap = annuler, clic ailleurs = enregistrer. */
   function editInList(id) {
     var item = document.querySelector('.cm-panel-item[data-id="' + id + '"]');
     if (!item || item.querySelector('textarea')) return;
-    var c = allComments.filter(function (x) { return x.id === id; })[0];
+    var c = findComment(id);
     if (!c) return;
+    if (c.status === 'complement') { replyInList(item, c); return; }
+    if (!isEditable(c)) { cmStatus(statusLabel(c) + ' — non modifiable'); return; }
     var txt = item.querySelector('.txt');
     var ta = document.createElement('textarea');
     ta.className = 'cm-inline-edit';
@@ -1368,29 +1483,44 @@
   function openPopup(x, y, zone, meta) {
     closePopup(true); // (efface aussi la couleur "actif" de la bulle précédente)
     var isEdit = !!(meta && meta.existing);
+    var locked = isEdit && !isEditable(meta.existing);           // signalé / pris en compte / complément / résolu : lecture seule
+    var askReply = isEdit && meta.existing.status === 'complement'; // … sauf qu'on peut répondre à un complément
     setFocused(isEdit ? meta.existing.id : null);
     if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
     if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + meta.existing.id + '"]'); // (re)trouvé après un éventuel re-rendu
-    if (meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
+    if (!locked && meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
     var pop = document.createElement('div');
-    pop.className = 'cm-popup cm-ui';
+    pop.className = 'cm-popup cm-ui' + (locked ? ' cm-locked' : '');
     pop.innerHTML =
       '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
-      '<textarea placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
+      (locked ? '<div class="cm-lock-line">' + cmEsc(statusLabel(meta.existing)) + ' — non modifiable</div>' : '') +
+      '<textarea' + (locked ? ' readonly' : '') + ' placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
       (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea>' +
-      '<div class="cm-cat-row"><select class="cm-cat" title="Catégorie (proposée d’après le texte, modifiable)">' +
+      (askReply ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(meta.existing.complementMessage || 'Complément demandé') + '</div>' +
+                  '<textarea class="cm-reply-ta" placeholder="Ta réponse… (Entrée = enregistrer)"></textarea>' : '') +
+      '<div class="cm-cat-row"><select class="cm-cat"' + (locked ? ' disabled' : '') + ' title="Catégorie (proposée d’après le texte, modifiable)">' +
       CATEGORIES.map(function (cat) { return '<option value="' + cat.key + '">' + cat.icon + ' ' + cat.label + '</option>'; }).join('') +
       '</select><span class="cm-cat-auto">auto</span></div>' +
       '<div class="cm-popup-actions">' +
       (isEdit ? '<button class="cm-delete" title="Supprimer ce commentaire">🗑</button>' : '') +
-      '<button class="cm-cancel">Annuler</button><button class="cm-save">Enregistrer</button></div>';
+      '<button class="cm-cancel">' + (locked && !askReply ? 'Fermer' : 'Annuler') + '</button>' +
+      (locked && !askReply ? '' : '<button class="cm-save">' + (askReply ? 'Enregistrer la réponse' : 'Enregistrer') + '</button>') + '</div>';
     document.body.appendChild(pop);
     placePopup(pop, targetRectOf(meta), x, y);
     pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-zone'));
     var ta = pop.querySelector('textarea');
-    ta.focus();
-    if (isEdit) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); }
+    if (askReply) {
+      var rta = pop.querySelector('.cm-reply-ta');
+      rta.focus();
+      rta.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (addReply(meta.existing, rta.value.trim())) closePopup(true); }
+      });
+      pop.querySelector('.cm-save').onclick = function (e) { e.stopPropagation(); if (addReply(meta.existing, rta.value.trim())) closePopup(true); };
+    } else if (!locked) {
+      ta.focus();
+    }
+    if (isEdit && !locked) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); }
 
     // Catégorie : proposée automatiquement pendant la frappe, tant que l'utilisateur ne l'a pas choisie lui-même
     var catSel = pop.querySelector('.cm-cat'), catAuto = pop.querySelector('.cm-cat-auto');
@@ -1404,7 +1534,8 @@
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        pop.querySelector('.cm-save').click();
+        var sb = pop.querySelector('.cm-save');
+        if (sb && !locked) sb.click();
       }
     });
 
@@ -1420,6 +1551,7 @@
         pendingPopup = null;
       };
     }
+    if (locked) { pendingPopup = pop; return; }
     pop.querySelector('.cm-save').onclick = function (e) {
       e.stopPropagation();
       var text = ta.value.trim();
@@ -1449,7 +1581,7 @@
         } else {
           var id = uid();
           savedId = id;
-          var c = { id: id, type: meta.type, page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
+          var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
           if (meta.type === 'box') {
             c.anchor = desc ? desc.anchor : meta.boxAnchor;
             c.fallback = meta.box;
@@ -1644,6 +1776,7 @@
      l'élément visé au groupe (ou le retire s'il y est déjà). Un seul commentaire, un cadre par élément. */
   function toggleMultiTarget(target) {
     var meta = pendingPopup._meta;
+    if (meta.existing && !isEditable(meta.existing)) { cmStatus(statusLabel(meta.existing) + ' — non modifiable'); return; }
     var zone = detectZone(target);
     if (!zone.el) return;
     meta.targets = meta.targets || [];
@@ -1872,61 +2005,196 @@
     statusTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
   }
 
-  /* Rapport UNIQUE regroupant les commentaires de TOUTES les pages du site visitées dans ce
-     navigateur (localStorage partagé entre les fichiers file://) — pas seulement la page courante. */
-  function buildReport() {
-    if (!allComments.length) return '';
-    var byPage = {};
-    var order = [];
-    allComments.forEach(function (c) {
+  /* ---------- rapport : un fichier Markdown = texte lisible + bloc JSON par ticket ----------
+     Périmètre par défaut « nouveautés » : tickets nouveaux + réponses aux compléments, toutes les
+     pages du projet ouvertes dans ce navigateur. « Complet » : tout, tous statuts.
+     Chaque rapport reçoit un identifiant (R-AAAA-MM-JJ-n) que les tickets mémorisent ; générer un
+     rapport marque ses tickets « signalés » (verrouillés) après confirmation. */
+  var REPORTS_KEY = 'annotate_' + CONFIG.project + '_reports';
+  function pastReports() { try { return JSON.parse(localStorage.getItem(REPORTS_KEY) || '[]'); } catch (e) { return []; } }
+  function nextReportId() {
+    var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var day = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); // date locale, pas UTC
+    var n = pastReports().filter(function (r) { return r.id.indexOf('R-' + day) === 0; }).length + 1;
+    return 'R-' + day + '-' + n;
+  }
+  function hasPendingReply(c) { return c.status === 'complement' && (c.replies || []).some(function (r) { return !r.sentIn; }); }
+  function reportItems(full) {
+    return allComments.filter(function (c) { return full || c.status === 'nouveau' || hasPendingReply(c); });
+  }
+  function ticketJson(c, reportId) {
+    var t = c.tech || {};
+    return {
+      id: c.id, page: c.page, page_titre: c.pageTitle || '', type: t.type || c.type,
+      categorie: categoryOf(c.category).label, statut: c.status,
+      texte: c.text,
+      cibles: (t.selectors || []).map(function (sel, i) { return { selecteur: sel, libelle: (t.labels || [])[i] || c.zone }; }),
+      citation: c.quote || undefined,
+      position: t.position, fenetre: t.viewport, navigateur: t.browser, os: t.os, theme: t.theme,
+      erreurs_console: t.consoleErrors && t.consoleErrors.length ? t.consoleErrors : undefined,
+      cree_le: c.date, rapport: reportId,
+      remplace_version_du: c.supersedes || undefined,
+      reponses: c.replies && c.replies.length ? c.replies.map(function (r) { return { date: r.date, texte: r.text }; }) : undefined,
+      complement_demande: c.complementMessage || undefined
+    };
+  }
+  function buildReportMd(items, reportId, full) {
+    var byPage = {}, order = [];
+    items.forEach(function (c) {
       if (!byPage[c.page]) { byPage[c.page] = { title: c.pageTitle || c.page, items: [] }; order.push(c.page); }
       byPage[c.page].items.push(c);
     });
-    var lines = [
-      CONFIG.project + ' — Rapport de commentaires (site)',
-      'Date : ' + new Date().toLocaleString('fr-FR'),
-      allComments.length + ' commentaire(s) sur ' + order.length + ' page(s)',
-      ''
-    ];
+    var L = [];
+    L.push('# ' + CONFIG.project + ' — Rapport de retours ' + reportId);
+    L.push('');
+    L.push('Généré le ' + new Date().toLocaleString('fr-FR') + ' · ' + items.length + ' ticket(s) sur ' + order.length + ' page(s) · périmètre : ' + (full ? 'complet (tous statuts)' : 'nouveautés'));
+    L.push('');
     var n = 0;
     order.forEach(function (page) {
       var grp = byPage[page];
-      lines.push('=== ' + grp.title + ' (' + page + ') ===');
+      L.push('## Page : ' + grp.title + ' (`' + page + '`)');
+      L.push('');
       grp.items.forEach(function (c) {
         n++;
-        lines.push('#' + n + ' [' + typeIcon(c.type) + ' ' + c.zone + '] — ' + categoryOf(c.category).label + (isDone(c) ? ' · TRAITÉ' : ''));
-        lines.push(c.text);
-        lines.push('');
+        var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c).replace(/^\S+\s/, '');
+        L.push('### #' + n + ' · ' + typeIcon(c.type) + ' ' + c.zone + ' — ' + categoryOf(c.category).label + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
+        L.push('');
+        L.push(c.text);
+        L.push('');
+        if (c.complementMessage) { L.push('> ❔ Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '') + ' : ' + c.complementMessage); }
+        (c.replies || []).forEach(function (r) { L.push('> ↳ Réponse du ' + frDate(r.date) + ' : ' + r.text); });
+        if (c.complementMessage || (c.replies && c.replies.length)) L.push('');
+        L.push('```json');
+        L.push(JSON.stringify(ticketJson(c, reportId), null, 2));
+        L.push('```');
+        L.push('');
       });
     });
-    return lines.join('\n');
+    L.push('---');
+    L.push('');
+    L.push('## Pour répondre à ce rapport');
+    L.push('');
+    L.push('Termine ton traitement par un bloc de ce format (une ligne par ticket, séparateur `|` avant un message facultatif). Il se colle dans Annotate : tiroir 📋 → « Coller un retour ».');
+    L.push('');
+    L.push('```');
+    L.push('annotate-retour ' + reportId);
+    L.push('<id du ticket> pris_en_compte');
+    L.push('<id du ticket> resolu | ce qui a été fait (facultatif)');
+    L.push('<id du ticket> complement | la question à poser pour clarifier');
+    L.push('```');
+    L.push('');
+    L.push('Identifiants de ce rapport : ' + items.map(function (c) { return '`' + c.id + '`'; }).join(', '));
+    L.push('');
+    return L.join('\n');
   }
-
-  window.cmCopy = function () {
-    if (!allComments.length) { cmStatus('Aucun commentaire à copier sur tout le site'); return; }
-    var txt = buildReport();
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(txt).then(function () {
-        cmStatus('Copié (tout le site) — colle-le à Claude ou où tu veux');
-      }).catch(function () {
-        cmStatus('Copie impossible — essaie Envoyer par email');
-      });
-    } else {
-      cmStatus('Copie non supportée par ce navigateur');
+  function markReported(items, reportId) {
+    var now = new Date().toISOString(), n = 0;
+    items.forEach(function (c) {
+      if (c.status === 'nouveau' || hasPendingReply(c)) {
+        (c.replies || []).forEach(function (r) { if (!r.sentIn) r.sentIn = reportId; });
+        c.status = 'signale'; c.signaledAt = now;
+        (c.reports = c.reports || []).push(reportId);
+        pushHistory(c, { date: now, status: 'signale', source: 'rapport', message: reportId });
+        n++;
+      }
+    });
+    var reports = pastReports();
+    reports.push({ id: reportId, date: now, count: items.length });
+    try { localStorage.setItem(REPORTS_KEY, JSON.stringify(reports)); } catch (e) {}
+    if (pendingPopup) closePopup(true);
+    persist(); renderList(); renderMarkers();
+    return n;
+  }
+  /* Prépare un rapport : renvoie { id, md, items } ou null si rien à mettre dedans. Demande si l'on
+     marque les tickets (Annuler = rapport généré sans les verrouiller). */
+  function prepareReport() {
+    var full = !!(document.getElementById('cmFullReport') && document.getElementById('cmFullReport').checked);
+    var items = reportItems(full);
+    if (!items.length) { cmStatus(full ? 'Aucun commentaire sur le site' : 'Rien de nouveau à signaler (coche « Rapport complet » pour tout exporter)'); return null; }
+    var id = nextReportId();
+    var md = buildReportMd(items, id, full);
+    var toMark = items.filter(function (c) { return c.status === 'nouveau' || hasPendingReply(c); }).length;
+    var marked = 0;
+    if (toMark) {
+      if (window.confirm('Marquer ' + toMark + ' ticket(s) comme signalé(s) dans le rapport ' + id + ' ?\n(Ils ne seront plus modifiables. Annuler = générer le rapport sans les marquer.)')) marked = markReported(items, id);
     }
+    return { id: id, md: md, items: items, marked: marked };
+  }
+  window.cmExport = function () {
+    var r = prepareReport();
+    if (!r) return;
+    var blob = new Blob([r.md], { type: 'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'annotate-' + CONFIG.project + '-' + r.id + '.md';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    cmStatus('Rapport ' + r.id + ' téléchargé' + (r.marked ? ' — ' + r.marked + ' ticket(s) signalé(s)' : ''));
+  };
+  window.cmCopy = function () {
+    var r = prepareReport();
+    if (!r) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(r.md).then(function () {
+        cmStatus('Rapport ' + r.id + ' copié' + (r.marked ? ' — ' + r.marked + ' ticket(s) signalé(s)' : '') + ' — colle-le à Claude');
+      }).catch(function () { cmStatus('Copie impossible — essaie Télécharger'); });
+    } else cmStatus('Copie non supportée par ce navigateur');
+  };
+  window.cmSendMail = function () {
+    if (!EMAIL_TO) { cmStatus('Aucune adresse configurée (data-email) — utilise Télécharger ou Copier'); return; }
+    var r = prepareReport();
+    if (!r) return;
+    var subject = CONFIG.project + ' — Rapport de retours ' + r.id + ' (' + r.items.length + ')';
+    var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(r.md);
+    if (mailto.length > 1900) { cmStatus('Trop long pour un email — utilise Télécharger ou Copier'); return; }
+    window.location.href = mailto;
   };
 
-  window.cmSendMail = function () {
-    if (!allComments.length) { cmStatus('Aucun commentaire à envoyer'); return; }
-    if (!EMAIL_TO) { cmStatus('Aucune adresse configurée (data-email) — utilise Copier'); return; }
-    var body = buildReport();
-    var subject = CONFIG.project + ' — Rapport de commentaires (' + allComments.length + ')';
-    var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-    if (mailto.length > 1900) {
-      cmStatus('Trop long pour un email — utilise Copier');
-      return;
-    }
-    window.location.href = mailto;
+  /* ---------- retour : on colle le bloc produit par la session (ou tapé à la main) ----------
+       annotate-retour R-…            (en-tête facultatif)
+       <id> pris_en_compte
+       <id> resolu | message facultatif
+       <id> complement | question posée
+     Statuts tolérés : « pris en compte », « vu », « résolu », « corrigé », « fait », « complément », « question ». */
+  function normalizeStatus(word) {
+    var w = normalizeText(word).replace(/[_-]/g, ' ');
+    if (/^(pris en compte|vu|ok|en cours)$/.test(w)) return 'pris_en_compte';
+    if (/^(resolu|resolue|corrige|corrigee|fait|done|ferme)$/.test(w)) return 'resolu';
+    if (/^(complement|question|precision|a preciser)$/.test(w)) return 'complement';
+    return null;
+  }
+  function applyFeedback(text) {
+    var lines = String(text || '').split(/\r?\n/), applied = 0, unknown = 0, ignored = 0, now = new Date().toISOString();
+    lines.forEach(function (raw) {
+      var line = raw.replace(/^[-*>\s`]+/, '').trim();
+      if (!line || /^annotate-retour/i.test(line) || /^```/.test(line)) return;
+      var m = line.match(/^(\S+)\s+([^|]+?)\s*(?:\|\s*(.*))?$/);
+      if (!m) { ignored++; return; }
+      var c = findComment(m[1]), st = normalizeStatus(m[2]), msg = (m[3] || '').trim();
+      if (!st) { ignored++; return; }   // pas un statut reconnu : ligne de prose, on l'ignore
+      if (!c) { unknown++; return; }    // statut valide mais identifiant inconnu
+      if (c.status === 'resolu' && st !== 'resolu') { ignored++; return; } // un résolu ne redevient pas ouvert par un retour
+      c.status = st;
+      if (st === 'pris_en_compte') { c.ackAt = now; if (msg) c.feedbackMessage = msg; }
+      if (st === 'resolu') { c.resolvedAt = now; c.resolvedBy = 'retour'; if (msg) c.feedbackMessage = msg; }
+      if (st === 'complement') { c.complementAt = now; c.complementMessage = msg || 'Peux-tu préciser ?'; }
+      pushHistory(c, { date: now, status: st, source: 'retour', message: msg || undefined });
+      applied++;
+    });
+    persist(); renderList(); renderMarkers();
+    return { applied: applied, unknown: unknown, ignored: ignored };
+  }
+  window.cmPasteFeedback = function (show) {
+    var box = document.getElementById('cmFeedbackBox');
+    var open = typeof show === 'boolean' ? show : box.hidden;
+    box.hidden = !open;
+    if (open) { var ta = box.querySelector('textarea'); ta.value = ''; ta.focus(); }
+  };
+  window.cmApplyFeedback = function () {
+    var box = document.getElementById('cmFeedbackBox');
+    var res = applyFeedback(box.querySelector('textarea').value);
+    box.hidden = true;
+    cmStatus(res.applied + ' ticket(s) mis à jour' + (res.unknown ? ' · ' + res.unknown + ' identifiant(s) inconnu(s)' : '') + (res.ignored ? ' · ' + res.ignored + ' ligne(s) ignorée(s)' : ''));
   };
 
   document.addEventListener('mousedown', onMouseDown, true);

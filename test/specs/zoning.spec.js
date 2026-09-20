@@ -59,9 +59,10 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-item .zone').nth(0)).toHaveText('📍 Boulangerie Martin');
     await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('🔲 Zone encadrée — Commandes, 37');
+    page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     const txt = await page.evaluate(() => navigator.clipboard.readText());
-    expect(txt).toContain('#1 [📍 Boulangerie Martin]');
-    expect(txt).toContain('#2 [🔲 Zone encadrée — Commandes, 37]');
+    expect(txt).toContain('### #1 · 📍 Boulangerie Martin');
+    expect(txt).toContain('### #2 · 🔲 Zone encadrée — Commandes, 37');
   });
 });
