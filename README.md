@@ -12,6 +12,7 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 
 - `data-project` : nom du projet — sert de clé de stockage (partagée entre toutes les pages du projet) et de titre du rapport.
 - `data-email` : facultatif, destinataire du bouton « Envoyer ».
+- `data-mode="live"` : pour un site en production — le widget est **invisible par défaut** (aucun bouton, aucun repère). On le révèle par le raccourci `Alt+A` / `⌥+A` ou en ajoutant `?witmit=on` à l'URL (retiré aussitôt de l'adresse, mémorisé dans le navigateur) ; on le cache à nouveau par le bouton « 🙈 Masquer witmit » du tiroir ou `?witmit=off`. Sans cet attribut (mode `mock`, défaut) : comportement V1, tout visible, tout en local.
 - `data-drawer="overlay"` : facultatif, le tiroir recouvre la page au lieu de la pousser (par défaut la page est décalée de la largeur du tiroir, éléments fixés à l'écran compris).
 - `data-multi-lines="false"` : facultatif, retire les lignes fines qui relient les éléments d'une sélection multiple (affichées par défaut).
 - Si la page contient déjà des boutons `#cmToggleBtn` / `#cmPanelBtn` (maquettes TellUs), ils sont réutilisés ; sinon deux boutons flottants apparaissent en bas à droite.

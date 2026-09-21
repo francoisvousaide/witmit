@@ -11,11 +11,14 @@
   /* ---------- configuration lue sur la balise <script> ----------
      <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
      - data-project : nom du projet (clé de stockage + titre du rapport) — obligatoire en pratique
-     - data-email   : destinataire du bouton « Envoyer » (facultatif) */
+     - data-email   : destinataire du bouton « Envoyer » (facultatif)
+    - data-mode    : "mock" (défaut : tout reste dans le navigateur, boutons visibles) ou "live" (site en
+                     production : widget invisible par défaut, révélé par Alt+A / ⌥+A ou ?witmit=on) */
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'witmit',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
+    mode: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-mode')) === 'live' ? 'live' : 'mock',
     // data-capture="false" : pas de capture d'écran des encadrés ; data-html2canvas="…" : autre adresse de la bibliothèque
     capture: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-capture') || '')),
     html2canvasUrl: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-html2canvas')) || 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
@@ -56,6 +59,9 @@
   .cm-toggle-btn.cm-on { background:var(--cm-orange); border-color:var(--cm-orange); }
   .cm-toggle-btn .cm-count-badge { position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:9px; background:var(--cm-teal); color:#fff; font-family:'League Spartan',sans-serif; font-size:9.5px; font-weight:700; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px var(--cm-surface); }
   .cm-toggle-btn .cm-count-badge:empty, .cm-toggle-btn .cm-count-badge[data-zero="1"] { display:none; }
+
+  /* Mode live, widget caché : aucune couche visible (toutes portent cm-ui) tant qu'il n'est pas révélé */
+  body.cm-concealed .cm-ui { display:none !important; }
 
   body.cm-active { cursor: crosshair; }
   body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: default; }
@@ -304,6 +310,7 @@
     <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
     <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
     <button onclick="cmPasteFeedback()">📥 Coller un retour</button>
+    <button onclick="cmReveal(false)" id="cmHideBtn" title="Cacher witmit sur ce site (Alt+A / ⌥+A ou ?witmit=on pour le retrouver)" hidden>🙈 Masquer witmit</button>
   </div>
   <div class="cm-panel-foot cm-panel-report">
     <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
@@ -461,6 +468,40 @@
   var PAGE_TITLE = document.title || PAGE_FILE;
   var STORAGE_KEY = 'witmit_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
+
+  /* ---------- mode live : widget invisible par défaut sur un site en production ----------
+     Révélé par le raccourci (Alt+A / ⌥+A) ou par ?witmit=on dans l'URL, mémorisé dans le navigateur
+     (clé REVEAL_KEY) ; ?witmit=off ou le bouton « Masquer witmit » du tiroir le cache et oublie.
+     Le paramètre d'URL est retiré aussitôt pour ne pas traîner dans les liens copiés. */
+  var REVEAL_KEY = 'witmit_' + CONFIG.project + '_reveal';
+  var LIVE = CONFIG.mode === 'live';
+  function isRevealed() {
+    if (!LIVE) return true;
+    try { return localStorage.getItem(REVEAL_KEY) === '1'; } catch (e) { return false; }
+  }
+  function applyReveal(on) {
+    document.body.classList.toggle('cm-concealed', !on);
+    var hideBtn = document.getElementById('cmHideBtn');
+    if (hideBtn) hideBtn.hidden = !LIVE;
+  }
+  window.cmReveal = function (on) {
+    if (!LIVE) return;
+    on = on !== false;
+    try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
+    if (!on) { cmToggle(false); cmTogglePanel(false); }
+    applyReveal(on);
+  };
+  function readUrlSwitch() {
+    if (!LIVE || !location.search) return;
+    var params = new URLSearchParams(location.search);
+    var v = params.get('witmit');
+    if (v === null) return;
+    var on = /^(on|1|oui|true)$/i.test(v);
+    try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
+    params.delete('witmit');
+    var qs = params.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
+  }
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
   var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
 
@@ -2000,6 +2041,7 @@
     if (e.code !== 'KeyA') return;
     if (isTypingIn(e.target)) return;
     e.preventDefault();
+    if (LIVE && document.body.classList.contains('cm-concealed')) cmReveal(true);
     cmToggle();
   });
   var cmToggleBtnEl = document.getElementById('cmToggleBtn');
@@ -2294,6 +2336,8 @@
   document.addEventListener('mouseup', onMouseUp, true);
   document.addEventListener('click', onClickCapture, true);
 
+  readUrlSwitch();
+  applyReveal(isRevealed());
   load();
   renderMarkers();
   renderList();
