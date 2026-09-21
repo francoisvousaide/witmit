@@ -21,15 +21,23 @@ Le code : `/Users/francois_/Dev/annotate-widget` (git local, branche `main`, 23 
 
 Mon app **TellUs DB** tourne en production (`/Users/francois_/Dev/TellUs-app` — Next.js 14 App Router, TypeScript, Tailwind, Supabase SSR déjà câblé, déployé sur Vercel ; lis son `CLAUDE.md`, il renvoie vers `Z-Brain/05-TellusDB/STATUT.md`). Je veux qu'Annotate y soit **utilisable dès le 22/09** par moi et quelques testeurs, sans que les visiteurs ordinaires le voient. Les maquettes HTML de TellUs n'étaient qu'un terrain d'essai : la cible, c'est les sites qui tournent.
 
+## Principe d'architecture (non négociable) : Annotate est un produit à part entière
+
+Annotate a **sa propre infrastructure**, indépendante des sites qu'il équipe — il s'appliquera à plus ou moins tous mes projets de dev (TellUs DB, MesDons, FleetOS, sites clients, maquettes futures) :
+- **Son propre dépôt GitHub** `annotate-widget` → script servi par jsDelivr, versionné par tag. Un site hôte ne contient qu'une balise `<script>` qui pointe vers ce script.
+- **Son propre projet Supabase** (région EU), une seule base pour tous les projets ; chaque ticket porte son `projet` (= le `data-project` de la balise). Ne JAMAIS brancher Annotate sur le Supabase d'un site hôte (pas sur celui de TellUs-app).
+- **Vercel (ou fonctions Supabase) seulement si nécessaire** : pour un futur tableau de bord Annotate (tous les tickets de tous les projets, hors du site annoté) ou une fonction serveur (créer une issue GitHub, valider un envoi). À décider au cadrage V2.
+- Conséquence sécurité : la même clé anonyme Annotate est présente sur tous les sites → policy « ajout seul » + limite de fréquence **par projet** obligatoires ; à réévaluer à chaque nouveau déploiement (règle du cadrage).
+
 ## Mission de cette session : Annotate V2, en deux vitesses
 
 ### Vitesse 1 — utilisable demain (priorité absolue, à faire en premier)
 1. **Invisible par défaut** sur un site public : boutons masqués tant qu'un raccourci secret (ou un paramètre d'URL, ex. `?annotate=on`, mémorisé en localStorage) ne les a pas révélés ; un moyen de les re-cacher. `data-mode="live"` sur la balise active ce comportement (`data-mode="mock"` = comportement V1 actuel).
-2. **Intégration dans TellUs-app** : `annotate.js` servi depuis `public/`, balise dans `app/layout.tsx` (composant `next/script`, chargé après l'hydratation), `data-project="tellus"`, `data-mode="live"`, `data-email` vers moi. Respecter les règles du `CLAUDE.md` de TellUs-app (navbar unique, ne pas toucher à l'auth Supabase, validation étape par étape) et mettre à jour `STATUT.md` en fin de session comme il le demande.
+2. **Intégration dans TellUs-app** (premier site hôte) : `annotate.js` servi depuis `public/` en attendant jsDelivr, balise dans `app/layout.tsx` (composant `next/script`, chargé après l'hydratation), `data-project="tellus"`, `data-mode="live"`, `data-email` vers moi. Respecter les règles du `CLAUDE.md` de TellUs-app (navbar unique, ne pas toucher à l'auth Supabase, validation étape par étape) et mettre à jour `STATUT.md` en fin de session comme il le demande.
 3. Vérifier en preview Vercel avant la prod ; en attendant la collecte centralisée, les testeurs m'envoient leur rapport (Copier / Télécharger / Envoyer) — ça marche déjà.
 
 ### Vitesse 2 — collecte centralisée (à cadrer ensemble AVANT de coder, comme prévu au cadrage)
-4. **Supabase** : table `annotations` minimale (`id, projet, page, texte, categorie, statut, donnees_techniques jsonb, date_creation, auteur optionnel anonyme`), région EU, images de capture dans Supabase Storage (pas en base). Le widget envoie chaque ticket à l'enregistrement (`data-supabase-url` / `data-supabase-key` sur la balise) tout en gardant la copie locale.
+4. **Supabase d'Annotate** (projet dédié, pas celui du site hôte) : table `annotations` minimale (`id, projet, page, texte, categorie, statut, donnees_techniques jsonb, date_creation, auteur optionnel anonyme`), région EU, images de capture dans Supabase Storage (pas en base). Le widget envoie chaque ticket à l'enregistrement (`data-supabase-url` / `data-supabase-key` sur la balise) tout en gardant la copie locale.
 5. **Sécurité version simple** (décidée) : clé anonyme + policy « ajout seul » (jamais lecture/modification/suppression des autres) + limite de fréquence côté navigateur. **À reposer explicitement pour TellUs DB** (trafic, public) : suffit-il, ou Turnstile / validation serveur dès maintenant ?
 6. **Retour** : le format « annotate-retour » de la V1 (une ligne par ticket : id, statut, message) devient la base ; en V2 le statut se lit depuis Supabase (statut visible côté utilisateur : nouveau / en cours / résolu) et, pour les projets avec repo, une **issue GitHub** par ticket (texte + JSON) — brancher plus tard le mécanisme « assigner à un agent ».
 7. **Hébergement du script** : dépôt GitHub public + jsDelivr, versionné par tag (tranché au cadrage). Pousser `annotate-widget` sur GitHub (compte à confirmer avec moi), `v1.0.0`, puis remplacer la copie dans `public/` de TellUs-app par l'URL jsDelivr quand c'est stable.
