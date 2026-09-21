@@ -19,7 +19,7 @@ const ALTCHA_EXPIRES_MS = 10 * 60 * 1000;   // un défi vaut 10 min
 const QUOTA_AUTEUR = { max: 10, fenetre: "10 minutes" };   // par visiteur
 const QUOTA_PROJET = { max: 60, fenetre: "1 hour" };       // par site
 const MAX_TEXTE = 5000, MAX_PAGE = 500, MAX_TECH_OCTETS = 20_000, MAX_CAPTURE_OCTETS = 1_000_000;
-const CATEGORIES = new Set(["bug_visuel", "bug_fonctionnel", "ajustement_visuel", "texte", "comportement", "suggestion", "question", "a_classer"]);
+const CATEGORIES = new Set(["bug-visuel", "bug-fonctionnel", "ajustement", "texte", "comportement", "suggestion", "question", "a-classer"]);  // = clés du widget
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
   const projet = String(body.projet ?? "").trim();
   const page = String(body.page ?? "").trim().slice(0, MAX_PAGE);
   const texte = String(body.texte ?? "").trim();
-  const categorie = CATEGORIES.has(String(body.categorie)) ? String(body.categorie) : "a_classer";
+  const categorie = CATEGORIES.has(String(body.categorie)) ? String(body.categorie) : "a-classer";
   const idLocal = body.id_local ? String(body.id_local).slice(0, 64) : null;
   const tech = (body.donnees_techniques && typeof body.donnees_techniques === "object") ? body.donnees_techniques : {};
   const capture = typeof body.capture === "string" ? body.capture : null;

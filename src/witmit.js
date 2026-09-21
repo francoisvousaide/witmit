@@ -19,6 +19,9 @@
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'witmit',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
     mode: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-mode')) === 'live' ? 'live' : 'mock',
+    // Mode live : adresse du projet Supabase de witmit et sa clé PUBLIQUE (sb_publishable_…, sans droit d'écriture)
+    supabaseUrl: ((SCRIPT_EL && SCRIPT_EL.getAttribute('data-supabase-url')) || '').replace(/\/+$/, ''),
+    supabaseKey: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-supabase-key')) || '',
     // data-capture="false" : pas de capture d'écran des encadrés ; data-html2canvas="…" : autre adresse de la bibliothèque
     capture: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-capture') || '')),
     html2canvasUrl: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-html2canvas')) || 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
@@ -230,6 +233,9 @@
   .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
   .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--cm-bg); border-radius:6px; color:var(--cm-text2); max-height:160px; overflow:auto; }
   .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
+  .cm-panel-item .cm-sync-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid var(--cm-border2); color:var(--cm-text-muted); background:var(--cm-bg); }
+  .cm-panel-item .cm-sync-chip.cm-sync-sent { color:var(--cm-teal); border-color:var(--cm-teal); background:transparent; }
+  .cm-panel-item .cm-sync-chip.cm-sync-error { color:#B4231A; border-color:#B4231A; background:transparent; cursor:pointer; }
   .cm-panel-item .cm-status-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid transparent; }
   .cm-panel-item .cm-st-signale { color:var(--cm-text2); background:var(--cm-bg); border-color:var(--cm-border2); }
   .cm-panel-item .cm-st-pris_en_compte { color:var(--cm-teal); background:rgba(53,131,142,.10); }
@@ -502,6 +508,156 @@
     var qs = params.toString();
     try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
   }
+  /* ---------- mode live : envoi au guichet (Edge Function submit-annotation) ----------
+     Le carnet local (localStorage) reste la copie de secours ; en plus, chaque ticket est envoyé
+     au guichet, qui vérifie (identité anonyme, preuve de calcul Altcha, quotas) puis range le ticket
+     dans la base witmit. Rien n'est écrit directement dans la base depuis la page.
+     Sur chaque ticket : c.sync = { state: 'pending' | 'sent' | 'error', id?, statut?, error?, at } */
+  var SYNC = LIVE && !!(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+  if (LIVE && !SYNC) console.warn('[witmit] data-mode="live" sans data-supabase-url / data-supabase-key : les tickets restent locaux');
+  var SESSION_KEY = 'witmit_identite';      // une identité anonyme par navigateur (partagée par les projets du même site)
+  var FN_URL = CONFIG.supabaseUrl + '/functions/v1/submit-annotation';
+  var syncQueue = Promise.resolve();          // les envois se suivent (jamais en parallèle : quotas, ordre)
+
+  function sbHeaders(token) {
+    var h = { 'apikey': CONFIG.supabaseKey, 'Content-Type': 'application/json' };
+    if (token) h['Authorization'] = 'Bearer ' + token;
+    return h;
+  }
+  function readSession() { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; } }
+  function storeSession(data) {
+    var sess = { access_token: data.access_token, refresh_token: data.refresh_token, expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 3600), user_id: data.user && data.user.id };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sess)); } catch (e) {}
+    return sess;
+  }
+  // L'identité anonyme : créée au premier envoi seulement (jamais pour un simple visiteur), renouvelée quand elle expire.
+  function getSession() {
+    var sess = readSession();
+    if (sess && sess.expires_at - 60 > Date.now() / 1000) return Promise.resolve(sess);
+    var renew = sess && sess.refresh_token
+      ? fetch(CONFIG.supabaseUrl + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: sbHeaders(), body: JSON.stringify({ refresh_token: sess.refresh_token }) })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('refresh ' + r.status)); })
+      : Promise.reject(new Error('pas de session'));
+    return renew.catch(function () {
+      return fetch(CONFIG.supabaseUrl + '/auth/v1/signup', { method: 'POST', headers: sbHeaders(), body: '{}' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('identité refusée (' + r.status + ')')); });
+    }).then(storeSession);
+  }
+  // Le défi Altcha : trouver n tel que sha256(salt + n) = challenge. Calcul dans un ouvrier (Worker) pour ne pas
+  // geler la page ; repli sur le fil principal si la page interdit les ouvriers.
+  var SOLVER_SRC = "onmessage=async function(e){var c=e.data,enc=new TextEncoder();for(var n=0;n<=c.maxnumber;n++){var h=await crypto.subtle.digest('SHA-256',enc.encode(c.salt+n));var hex=Array.prototype.map.call(new Uint8Array(h),function(b){return('0'+b.toString(16)).slice(-2)}).join('');if(hex===c.challenge){postMessage(n);return}}postMessage(-1)}";
+  function solveChallenge(c) {
+    return new Promise(function (resolve, reject) {
+      var url;
+      try {
+        url = URL.createObjectURL(new Blob([SOLVER_SRC], { type: 'text/javascript' }));
+        var w = new Worker(url);
+        w.onmessage = function (e) { w.terminate(); URL.revokeObjectURL(url); e.data >= 0 ? resolve(e.data) : reject(new Error('défi insoluble')); };
+        w.onerror = function () { w.terminate(); URL.revokeObjectURL(url); solveInline(c).then(resolve, reject); };
+        w.postMessage(c);
+      } catch (e) { solveInline(c).then(resolve, reject); }
+    }).then(function (n) {
+      return btoa(JSON.stringify({ algorithm: c.algorithm, challenge: c.challenge, number: n, salt: c.salt, signature: c.signature }));
+    });
+  }
+  function solveInline(c) {
+    var enc = new TextEncoder(), n = 0;
+    function step() {
+      if (n > c.maxnumber) return Promise.reject(new Error('défi insoluble'));
+      return crypto.subtle.digest('SHA-256', enc.encode(c.salt + n)).then(function (h) {
+        var hex = Array.prototype.map.call(new Uint8Array(h), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        if (hex === c.challenge) return n;
+        n++; return step();
+      });
+    }
+    return step();
+  }
+  // Ce qui part au guichet : le texte, la catégorie, la page, et le bloc technique (ancre, cibles, navigateur…).
+  // Jamais d'email, jamais de paramètres d'URL.
+  function payloadFor(c) {
+    return {
+      projet: CONFIG.project,
+      page: location.pathname || c.page,
+      texte: c.text,
+      categorie: c.category,
+      id_local: c.id,
+      donnees_techniques: { type: c.type, zone: c.zone, pageTitle: c.pageTitle, anchor: c.anchor, fallback: c.fallback, targets: c.targets, quote: c.quote, categoryManual: !!c.categoryManual, tech: c.tech },
+      capture: c.shot && c.shot.dataUrl ? c.shot.dataUrl : undefined
+    };
+  }
+  function sendComment(c) {
+    var sess;
+    return getSession().then(function (s) {
+      sess = s;
+      return fetch(FN_URL + '/challenge', { headers: sbHeaders(sess.access_token) });
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('défi refusé (' + r.status + ')')); })
+      .then(solveChallenge)
+      .then(function (preuve) {
+        var body = payloadFor(c); body.altcha = preuve;
+        return fetch(FN_URL, { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify(body) });
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (data) {
+          if (!r.ok) throw new Error(data.erreur || ('erreur ' + r.status));
+          return data;
+        });
+      });
+  }
+  // Point d'entrée : file d'attente, un ticket à la fois ; résultat noté sur le ticket et dans la liste.
+  function scheduleSync(c) {
+    if (!SYNC || !c || !isEditable(c)) return;
+    if (c.sync && c.sync.state === 'pending') return;
+    c.sync = { state: 'pending', at: new Date().toISOString() };
+    persist(); renderList();
+    syncQueue = syncQueue.then(function () {
+      var live = findComment(c.id);
+      if (!live) return;
+      return sendComment(live).then(function (data) {
+        live.sync = { state: 'sent', id: data.id, statut: data.statut, at: new Date().toISOString() };
+        cmStatus('Ticket envoyé ☁️');
+      }).catch(function (err) {
+        live.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
+        cmStatus('Envoi impossible (' + live.sync.error + ') — le ticket est gardé en local, nouvel essai plus tard');
+      }).then(function () { persist(); renderList(); });
+    });
+  }
+  // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir et au chargement.
+  function flushPending() {
+    if (!SYNC) return;
+    allComments.forEach(function (c) {
+      if (!isEditable(c)) return;
+      if (!c.sync || c.sync.state === 'error') scheduleSync(c);
+      else if (c.sync.state === 'pending' && Date.now() - Date.parse(c.sync.at) > 120000) { c.sync = null; scheduleSync(c); } // envoi interrompu (page fermée)
+    });
+  }
+  // Le statut vu du serveur : nouveau → (rien) ; en_cours → « pris en compte » ; resolu → « résolu », avec ton message.
+  function refreshStatuses() {
+    if (!SYNC || !readSession()) return Promise.resolve();
+    var ids = allComments.filter(function (c) { return c.sync && c.sync.state === 'sent'; }).map(function (c) { return c.id; });
+    if (!ids.length) return Promise.resolve();
+    return getSession().then(function (sess) {
+      var q = '?select=id_local,statut,message_retour,mis_a_jour_le&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
+      return fetch(CONFIG.supabaseUrl + '/rest/v1/annotations' + q, { headers: sbHeaders(sess.access_token) });
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      var changed = false;
+      rows.forEach(function (row) {
+        var c = findComment(row.id_local); if (!c || !c.sync) return;
+        if (c.sync.statut !== row.statut || (row.message_retour || '') !== (c.feedbackMessage || '')) changed = true;
+        c.sync.statut = row.statut;
+        if (row.message_retour) c.feedbackMessage = row.message_retour;
+        if (row.statut === 'en_cours' && c.status !== 'resolu') { c.status = 'pris_en_compte'; c.ackAt = c.ackAt || row.mis_a_jour_le; }
+        if (row.statut === 'resolu' && c.status !== 'resolu') { c.status = 'resolu'; c.resolvedAt = row.mis_a_jour_le; c.resolvedBy = 'serveur'; }
+      });
+      if (changed) { persist(); renderList(); renderMarkers(); }
+    }).catch(function () {});
+  }
+  function syncChip(c) {
+    if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="Pas encore envoyé">⏳ à envoyer</span>' : '';
+    if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="Reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">☁️ envoyé</span>';
+    if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="Envoi en cours">⏳ envoi…</span>';
+    return '<span class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + ' — cliquer pour réessayer">⚠️ à renvoyer</span>';
+  }
+  window.cmRetrySync = function (id) { var c = findComment(id); if (c) { c.sync = null; scheduleSync(c); } };
+
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
   var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
 
@@ -911,6 +1067,7 @@
           (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(c.complementMessage) + '</div>' : '') +
           (c.feedbackMessage && c.status !== 'complement' ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
           '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
+          syncChip(c) +
           (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + cmEsc(statusLabel(c)) + '</span>' : '') +
           (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
           '</div></div>' +
@@ -1012,7 +1169,7 @@
       if (finished) return;
       finished = true;
       var v = ta.value.trim();
-      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus('Commentaire modifié'); }
+      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus('Commentaire modifié'); c.sync = null; scheduleSync(c); }
       // On remet le texte en place SANS redessiner la liste : un clic en cours sur un autre item
       // (qui a provoqué ce blur) doit atteindre sa cible.
       var div = document.createElement('div');
@@ -1623,10 +1780,11 @@
           meta.existing.text = text;
           meta.existing.category = catSel.value;
           meta.existing.categoryManual = catTouched;
-          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; (function (ex, bx) { setTimeout(function () { captureFor(ex, bx); }, 60); })(meta.existing, meta.box); }
+          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; (function (ex, bx) { setTimeout(function () { captureFor(ex, bx, function () { ex.sync = null; scheduleSync(ex); }); }, 60); })(meta.existing, meta.box); }
           if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
           if (desc || multi) { var prev = meta.existing.tech || {}; meta.existing.tech = captureTech(meta.existing); meta.existing.tech.date = prev.date || meta.existing.tech.date; meta.existing.tech.consoleErrors = prev.consoleErrors || []; }
           cmStatus('Commentaire modifié');
+          if (!desc) { meta.existing.sync = null; scheduleSync(meta.existing); } // encadré ajusté : renvoyé après la nouvelle capture
         } else {
           var id = uid();
           savedId = id;
@@ -1646,7 +1804,8 @@
           c.tech = captureTech(c);
           allComments.push(c);
           cmStatus('Commentaire enregistré');
-          if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback); }, 60); }
+          if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback, function () { scheduleSync(c); }); }, 60); }
+          else scheduleSync(c);
         }
         persist(); renderMarkers(); renderList();
       } else if (!isEdit && meta.type === 'text' && meta.marks) {
@@ -1910,6 +2069,7 @@
       // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
       clearTimeout(clickTimer); clickTimer = null;
       closePopup(true);
+      flushPending(); refreshStatuses();
     }
     panel.classList.toggle('show', show);
     if (!show && !pendingPopup) setFocused(null);
@@ -2112,8 +2272,8 @@
       oldest.shot = { dropped: true, at: oldest.shot.at };
     }
   }
-  function captureFor(c, box) {
-    if (!CONFIG.capture || !box) return;
+  function captureFor(c, box, done) {
+    if (!CONFIG.capture || !box) { if (done) done(); return; }
     cmStatus('Capture de la zone…');
     captureBox(box).then(function (img) {
       var live = findComment(c.id);
@@ -2124,7 +2284,7 @@
       cmStatus('Capture enregistrée (' + Math.round(img.dataUrl.length / 1024) + ' Ko)');
     }).catch(function (err) {
       cmStatus('Capture impossible (' + (err && err.message || 'erreur') + ') — le commentaire est bien enregistré');
-    });
+    }).then(function () { if (done) done(); });
   }
   window.cmShowShot = function (id) {
     var c = findComment(id);
@@ -2341,6 +2501,7 @@
   load();
   renderMarkers();
   renderList();
+  if (SYNC && allComments.length) setTimeout(function () { flushPending(); refreshStatuses(); }, 1500);
   } // fin boot()
 
   // Démarre dès que le <body> existe (que la balise <script> soit dans <head> ou en fin de page).

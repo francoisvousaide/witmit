@@ -13,6 +13,7 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 - `data-project` : nom du projet — sert de clé de stockage (partagée entre toutes les pages du projet) et de titre du rapport.
 - `data-email` : facultatif, destinataire du bouton « Envoyer ».
 - `data-mode="live"` : pour un site en production — le widget est **invisible par défaut** (aucun bouton, aucun repère). On le révèle par le raccourci `Alt+A` / `⌥+A` ou en ajoutant `?witmit=on` à l'URL (retiré aussitôt de l'adresse, mémorisé dans le navigateur) ; on le cache à nouveau par le bouton « 🙈 Masquer witmit » du tiroir ou `?witmit=off`. Sans cet attribut (mode `mock`, défaut) : comportement V1, tout visible, tout en local.
+- `data-supabase-url` + `data-supabase-key` (mode live) : l'adresse du projet Supabase **de witmit** et sa clé publique `sb_publishable_…` (sans droit d'écriture). Chaque ticket enregistré est alors **envoyé au guichet** (Edge Function `submit-annotation`) en plus de la copie locale : identité anonyme créée au premier envoi seulement, preuve de calcul Altcha résolue en arrière-plan, capture JPEG jointe pour les encadrés. Dans la liste : `☁️ envoyé` / `⏳ à envoyer` / `⚠️ à renvoyer` (clic = nouvel essai ; nouvel essai aussi à chaque ouverture du tiroir). Le statut vu du serveur (`en_cours` → pris en compte, `resolu` → résolu + message de retour) est relu à l'ouverture du tiroir. Les tickets envoyés ne sont plus modifiables une fois pris en charge.
 - `data-drawer="overlay"` : facultatif, le tiroir recouvre la page au lieu de la pousser (par défaut la page est décalée de la largeur du tiroir, éléments fixés à l'écran compris).
 - `data-multi-lines="false"` : facultatif, retire les lignes fines qui relient les éléments d'une sélection multiple (affichées par défaut).
 - Si la page contient déjà des boutons `#cmToggleBtn` / `#cmPanelBtn` (maquettes TellUs), ils sont réutilisés ; sinon deux boutons flottants apparaissent en bas à droite.
@@ -43,6 +44,12 @@ nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte
 - Vignette dans la liste (clic = plein écran), image embarquée dans le rapport `.md` et mentionnée dans le JSON.
 - Budget : 3 Mo d'images au total dans le stockage local ; au-delà, les plus anciennes sont retirées (le ticket reste).
 - `data-capture="false"` désactive ; `data-html2canvas="…"` pour une autre adresse (ex. copie locale, hors ligne).
+
+## Côté serveur (mode live)
+
+- `supabase/migrations/` — le schéma de la base witmit : tables `projets` (sites autorisés), `annotations` (tickets), `quotas` ; RLS fermée (un visiteur ne lit que ses tickets, n'écrit rien directement) ; bucket privé `captures`.
+- `supabase/functions/submit-annotation/` — le guichet : vérifie l'identité anonyme, la preuve Altcha (usage unique), les quotas (10 / 10 min par visiteur, 60 / h par projet), puis insère avec la clé serveur. Secret à poser : `ALTCHA_HMAC_KEY`. Auth anonyme à activer dans le dashboard.
+- Ajouter un site : une ligne dans `projets` (`slug` = `data-project`).
 
 ## Développement
 
