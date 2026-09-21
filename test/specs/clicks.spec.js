@@ -1,7 +1,7 @@
 // Double-clic = mot, triple-clic = paragraphe ; variante avec délai avant la bulle du clic simple.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 test.describe('Double et triple clic (Kiosque)', () => {
   test.beforeEach(async ({ page }) => {

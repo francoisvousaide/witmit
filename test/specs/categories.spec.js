@@ -1,7 +1,7 @@
 // Étape 2 : catégorie par mots-clés (locale) + bloc technique par ticket.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 const CASES = [
   ['Le bouton déborde du cadre sur mobile', 'bug-visuel'],

@@ -1,7 +1,7 @@
 // Étape 5 : capture d'écran d'un encadré (html2canvas chargé à la demande), vignette, rapport, budget.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 async function drawBox(page, selector, text) {
   const b = await H.visibleBox(page, selector);

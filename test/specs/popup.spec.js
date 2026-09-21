@@ -1,7 +1,7 @@
 // Retours du 20/09 (2e série) : Échap, bulle déplaçable, encadré ajustable, position de la pastille de texte.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 test.describe('Bulle et encadré (Kiosque)', () => {
   test.beforeEach(async ({ page }) => {

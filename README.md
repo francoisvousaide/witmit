@@ -1,4 +1,4 @@
-# Annotate — widget d'annotation visuelle (V1)
+# witmit — widget d'annotation visuelle (V1)
 
 Un seul script à ajouter sur n'importe quelle page web (maquette HTML, app en dev) pour poser des commentaires
 visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de texte. Stockage local au navigateur
@@ -7,7 +7,7 @@ visuels précis : clic sur un élément, encadré d'une zone, ou surlignage de t
 ## Installation (une ligne)
 
 ```html
-<script src="annotate.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
+<script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
 ```
 
 - `data-project` : nom du projet — sert de clé de stockage (partagée entre toutes les pages du projet) et de titre du rapport.
@@ -32,7 +32,7 @@ nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte
 ```
 
 - Un ticket qui a quitté « nouveau » n'est **plus modifiable** (bulle en lecture seule) ; un « complément demandé » accepte une **réponse** (liste ou bulle), ajoutée au texte d'origine.
-- **Rapport** (📤 Télécharger / 📋 Copier / 📧 Envoyer) : un fichier Markdown `annotate-<projet>-R-AAAA-MM-JJ-n.md` — par page, chaque ticket en texte lisible puis en bloc JSON (cibles, position, fenêtre, navigateur, erreurs console…), et en fin de fichier la consigne de réponse. Périmètre par défaut **nouveautés** (tickets nouveaux + réponses aux compléments) ; case « Rapport complet » pour tout. Générer marque les tickets **signalés** après confirmation (Annuler = rapport sans marquage).
+- **Rapport** (📤 Télécharger / 📋 Copier / 📧 Envoyer) : un fichier Markdown `witmit-<projet>-R-AAAA-MM-JJ-n.md` — par page, chaque ticket en texte lisible puis en bloc JSON (cibles, position, fenêtre, navigateur, erreurs console…), et en fin de fichier la consigne de réponse. Périmètre par défaut **nouveautés** (tickets nouveaux + réponses aux compléments) ; case « Rapport complet » pour tout. Générer marque les tickets **signalés** après confirmation (Annuler = rapport sans marquage).
 - **Retour** (📥 Coller un retour) : bloc texte, une ligne par ticket — `<id> pris_en_compte`, `<id> resolu | message`, `<id> complement | question`. Statuts tolérants (« pris en compte », « vu », « corrigé », « fait », « question »…). Historique conservé par ticket.
 - Le badge 📋 compte ce qu'il reste à traiter ; « Masquer les résolus » (mémorisé).
 
@@ -51,8 +51,8 @@ npx playwright install chromium
 npm test               # suite Playwright (3 pages : 2 maquettes TellUs + 1 page générique)
 ```
 
-- `src/annotate.js` — le widget (CSS + interface + logique dans un seul fichier).
+- `src/witmit.js` — le widget (CSS + interface + logique dans un seul fichier).
 - `test/vendor/html2canvas.min.js` — copie locale de la bibliothèque, utilisée par les pages de test (pas de réseau pendant les tests).
 - `test/pages/` — pages de test. Les copies TellUs sont générées par `tools/strip-tellus-module.py` à partir des maquettes d'origine (jamais modifiées).
 - `archive/` — les 3 fichiers sources d'origine (référence, plus utilisés).
-- Docs produit (brief, cadrage, bilans) — dans le second cerveau `Z-Brain/10-Missions-AgenceIA/mes_outils/Outil_Annotate/`, pas dans ce repo ; voir `CLAUDE.md`.
+- Docs produit (brief, cadrage, bilans) — dans le second cerveau `Z-Brain/10-Missions-AgenceIA/mes_outils/Outil_WitMit/`, pas dans ce repo ; voir `CLAUDE.md`.

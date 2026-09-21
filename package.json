@@ -1,8 +1,8 @@
 {
-  "name": "annotate-widget",
+  "name": "witmit",
   "version": "0.1.0",
   "private": true,
-  "description": "Annotate — widget d'annotation visuelle autonome (V1, mode maquette / localStorage)",
+  "description": "witmit — widget d'annotation visuelle autonome (V1, mode maquette / localStorage)",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed"

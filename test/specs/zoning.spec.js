@@ -25,7 +25,7 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     expect(Math.abs(outline.width - b.width)).toBeLessThan(4);
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
-    const data = await H.stored(page, 'annotate_kiosque_v1');
+    const data = await H.stored(page, 'witmit_kiosque_v1');
     expect(data[0].anchor.path).toMatch(/article:nth-of-type\(1\)$/);
   });
 
@@ -37,7 +37,7 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     await expect(zone).toContainText('(+');
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
-    const data = await H.stored(page, 'annotate_kiosque_v1');
+    const data = await H.stored(page, 'witmit_kiosque_v1');
     expect(data[0].zone.startsWith('Zone encadrée — Chiffre du jour')).toBe(true);
     expect(data[0].anchor.path).toBeTruthy(); // ancré au plus petit élément englobant (main), pas au centre
   });

@@ -1,20 +1,20 @@
 /*!
- * Annotate — widget d'annotation visuelle (V1, mode maquette / localStorage)
+ * witmit — widget d'annotation visuelle (V1, mode maquette / localStorage)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
- * Usage : <script src="annotate.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
+ * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourci : Alt+A (Windows/Linux) · ⌥+A (Mac)
  */
 (function () {
-  if (window.__annotateLoaded) return; // chargé deux fois par erreur : on ne s'installe qu'une fois
-  window.__annotateLoaded = true;
+  if (window.__witmitLoaded) return; // chargé deux fois par erreur : on ne s'installe qu'une fois
+  window.__witmitLoaded = true;
 
   /* ---------- configuration lue sur la balise <script> ----------
-     <script src="annotate.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
+     <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
      - data-project : nom du projet (clé de stockage + titre du rapport) — obligatoire en pratique
      - data-email   : destinataire du bouton « Envoyer » (facultatif) */
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
-    project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'annotate',
+    project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'witmit',
     email: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-email')) || '',
     // data-capture="false" : pas de capture d'écran des encadrés ; data-html2canvas="…" : autre adresse de la bibliothèque
     capture: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-capture') || '')),
@@ -297,7 +297,7 @@
   <div class="cm-panel-list" id="cmList"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">Coller un retour</div>
-    <textarea placeholder="annotate-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea>
+    <textarea placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea>
     <div class="cm-feedback-actions"><button onclick="cmPasteFeedback(false)">Annuler</button><button class="primary" onclick="cmApplyFeedback()">Appliquer</button></div>
   </div>
   <div class="cm-panel-foot cm-panel-tools">
@@ -459,7 +459,7 @@
 
   var PAGE_FILE = (location.pathname.split('/').pop() || document.title || 'page').toLowerCase();
   var PAGE_TITLE = document.title || PAGE_FILE;
-  var STORAGE_KEY = 'annotate_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
+  var STORAGE_KEY = 'witmit_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
   var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
@@ -802,7 +802,7 @@
     return '';
   }
   function pushHistory(c, entry) { (c.history = c.history || []).push(entry); }
-  var HIDE_DONE_KEY = 'annotate_hide_done';
+  var HIDE_DONE_KEY = 'witmit_hide_done';
   function hideDone() { try { return localStorage.getItem(HIDE_DONE_KEY) === '1'; } catch (e) { return false; } }
   function findComment(id) { return allComments.filter(function (x) { return x.id === id; })[0]; }
 
@@ -1936,7 +1936,7 @@
   (function initPillDrag() {
     var pill = document.getElementById('cmPill');
     if (!pill) return;
-    var PILL_POS_KEY = 'annotate_pill_pos';
+    var PILL_POS_KEY = 'witmit_pill_pos';
     var dragOffset = null;
 
     function applyPos(left, top) {
@@ -1980,7 +1980,7 @@
     pill.addEventListener('pointercancel', endDrag);
   })();
 
-  // Raccourci clavier : Alt+A (Windows/Linux) / ⌥+A (Mac) — "A" comme Annotate, le même partout.
+  // Raccourci clavier : Alt+A (Windows/Linux) / ⌥+A (Mac) pour afficher/masquer le widget, le même partout.
   // Sur Mac, ⌥+A tape normalement "å" : on reconnaît la touche physique (e.code) et on ignore le
   // raccourci quand on est en train d'écrire dans un champ, pour ne jamais gêner la saisie.
   var IS_MAC = /Mac|iPhone|iPod|iPad/i.test(
@@ -2100,7 +2100,7 @@
      pages du projet ouvertes dans ce navigateur. « Complet » : tout, tous statuts.
      Chaque rapport reçoit un identifiant (R-AAAA-MM-JJ-n) que les tickets mémorisent ; générer un
      rapport marque ses tickets « signalés » (verrouillés) après confirmation. */
-  var REPORTS_KEY = 'annotate_' + CONFIG.project + '_reports';
+  var REPORTS_KEY = 'witmit_' + CONFIG.project + '_reports';
   function pastReports() { try { return JSON.parse(localStorage.getItem(REPORTS_KEY) || '[]'); } catch (e) { return []; } }
   function nextReportId() {
     var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -2166,10 +2166,10 @@
     L.push('');
     L.push('## Pour répondre à ce rapport');
     L.push('');
-    L.push('Termine ton traitement par un bloc de ce format (une ligne par ticket, séparateur `|` avant un message facultatif). Il se colle dans Annotate : tiroir 📋 → « Coller un retour ».');
+    L.push('Termine ton traitement par un bloc de ce format (une ligne par ticket, séparateur `|` avant un message facultatif). Il se colle dans witmit : tiroir 📋 → « Coller un retour ».');
     L.push('');
     L.push('```');
-    L.push('annotate-retour ' + reportId);
+    L.push('witmit-retour ' + reportId);
     L.push('<id du ticket> pris_en_compte');
     L.push('<id du ticket> resolu | ce qui a été fait (facultatif)');
     L.push('<id du ticket> complement | la question à poser pour clarifier');
@@ -2218,7 +2218,7 @@
     var blob = new Blob([r.md], { type: 'text/markdown;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'annotate-' + CONFIG.project + '-' + r.id + '.md';
+    a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
     cmStatus('Rapport ' + r.id + ' téléchargé' + (r.marked ? ' — ' + r.marked + ' ticket(s) signalé(s)' : ''));
@@ -2243,7 +2243,7 @@
   };
 
   /* ---------- retour : on colle le bloc produit par la session (ou tapé à la main) ----------
-       annotate-retour R-…            (en-tête facultatif)
+       witmit-retour R-…            (en-tête facultatif)
        <id> pris_en_compte
        <id> resolu | message facultatif
        <id> complement | question posée
@@ -2259,7 +2259,7 @@
     var lines = String(text || '').split(/\r?\n/), applied = 0, unknown = 0, ignored = 0, now = new Date().toISOString();
     lines.forEach(function (raw) {
       var line = raw.replace(/^[-*>\s`]+/, '').trim();
-      if (!line || /^annotate-retour/i.test(line) || /^```/.test(line)) return;
+      if (!line || /^witmit-retour/i.test(line) || /^```/.test(line)) return;
       var m = line.match(/^(\S+)\s+([^|]+?)\s*(?:\|\s*(.*))?$/);
       if (!m) { ignored++; return; }
       var c = findComment(m[1]), st = normalizeStatus(m[2]), msg = (m[3] || '').trim();

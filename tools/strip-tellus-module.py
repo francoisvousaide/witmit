@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fabrique une copie d'une maquette TellUs SANS le module commentaires intégré (CSS + HTML + JS),
-remplacé par une seule balise <script src=".../annotate.js" data-project="tellus">.
-Usage : python3 tools/strip-tellus-module.py <maquette.html> <destination.html> <chemin_relatif_annotate.js>
+remplacé par une seule balise <script src=".../witmit.js" data-project="tellus">.
+Usage : python3 tools/strip-tellus-module.py <maquette.html> <destination.html> <chemin_relatif_witmit.js>
 Ne modifie jamais le fichier d'origine."""
 import re, sys, pathlib
 

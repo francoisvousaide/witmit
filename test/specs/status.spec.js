@@ -2,7 +2,7 @@
 // rapport (nouveautés / complet, identifiant, marquage), retour collé.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 async function setup(page) {
   await page.goto(H.fileUrl('generic-dashboard.html'));
@@ -114,7 +114,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
       page.waitForEvent('download'),
       page.locator('.cm-panel-foot button', { hasText: 'Télécharger' }).click(),
     ]);
-    expect(download.suggestedFilename()).toMatch(/^annotate-kiosque-R-\d{4}-\d{2}-\d{2}-1\.md$/);
+    expect(download.suggestedFilename()).toMatch(/^witmit-kiosque-R-\d{4}-\d{2}-\d{2}-1\.md$/);
     const fs = require('fs');
     const content = fs.readFileSync(await download.path(), 'utf8');
     expect(content).toContain('# kiosque — Rapport de retours');
@@ -128,7 +128,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     const [a, b] = data.map((c) => c.id);
     await page.locator('.cm-panel-foot button', { hasText: 'Coller un retour' }).click();
     await page.locator('#cmFeedbackBox textarea').fill([
-      'annotate-retour R-2026-09-20-1',
+      'witmit-retour R-2026-09-20-1',
       a + ' pris en compte',
       b + ' complement | Quelle ligne exactement ?',
       'xxx_inconnu resolu',

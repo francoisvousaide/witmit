@@ -4,17 +4,17 @@ const H = require('./helpers');
 
 const PAGES = [
   {
-    name: 'TellUs — Accueil', file: 'tellus-accueil.html', key: 'annotate_tellus_v1', hasFab: false,
+    name: 'TellUs — Accueil', file: 'tellus-accueil.html', key: 'witmit_tellus_v1', hasFab: false,
     pinTarget: '.mcard.active .mcard-title', textTarget: '.mcard.active .mcard-desc', boxTarget: '.mcard.active',
     blockedButton: 'a.nav-brand',
   },
   {
-    name: 'TellUs — Proposer (formulaire à étapes)', file: 'tellus-proposer.html', key: 'annotate_tellus_v1', hasFab: false,
+    name: 'TellUs — Proposer (formulaire à étapes)', file: 'tellus-proposer.html', key: 'witmit_tellus_v1', hasFab: false,
     pinTarget: '#stepPanel1 .fcard-title', textTarget: '#stepPanel1 .field-hint', boxTarget: '#stepPanel1 .fcard',
     blockedButton: '#btnNext',
   },
   {
-    name: 'Kiosque — page générique', file: 'generic-dashboard.html', key: 'annotate_kiosque_v1', hasFab: true,
+    name: 'Kiosque — page générique', file: 'generic-dashboard.html', key: 'witmit_kiosque_v1', hasFab: true,
     pinTarget: 'tbody tr:first-child td:nth-child(2)', textTarget: 'tbody tr:nth-child(3) td:nth-child(2)', boxTarget: '.kpi-row',
     blockedButton: '#tabBtnForm',
   },
@@ -303,7 +303,7 @@ for (const P of PAGES) {
       const after = await pill.boundingBox();
       expect(after.x).toBeLessThan(before.x - 100);
       expect(after.y).toBeGreaterThan(before.y + 100);
-      const pos = await page.evaluate(() => JSON.parse(localStorage.getItem('annotate_pill_pos')));
+      const pos = await page.evaluate(() => JSON.parse(localStorage.getItem('witmit_pill_pos')));
       expect(pos.left).toBeCloseTo(after.x, 0);
       await expect(page.locator('.cm-popup')).toHaveCount(0); // le glisser de la pastille ne crée pas de commentaire
     });
@@ -318,14 +318,14 @@ for (const P of PAGES) {
       await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
       await expect(page.locator('#cmStatus')).toContainText('copié');
       const txt = await page.evaluate(() => navigator.clipboard.readText());
-      const project = P.key.replace('annotate_', '').replace('_v1', '');
+      const project = P.key.replace('witmit_', '').replace('_v1', '');
       expect(txt.split('\n')[0]).toMatch(new RegExp('^# ' + project + ' — Rapport de retours R-\\d{4}-\\d{2}-\\d{2}-\\d+$'));
       expect(txt).toContain('### #1 · ');
       expect(txt).toContain('### #2 · ');
       expect(txt).toContain('Retour A');
       expect(txt).toContain('Retour B');
       expect(txt).toContain('```json');
-      expect(txt).toContain('annotate-retour R-');
+      expect(txt).toContain('witmit-retour R-');
       expect((await H.stored(page, P.key)).every((c) => c.status === 'nouveau')).toBe(true); // non marqués
     });
 

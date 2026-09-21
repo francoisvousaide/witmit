@@ -1,7 +1,7 @@
 // Sélection multiple : ⌘/Ctrl+clic ajoute/retire des éléments à un commentaire "élément".
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
-const KEY = 'annotate_kiosque_v1';
+const KEY = 'witmit_kiosque_v1';
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
 async function shiftClick(page, selector) { // ⌘+clic (Mac) / Ctrl+clic

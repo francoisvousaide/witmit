@@ -67,7 +67,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
 
 test('Charger le script deux fois n’installe le widget qu’une fois', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
-  await page.addScriptTag({ path: require('path').resolve(__dirname, '../../src/annotate.js') });
+  await page.addScriptTag({ path: require('path').resolve(__dirname, '../../src/witmit.js') });
   await expect(page.locator('#cmPill')).toHaveCount(1);
   await expect(page.locator('#cmToggleBtn')).toHaveCount(1);
 });
