@@ -55,4 +55,4 @@ npm test               # suite Playwright (3 pages : 2 maquettes TellUs + 1 page
 - `test/vendor/html2canvas.min.js` — copie locale de la bibliothèque, utilisée par les pages de test (pas de réseau pendant les tests).
 - `test/pages/` — pages de test. Les copies TellUs sont générées par `tools/strip-tellus-module.py` à partir des maquettes d'origine (jamais modifiées).
 - `archive/` — les 3 fichiers sources d'origine (référence, plus utilisés).
-- `CADRAGE-2026-09-18.md` — décisions produit (roadmap V1 → V4).
+- Docs produit (brief, cadrage, bilans) — dans le second cerveau `Z-Brain/10-Missions-AgenceIA/mes_outils/Outil_Annotate/`, pas dans ce repo ; voir `CLAUDE.md`.
