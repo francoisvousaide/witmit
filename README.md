@@ -26,6 +26,18 @@ ticket part vers le Supabase de witmit et devient une issue GitHub, le statut re
 - **Catégorie** proposée automatiquement d'après le texte, par règles de mots-clés locales (aucune IA, rien ne sort du navigateur) : bug visuel, bug fonctionnel, ajustement visuel, texte à changer, changement de comportement, suggestion, question, à classer (défaut). Modifiable dans la bulle ; un choix manuel n'est plus écrasé.
 - **Bloc technique** capturé à l'enregistrement : sélecteur(s) DOM de la ou des cibles, libellés, type, citation, page (sans paramètres d'URL), position relative, fenêtre, navigateur/OS, thème, 5 dernières erreurs console (vues depuis le chargement du script — placer la balise dans `<head>`), date. Visible dans la liste sous « détails techniques ».
 
+## Quel mode pour quoi
+
+| | Mode maquette (défaut) | Mode live (`data-mode="live"`) |
+|---|---|---|
+| Pour | un fichier HTML de travail, une page qu'on itère vite | un site en production ou en beta, plusieurs relecteurs |
+| Boutons | visibles en permanence | invisibles ; `⌥+A` / `Alt+A` ou `?witmit=on` |
+| Les tickets | restent dans le navigateur | partent aussi au serveur witmit → une issue GitHub si le projet a un dépôt |
+| Le suivi | rapport `.md` à donner à une session, retour collé à la main | automatique : issue commentée → message à l'auteur, issue fermée → résolu |
+| Rapport et « Coller un retour » | toujours là | cachés, **sauf** s'il reste un ticket non envoyé (filet de secours) |
+
+Rien à changer dans le code pour passer de l'un à l'autre : c'est l'attribut `data-mode` de la balise. Une maquette *peut* basculer en live (il faut inscrire son `data-project` dans la table `projets`), mais sur une maquette on pose beaucoup de remarques en peu de temps — autant de bruit dans les issues : le mode maquette reste préférable tant que l'écran n'existe pas.
+
 ## Cycle de vie et rapport (étapes 3 + 4)
 
 ```

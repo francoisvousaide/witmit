@@ -279,6 +279,7 @@
   .cm-feedback-box .cm-feedback-actions button { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:6px 10px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
   .cm-feedback-box .cm-feedback-actions button.primary { background:var(--cm-teal); color:#fff; border-color:var(--cm-teal); }
   .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
+  .cm-panel-foot[hidden], .cm-panel-foot button[hidden] { display:none; }
   .cm-panel-foot button { flex:1; font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:8px 4px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
   .cm-panel-foot button:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
   .cm-panel-foot button.primary { background:var(--cm-teal); color:#fff; border-color:var(--cm-teal); }
@@ -321,9 +322,9 @@
   <div class="cm-panel-foot cm-panel-tools">
     <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
     <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
-    <button onclick="cmPasteFeedback()">📥 Coller un retour</button>
+    <button onclick="cmPasteFeedback()" id="cmPasteBtn">📥 Coller un retour</button>
   </div>
-  <div class="cm-panel-foot cm-panel-report">
+  <div class="cm-panel-foot cm-panel-report" id="cmReportFoot">
     <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
     <button onclick="cmExport()">📤 Télécharger</button>
     <button onclick="cmCopy()">📋 Copier</button>
@@ -655,6 +656,21 @@
       if (changed) { persist(); renderList(); renderMarkers(); }
     }).catch(function () {});
   }
+  /* Le rapport (Télécharger/Copier/Envoyer) et le retour collé sont le circuit du mode maquette.
+     En mode live, tout part au guichet et les statuts reviennent tout seuls : on les cache — sauf s'il
+     reste un ticket non envoyé, pour pouvoir quand même le sortir si le serveur est injoignable. */
+  function aDuNonEnvoye() {
+    return allComments.some(function (c) { return isEditable(c) && (!c.sync || c.sync.state !== 'sent'); });
+  }
+  function majPiedsTiroir() {
+    var cacher = LIVE && !aDuNonEnvoye();
+    var foot = document.getElementById('cmReportFoot');
+    var paste = document.getElementById('cmPasteBtn');
+    if (foot) foot.hidden = cacher;
+    if (paste) paste.hidden = cacher;
+    if (cacher) { var box = document.getElementById('cmFeedbackBox'); if (box) box.hidden = true; }
+  }
+
   function syncChip(c) {
     if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="Pas encore envoyé">⏳ à envoyer</span>' : '';
     if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="Reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">☁️ envoyé</span>';
@@ -1057,6 +1073,7 @@
     }
     if (!pc.length) {
       list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
+      majPiedsTiroir();
       return;
     }
     var html = '';
@@ -1084,6 +1101,7 @@
     });
     if (!html) html = '<div class="cm-panel-empty">Tout est résolu sur cette page 🎉</div>';
     list.innerHTML = html;
+    majPiedsTiroir();
   }
 
   /* Clic sur un commentaire de la liste : on active le mode (les repères ne sont visibles qu'en mode

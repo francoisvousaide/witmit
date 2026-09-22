@@ -152,3 +152,40 @@ test('7. mode mock : rien ne part, aucune puce d’envoi', async ({ page }) => {
   await H.deactivate(page); await page.locator('#cmPanelBtn').click();
   await expect(page.locator('.cm-sync-chip')).toHaveCount(0);
 });
+
+test('8. mode live : rapport et « Coller un retour » cachés, réapparaissent si un ticket est coincé', async ({ page }) => {
+  const report = page.locator('#cmReportFoot');
+  const paste = page.locator('#cmPasteBtn');
+  await page.locator('#cmPanelBtn').click();
+  await expect(report).toBeHidden();               // aucun ticket : rien à sortir
+  await expect(paste).toBeHidden();
+  await expect(page.locator('#cmClearAllBtn, .cm-panel-tools button').first()).toBeVisible();  // Effacer reste
+
+  await page.locator('#cmPanelBtn').click();
+  await H.activate(page);
+  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Ticket envoyé');
+  await waitSent(page);
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await expect(report).toBeHidden();               // tout est parti : toujours cachés
+  await expect(paste).toBeHidden();
+
+  // un ticket qui ne part pas → le filet de secours réapparaît
+  await page.locator('#cmPanelBtn').click();
+  await H.activate(page);
+  state.failNext = { status: 500, erreur: 'serveur indisponible' };
+  await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Ticket coincé');
+  await expect.poll(async () => ((await ticket(page, 1)).sync || {}).state, { timeout: 15000 }).toBe('error');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await expect(report).toBeVisible();
+  await expect(paste).toBeVisible();
+});
+
+test('9. mode mock : rapport et « Coller un retour » toujours là', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmReportFoot')).toBeVisible();
+  await expect(page.locator('#cmPasteBtn')).toBeVisible();
+});
