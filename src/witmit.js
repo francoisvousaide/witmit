@@ -2203,9 +2203,9 @@
       return;
     }
     if (e.ctrlKey || e.metaKey || e.shiftKey || !e.altKey) return;
-    // La lettre tapée (a ; « å » sur Mac QWERTY, « æ » sur Mac AZERTY avec ⌥) plutôt que la position de la
-    // touche seule : sur un clavier AZERTY, la position « KeyA » est celle du Q.
-    if (!/^[aåæ]$/i.test(e.key || '') && e.code !== 'KeyA') return;
+    // La lettre tapée (a ; « å » sur Mac QWERTY, « æ » sur Mac AZERTY avec ⌥), jamais la position de la
+    // touche : sur un clavier AZERTY, la position « KeyA » est celle du Q.
+    if (!/^[aåæ]$/i.test(e.key || '')) return;
     if (isTypingIn(e.target)) return;
     e.preventDefault();
     if (LIVE && document.body.classList.contains('cm-concealed')) cmReveal(true);
