@@ -15,7 +15,7 @@ test('Kiosque : le contenu se réorganise à gauche du tiroir, et revient à la 
   // les boutons flottants 💬📋 restent visibles (décalés à gauche du tiroir)
   const fab = await page.locator('.cm-fab').boundingBox();
   expect(fab.x + fab.width).toBeLessThanOrEqual(panel.x + 1);
-  await page.locator('#cmPanel .cm-panel-head-row button').click();
+  await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();
   await page.waitForTimeout(400);
   const after = await page.locator('main').boundingBox();
   expect(Math.abs(after.width - before.width)).toBeLessThan(2);
@@ -34,7 +34,7 @@ test('TellUs : la navbar fixe est rétrécie, les contrôles fixes en bas à dro
   const ctrl = await page.locator('.mock-controls').boundingBox();
   expect(nav.x + nav.width).toBeLessThanOrEqual(panel.x + 1);
   expect(ctrl.x + ctrl.width).toBeLessThanOrEqual(panel.x + 1);
-  await page.locator('#cmPanel .cm-panel-head-row button').click();
+  await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();
   await page.waitForTimeout(400);
   const navAfter = await page.locator('.navbar').boundingBox();
   const ctrlAfter = await page.locator('.mock-controls').boundingBox();

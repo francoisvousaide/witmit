@@ -196,7 +196,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-panel-item .txt')).toHaveText('Modifié depuis la liste');
       expect((await H.stored(page, P.key))[0].text).toBe('Modifié depuis la liste');
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);           // toujours sélectionné
-      await page.locator('#cmPanel .cm-panel-head-row button').click();      // fermer le tiroir → fin de sélection
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();      // fermer le tiroir → fin de sélection
       await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);
       await page.locator('#cmPanelBtn').click();
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
@@ -249,7 +249,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
       // fermer une bulle par Échap ou Annuler : retour à l'orange immédiat (pas d'effet, réservé à l'enregistrement)
-      await page.locator('#cmPanel .cm-panel-head-row button').click();
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();
       await page.locator('.cm-pin').nth(0).click();
       await page.keyboard.press('Escape');
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);

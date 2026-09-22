@@ -215,6 +215,9 @@
   .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:'League Spartan',sans-serif; font-weight:700; font-size:13.5px; color:var(--cm-text); }
   .cm-panel-head-row button { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:16px; line-height:1; }
   .cm-panel-head-row button:hover { color:var(--cm-text); }
+  .cm-panel-head-btns { display:flex; align-items:center; gap:10px; }
+  .cm-panel-head-row .cm-hide-widget { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; padding:3px 9px; color:var(--cm-text2); }
+  .cm-panel-head-row .cm-hide-widget:hover { border-color:var(--cm-orange); color:var(--cm-orange); }
   .cm-panel-sub { font-size:11px; color:var(--cm-text-muted); margin-top:3px; }
   .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
@@ -302,7 +305,10 @@
   <div class="cm-panel-head">
     <div class="cm-panel-head-row">
       <span>Commentaires — <span id="cmPanelCount">0</span></span>
-      <button onclick="cmTogglePanel(false)" aria-label="Fermer">✕</button>
+      <span class="cm-panel-head-btns">
+        <button class="cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="Cacher witmit sur ce site (Alt+A / ⌥+A ou ?witmit=on pour le retrouver)" hidden>🙈 Masquer witmit</button>
+        <button onclick="cmTogglePanel(false)" aria-label="Fermer">✕</button>
+      </span>
     </div>
     <div class="cm-panel-sub" id="cmPanelSub"></div>
   </div>
@@ -316,7 +322,6 @@
     <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
     <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
     <button onclick="cmPasteFeedback()">📥 Coller un retour</button>
-    <button onclick="cmReveal(false)" id="cmHideBtn" title="Cacher witmit sur ce site (Alt+A / ⌥+A ou ?witmit=on pour le retrouver)" hidden>🙈 Masquer witmit</button>
   </div>
   <div class="cm-panel-foot cm-panel-report">
     <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
@@ -2198,7 +2203,9 @@
       return;
     }
     if (e.ctrlKey || e.metaKey || e.shiftKey || !e.altKey) return;
-    if (e.code !== 'KeyA') return;
+    // La lettre tapée (a ; « å » sur Mac QWERTY, « æ » sur Mac AZERTY avec ⌥) plutôt que la position de la
+    // touche seule : sur un clavier AZERTY, la position « KeyA » est celle du Q.
+    if (!/^[aåæ]$/i.test(e.key || '') && e.code !== 'KeyA') return;
     if (isTypingIn(e.target)) return;
     e.preventDefault();
     if (LIVE && document.body.classList.contains('cm-concealed')) cmReveal(true);
