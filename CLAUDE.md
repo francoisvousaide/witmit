@@ -30,3 +30,8 @@ witmit est un produit à part entière, avec sa propre infrastructure, indépend
 ## Documentation du repo
 - `README.md` — mode d'emploi du widget (installation, attributs `data-*`, gestes, cycle de vie)
 - `archive/` — les fichiers sources d'origine (référence historique, plus utilisés directement)
+
+## Portabilité
+Ce projet suit la charte de portabilité :
+/Users/francois_/Documents/Claude/Z-Brain/03-SaaS-Strategie/CHARTE-PORTABILITE.md
+Contrôle « Niveau 1 » (§5) obligatoire en fin de session. Inventaire du projet : DEMENAGEMENT.md.

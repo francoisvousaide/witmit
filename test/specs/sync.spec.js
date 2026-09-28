@@ -1,37 +1,12 @@
 // Mode live : envoi des tickets au guichet (Edge Function) — Supabase est SIMULÉ par interception réseau,
 // mais le widget résout un vrai défi Altcha (sha256) et envoie de vraies requêtes.
 const { test, expect } = require('@playwright/test');
-const crypto = require('crypto');
 const H = require('./helpers');
 
 const PAGE = 'generic-dashboard-sync.html';
 const KEY = 'witmit_kiosque-sync_v1';
-const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
-
-// Faux Supabase : identité anonyme, défi, dépôt, relecture des statuts. `state` pilote les réponses.
-function mockSupabase(page, state) {
-  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [] , ...state });
-  return page.route('https://witmit.test/**', async (route, req) => {
-    const url = new URL(req.url());
-    const json = (status, body) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(body) });
-    if (req.method() === 'OPTIONS') return json(200, {});
-    if (url.pathname === '/auth/v1/signup') { state.signups++; return json(200, { access_token: 'jeton-A', refresh_token: 'refresh-A', expires_in: 3600, user: { id: 'uid-A', is_anonymous: true } }); }
-    if (url.pathname.endsWith('/submit-annotation/challenge')) {
-      state.challenges++;
-      const salt = 'sel' + state.challenges, number = 100 + state.challenges;
-      return json(200, { algorithm: 'SHA-256', challenge: sha256(salt + number), maxnumber: 2000, salt, signature: 'sig' });
-    }
-    if (url.pathname.endsWith('/submit-annotation')) {
-      const body = req.postDataJSON();
-      const preuve = JSON.parse(Buffer.from(body.altcha, 'base64').toString());
-      state.posts.push({ body, headers: req.headers(), preuveOk: sha256(preuve.salt + preuve.number) === preuve.challenge });
-      if (state.failNext) { const f = state.failNext; state.failNext = null; return json(f.status, { erreur: f.erreur }); }
-      return json(201, { id: 'srv-' + state.posts.length, statut: 'nouveau', date_creation: new Date().toISOString(), capture: !!body.capture });
-    }
-    if (url.pathname === '/rest/v1/annotations') return json(200, state.rows);
-    return json(404, { erreur: 'route inconnue ' + url.pathname });
-  });
-}
+// Faux Supabase (identité anonyme, défi, dépôt, relecture des statuts) : voir helpers.js.
+const mockSupabase = H.mockSupabase;
 const ticket = async (page, i = 0) => (await H.stored(page, KEY))[i];
 const waitSent = (page, i = 0) => expect.poll(async () => ((await ticket(page, i)).sync || {}).state, { timeout: 15000 }).toBe('sent');
 

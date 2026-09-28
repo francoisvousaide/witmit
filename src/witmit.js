@@ -3,6 +3,7 @@
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourci : Alt+A (Windows/Linux) · ⌥+A (Mac)
+ * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Marine' }) · identify(null) — voir plus bas.
  */
 (function () {
   if (window.__witmitLoaded) return; // chargé deux fois par erreur : on ne s'installe qu'une fois
@@ -30,6 +31,39 @@
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
     multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
   };
+
+  /* ---------- l'auteur, déclaré par le site hôte ----------
+     Un site où l'on est connecté peut dire à witmit qui écrit : window.witmit.identify({ nom: 'Marine' }),
+     identify(null) pour oublier (déconnexion), ou data-user-name="Marine" sur la balise. Si le site parle
+     avant que ce script soit chargé, il met l'appel en file :
+       (window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Marine' }]);
+     Le nom reste en mémoire le temps de la page, jamais dans le navigateur : le site le redonne à chaque
+     chargement, et il ne peut pas rester collé après une déconnexion. Il est inscrit sur chaque ticket au
+     moment où celui-ci est écrit (un ticket en attente d'envoi garde son auteur), puis envoyé avec lui
+     (source « hote ») ; le guichet le nettoie à nouveau. */
+  var AUTHOR = null;
+  function cleanAuthor(user) {
+    var nom = user && typeof user === 'object' ? user.nom : user;
+    if (typeof nom !== 'string') return null;
+    nom = nom.replace(/[\u0000-\u001f\u007f\s]+/g, ' ').trim().slice(0, 60).trim();
+    return nom || null;
+  }
+  function renderAuthor() {
+    var el = document.getElementById('cmAuthor');
+    if (!el) return;
+    el.textContent = AUTHOR ? 'Tes retours sont signés : ' + AUTHOR : '';
+    el.hidden = !AUTHOR;
+  }
+  function runCommand(cmd) {
+    if (Array.isArray(cmd) && cmd[0] === 'identify') window.witmit.identify(cmd[1]);
+  }
+  window.witmit = {
+    identify: function (user) { AUTHOR = cleanAuthor(user); renderAuthor(); }
+  };
+  window.witmit.identify(SCRIPT_EL && SCRIPT_EL.getAttribute('data-user-name'));
+  var queuedCommands = Array.isArray(window.witmitQueue) ? window.witmitQueue : [];
+  window.witmitQueue = { push: runCommand };   // un push arrivé après le chargement s'exécute aussitôt
+  queuedCommands.forEach(runCommand);
 
   var CSS = `
   /* Palette du widget : reprend les variables de la page hôte si elles existent (TellUs),
@@ -219,6 +253,7 @@
   .cm-panel-head-row .cm-hide-widget { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; padding:3px 9px; color:var(--cm-text2); }
   .cm-panel-head-row .cm-hide-widget:hover { border-color:var(--cm-orange); color:var(--cm-orange); }
   .cm-panel-sub { font-size:11px; color:var(--cm-text-muted); margin-top:3px; }
+  .cm-panel-author { font-size:11px; color:var(--cm-text2); margin-top:4px; }
   .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
   .cm-panel-item:hover { background:var(--cm-bg); }
@@ -312,6 +347,7 @@
       </span>
     </div>
     <div class="cm-panel-sub" id="cmPanelSub"></div>
+    <div class="cm-panel-author" id="cmAuthor" hidden></div>
   </div>
   <div class="cm-panel-list" id="cmList"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
@@ -422,6 +458,7 @@
 
   function boot() {
   injectUI();
+  renderAuthor();
 
   /* ---------- bloc technique d'un ticket : tout est calculé localement, rien de personnel ---------- */
   function browserInfo() {
@@ -579,9 +616,11 @@
     return step();
   }
   // Ce qui part au guichet : le texte, la catégorie, la page, et le bloc technique (ancre, cibles, navigateur…).
-  // Jamais d'email, jamais de paramètres d'URL.
+  // Jamais d'email, jamais de paramètres d'URL. L'auteur seulement si le site hôte l'a déclaré.
   function payloadFor(c) {
     return {
+      auteur_nom: c.author || undefined,
+      auteur_source: c.author ? 'hote' : undefined,
       projet: CONFIG.project,
       page: location.pathname || c.page,
       texte: c.text,
@@ -1825,6 +1864,7 @@
           c.category = catSel.value;
           c.categoryManual = catTouched;
           c.tech = captureTech(c);
+          if (AUTHOR) c.author = AUTHOR;   // l'auteur du moment, gravé sur le ticket
           allComments.push(c);
           cmStatus('Commentaire enregistré');
           if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback, function () { scheduleSync(c); }); }, 60); }
@@ -2345,6 +2385,7 @@
       id: c.id, page: c.page, page_titre: c.pageTitle || '', type: t.type || c.type,
       categorie: categoryOf(c.category).label, statut: c.status,
       texte: c.text,
+      auteur: c.author || undefined,
       cibles: (t.selectors || []).map(function (sel, i) { return { selecteur: sel, libelle: (t.labels || [])[i] || c.zone }; }),
       citation: c.quote || undefined,
       position: t.position, fenetre: t.viewport, navigateur: t.browser, os: t.os, theme: t.theme,
@@ -2377,6 +2418,7 @@
         var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c).replace(/^\S+\s/, '');
         L.push('### #' + n + ' · ' + typeIcon(c.type) + ' ' + c.zone + ' — ' + categoryOf(c.category).label + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
         L.push('');
+        if (c.author) { L.push('_Signalé par ' + c.author + '_'); L.push(''); }
         L.push(c.text);
         L.push('');
         if (c.complementMessage) { L.push('> ❔ Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '') + ' : ' + c.complementMessage); }

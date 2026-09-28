@@ -15,11 +15,30 @@ ticket part vers le Supabase de witmit et devient une issue GitHub, le statut re
 - `data-email` : facultatif, destinataire du bouton « Envoyer ».
 - `data-mode="live"` : pour un site en production — le widget est **invisible par défaut** (aucun bouton, aucun repère). On le révèle par le raccourci `Alt+A` / `⌥+A` ou en ajoutant `?witmit=on` à l'URL (retiré aussitôt de l'adresse, mémorisé dans le navigateur) ; on le cache à nouveau par le bouton « 🙈 Masquer witmit » du tiroir ou `?witmit=off`. Sans cet attribut (mode `mock`, défaut) : comportement V1, tout visible, tout en local.
 - `data-supabase-url` + `data-supabase-key` (mode live) : l'adresse du projet Supabase **de witmit** et sa clé publique `sb_publishable_…` (sans droit d'écriture). Chaque ticket enregistré est alors **envoyé au guichet** (Edge Function `submit-annotation`) en plus de la copie locale : identité anonyme créée au premier envoi seulement, preuve de calcul Altcha résolue en arrière-plan, capture JPEG jointe pour les encadrés. Dans la liste : `☁️ envoyé` / `⏳ à envoyer` / `⚠️ à renvoyer` (clic = nouvel essai ; nouvel essai aussi à chaque ouverture du tiroir). Le statut vu du serveur (`en_cours` → pris en compte, `resolu` → résolu + message de retour) est relu à l'ouverture du tiroir. Les tickets envoyés ne sont plus modifiables une fois pris en charge.
+- `data-user-name="Marine"` : facultatif, l'auteur déclaré par le site (ou `window.witmit.identify()`) — voir « Identifier l'auteur ».
 - `data-drawer="overlay"` : facultatif, le tiroir recouvre la page au lieu de la pousser (par défaut la page est décalée de la largeur du tiroir, éléments fixés à l'écran compris).
 - `data-multi-lines="false"` : facultatif, retire les lignes fines qui relient les éléments d'une sélection multiple (affichées par défaut).
 - Si la page contient déjà des boutons `#cmToggleBtn` / `#cmPanelBtn` (maquettes TellUs), ils sont réutilisés ; sinon deux boutons flottants apparaissent en bas à droite.
 - Gestes en mode annotation : clic = élément (bulle après 250 ms, le temps d'un éventuel double-clic) · ⌘/Ctrl+clic = ajoute un élément au commentaire en cours (sélection multiple : un cadre par élément, même numéro) · double-clic = mot · triple-clic = paragraphe · glisser = encadré (ajustable tant que sa bulle est ouverte) · Maj+glisser = sélection de texte précise.
 - Raccourci : `Alt+A` (Windows/Linux) · `⌥+A` (Mac) — ignoré pendant la saisie dans un champ. `Échap` annule la bulle ou quitte le mode.
+
+## Identifier l'auteur (site avec connexion)
+
+Un site où les relecteurs sont connectés sait qui écrit : il le déclare à witmit, qui signe chaque ticket avec ce prénom.
+
+```js
+window.witmit.identify({ nom: 'Marine' });   // la personne connectée (prénom seulement, jamais d'email)
+window.witmit.identify(null);                // déconnexion : les tickets suivants redeviennent anonymes
+```
+
+- **Si le site parle avant que `witmit.js` soit chargé** (cas courant avec `next/script`), il met l'appel en file ; witmit l'exécute au démarrage :
+  `(window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Marine' }]);`
+- **Nom connu au moment d'écrire la page** : attribut `data-user-name="Marine"` sur la balise (lu au chargement).
+- Le nom reste **en mémoire le temps de la page**, jamais dans le navigateur : le site le redonne à chaque chargement, et il ne peut pas rester collé après une déconnexion.
+- Il est **inscrit sur le ticket au moment où il est écrit** : un ticket en attente d'envoi garde son auteur, même si quelqu'un d'autre se connecte ensuite.
+- Transparence : en haut du tiroir, « Tes retours sont signés : Marine ». Rien si aucun nom.
+- Mode live : envoyé au guichet (`auteur_nom`, `auteur_source: 'hote'`), qui le nettoie (lettres, chiffres, espaces, `. ' -` ; 60 caractères max) et l'écrit dans la base et dans l'issue GitHub : « Signalé par **Marine** (déclaré par le site) ». Mode maquette : « Signalé par Marine » dans le rapport.
+- **Déclaratif** : witmit ne vérifie pas ce nom. Suffisant sur un site réservé aux membres connectés (pour tricher, il faut être membre et trafiquer la console). Les autres cas (lien d'invitation nominatif, prénom saisi par la personne) sont prévus par la colonne `auteur_source` mais pas encore construits.
 
 ## Fiche d'un ticket (étape 2)
 
