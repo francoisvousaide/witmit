@@ -50,9 +50,9 @@ async function drag(page, x1, y1, x2, y2, { shift = false } = {}) {
 }
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
-// Faux Supabase : identité anonyme, défi, dépôt, relecture des statuts. `state` pilote les réponses.
+// Faux Supabase : identité anonyme, défi, dépôt, réponse / réouverture, relecture des statuts (et du fil). `state` pilote les réponses.
 function mockSupabase(page, state) {
-  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [] , ...state });
+  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [], replies: [], failReply: null, ...state });
   return page.route('https://witmit.test/**', async (route, req) => {
     const url = new URL(req.url());
     const json = (status, body) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(body) });
@@ -62,6 +62,14 @@ function mockSupabase(page, state) {
       state.challenges++;
       const salt = 'sel' + state.challenges, number = 100 + state.challenges;
       return json(200, { algorithm: 'SHA-256', challenge: sha256(salt + number), maxnumber: 2000, salt, signature: 'sig' });
+    }
+    if (url.pathname.endsWith('/submit-annotation/reponse')) {   // répondre / rouvrir (V2.2)
+      const body = req.postDataJSON();
+      const preuve = JSON.parse(Buffer.from(body.altcha, 'base64').toString());
+      state.replies.push({ body, preuveOk: sha256(preuve.salt + preuve.number) === preuve.challenge });
+      if (state.failReply) { const f = state.failReply; state.failReply = null; return json(f.status, { erreur: f.erreur }); }
+      const message = { id: 'msg-' + state.replies.length, de: 'auteur', texte: body.texte, rouvre: !!body.rouvrir, cree_le: new Date().toISOString() };
+      return json(201, { message, statut: 'en_cours', rouvert: !!body.rouvrir });
     }
     if (url.pathname.endsWith('/submit-annotation')) {
       const body = req.postDataJSON();

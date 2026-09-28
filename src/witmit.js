@@ -287,6 +287,15 @@
   .cm-lightbox .cm-lightbox-hint { color:#fff; font-family:'League Spartan',sans-serif; font-size:12px; opacity:.8; }
   .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--cm-text2); padding-left:6px; }
   .cm-panel-item .cm-when { color:var(--cm-text-muted); font-size:10.5px; }
+  .cm-panel-item .cm-thread { margin-top:5px; display:flex; flex-direction:column; gap:4px; }
+  .cm-panel-item .cm-msg { font-size:11.5px; line-height:1.4; color:var(--cm-text2); padding:4px 8px; border-radius:0 6px 6px 0; white-space:pre-wrap; word-break:break-word; }
+  .cm-panel-item .cm-msg-equipe { background:rgba(53,131,142,.08); border-left:2px solid var(--cm-teal); }
+  .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--cm-border2); margin-left:12px; }
+  .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--cm-text-muted); white-space:normal; }
+  .cm-panel-item .cm-msg-drop { background:none; border:none; padding:0 2px; color:var(--cm-text-muted); cursor:pointer; font-size:11px; }
+  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+  .cm-panel-item .cm-thread-actions button { font-size:11px; border-radius:8px; padding:2px 8px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
+  .cm-panel-item .cm-thread-actions button:hover { color:var(--cm-teal); border-color:var(--cm-teal); }
   .cm-panel-item .reopen { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
   .cm-panel-item .reopen:hover { color:var(--cm-teal); }
   .cm-panel-item .st.cm-st-locked { display:inline-flex; align-items:center; justify-content:center; background:var(--cm-text-muted); border-color:var(--cm-text-muted); color:#fff; cursor:default; }
@@ -630,7 +639,8 @@
       capture: c.shot && c.shot.dataUrl ? c.shot.dataUrl : undefined
     };
   }
-  function sendComment(c) {
+  // Un envoi au guichet : identité, défi Altcha résolu, puis le POST (route '' = ticket, '/reponse' = réponse).
+  function postGuichet(route, body) {
     var sess;
     return getSession().then(function (s) {
       sess = s;
@@ -638,8 +648,8 @@
     }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('défi refusé (' + r.status + ')')); })
       .then(solveChallenge)
       .then(function (preuve) {
-        var body = payloadFor(c); body.altcha = preuve;
-        return fetch(FN_URL, { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify(body) });
+        body.altcha = preuve;
+        return fetch(FN_URL + route, { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify(body) });
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (data) {
           if (!r.ok) throw new Error(data.erreur || ('erreur ' + r.status));
@@ -647,6 +657,7 @@
         });
       });
   }
+  function sendComment(c) { return postGuichet('', payloadFor(c)); }
   // Point d'entrée : file d'attente, un ticket à la fois ; résultat noté sur le ticket et dans la liste.
   function scheduleSync(c) {
     if (!SYNC || !c || !isEditable(c)) return;
@@ -665,30 +676,73 @@
       }).then(function () { persist(); renderList(); });
     });
   }
+  /* Répondre / rouvrir (mode live) : la réponse attend dans c.replies (comme en mode maquette) jusqu'à ce que
+     le guichet l'ait publiée sur l'issue ; elle rejoint alors le fil c.thread. En cas d'échec elle reste là (⚠️),
+     renvoyée à l'ouverture du tiroir ou au clic : le texte n'est jamais perdu.
+     Sur chaque réponse : r = { id, date, text, rouvrir, sync: null | { state: 'pending' | 'error', error?, at } } */
+  function findReply(c, rid) { return (c.replies || []).filter(function (r) { return r.id === rid; })[0]; }
+  function scheduleReply(c, r) {
+    if (!SYNC || !c.sync || !c.sync.id || (r.sync && r.sync.state === 'pending')) return;
+    r.sync = { state: 'pending', at: new Date().toISOString() };
+    persist(); renderList();
+    syncQueue = syncQueue.then(function () {
+      var live = findComment(c.id), lr = live && findReply(live, r.id);
+      if (!lr) return;
+      return postGuichet('/reponse', { ticket_id: live.sync.id, texte: lr.text, rouvrir: !!lr.rouvrir }).then(function (data) {
+        live.replies = live.replies.filter(function (x) { return x !== lr; });
+        if (data.message) (live.thread = live.thread || []).push(data.message);
+        if (data.rouvert) {
+          live.status = 'pris_en_compte'; live.sync.statut = 'en_cours'; delete live.resolvedAt; delete live.resolvedBy;
+          pushHistory(live, { date: new Date().toISOString(), status: 'pris_en_compte', source: 'moi', message: 'rouvert' });
+        }
+        cmStatus(data.avertissement ? 'Message envoyé ☁️ — mais ' + data.avertissement.replace(/^message envoyé à l'équipe, mais /, '') : (data.rouvert ? 'Ticket rouvert, l’équipe est prévenue ☁️' : 'Réponse envoyée ☁️'));
+      }).catch(function (err) {
+        lr.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
+        cmStatus('Envoi impossible (' + lr.sync.error + ') — ton message est gardé, nouvel essai plus tard');
+      }).then(function () { persist(); renderList(); renderMarkers(); });
+    });
+  }
+  window.cmRetryReply = function (id, rid) { var c = findComment(id), r = c && findReply(c, rid); if (r) { r.sync = null; scheduleReply(c, r); } };
+  window.cmDropReply = function (id, rid) {
+    var c = findComment(id), r = c && findReply(c, rid);
+    if (!r || (r.sync && r.sync.state === 'pending') || !confirm('Abandonner ce message non envoyé ?')) return;
+    c.replies = c.replies.filter(function (x) { return x !== r; });
+    persist(); renderList();
+    cmStatus('Message abandonné');
+  };
   // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir et au chargement.
   function flushPending() {
     if (!SYNC) return;
     allComments.forEach(function (c) {
+      (c.replies || []).forEach(function (r) {
+        if (!r.sync || r.sync.state === 'error') scheduleReply(c, r);
+        else if (r.sync.state === 'pending' && Date.now() - Date.parse(r.sync.at) > 120000) { r.sync = null; scheduleReply(c, r); }
+      });
       if (!isEditable(c)) return;
       if (!c.sync || c.sync.state === 'error') scheduleSync(c);
       else if (c.sync.state === 'pending' && Date.now() - Date.parse(c.sync.at) > 120000) { c.sync = null; scheduleSync(c); } // envoi interrompu (page fermée)
     });
   }
-  // Le statut vu du serveur : nouveau → (rien) ; en_cours → « pris en compte » ; resolu → « résolu », avec ton message.
+  // Le statut vu du serveur : nouveau → (rien) ; en_cours → « pris en compte » ; resolu → « résolu », avec le fil
+  // des messages (équipe / toi). Un ticket résolu par le serveur puis rouvert (depuis witmit ou GitHub) redevient « pris en compte ».
   function refreshStatuses() {
     if (!SYNC || !readSession()) return Promise.resolve();
     var ids = allComments.filter(function (c) { return c.sync && c.sync.state === 'sent'; }).map(function (c) { return c.id; });
     if (!ids.length) return Promise.resolve();
     return getSession().then(function (sess) {
-      var q = '?select=id_local,statut,message_retour,mis_a_jour_le&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
+      var q = '?select=id_local,statut,message_retour,mis_a_jour_le,messages(de,texte,rouvre,cree_le)&messages.order=cree_le.asc&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
       return fetch(CONFIG.supabaseUrl + '/rest/v1/annotations' + q, { headers: sbHeaders(sess.access_token) });
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
       var changed = false;
       rows.forEach(function (row) {
         var c = findComment(row.id_local); if (!c || !c.sync) return;
+        var thread = Array.isArray(row.messages) ? row.messages : null;
         if (c.sync.statut !== row.statut || (row.message_retour || '') !== (c.feedbackMessage || '')) changed = true;
+        if (thread && JSON.stringify(thread) !== JSON.stringify(c.thread || [])) changed = true;
         c.sync.statut = row.statut;
         if (row.message_retour) c.feedbackMessage = row.message_retour;
+        if (thread) c.thread = thread;
+        if (row.statut === 'en_cours' && c.status === 'resolu' && c.resolvedBy === 'serveur') { c.status = 'pris_en_compte'; delete c.resolvedAt; delete c.resolvedBy; }
         if (row.statut === 'en_cours' && c.status !== 'resolu') { c.status = 'pris_en_compte'; c.ackAt = c.ackAt || row.mis_a_jour_le; }
         if (row.statut === 'resolu' && c.status !== 'resolu') { c.status = 'resolu'; c.resolvedAt = row.mis_a_jour_le; c.resolvedBy = 'serveur'; }
       });
@@ -1089,6 +1143,53 @@
     renderList(); renderMarkers();
   };
 
+  /* Le fil d'un ticket (mode live) : messages de l'équipe et les tiens, puis ceux pas encore partis ;
+     sous le fil, « Répondre » (s'il y a au moins un message de l'équipe) et « Ça ne convient pas ? Rouvrir »
+     (ticket résolu par l'équipe). */
+  function canReply(c) { return !!(SYNC && c.sync && c.sync.id && (c.thread || []).some(function (m) { return m.de === 'equipe'; })); }
+  function canReopen(c) {
+    return !!(SYNC && c.sync && c.sync.id && c.sync.statut === 'resolu' && c.status === 'resolu' && c.resolvedBy === 'serveur' &&
+      !(c.replies || []).some(function (r) { return r.rouvrir; }));
+  }
+  function threadHtml(c) {
+    var msgs = (c.thread || []).map(function (m) {
+      var equipe = m.de === 'equipe';
+      var who = equipe ? '💬 Équipe' : (m.rouvre ? '↩ Tu as rouvert le ticket' : '↳ Toi');
+      return '<div class="cm-msg cm-msg-' + (equipe ? 'equipe' : 'auteur') + '"><span class="cm-msg-who">' + who + ' · ' + cmEsc(frDate(m.cree_le)) + '</span>' + cmEsc(m.texte) + '</div>';
+    });
+    (c.replies || []).forEach(function (r) {
+      var err = r.sync && r.sync.state === 'error';
+      var chip = err
+        ? '<span class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + ' — cliquer pour réessayer">⚠️ à renvoyer</span>' +
+          '<button class="cm-msg-drop" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="Abandonner ce message" aria-label="Abandonner ce message">✕</button>'
+        : '<span class="cm-sync-chip" title="Envoi en cours">⏳ envoi…</span>';
+      msgs.push('<div class="cm-msg cm-msg-auteur cm-msg-pending"><span class="cm-msg-who">' + (r.rouvrir ? '↩ Tu rouvres le ticket' : '↳ Toi') + ' · ' + cmEsc(frDate(r.date)) + ' ' + chip + '</span>' + cmEsc(r.text) + '</div>');
+    });
+    var acts = [];
+    if (canReply(c)) acts.push('<button class="cm-reply-btn" onclick="cmReplyLive(\'' + c.id + '\', false)">↳ Répondre</button>');
+    if (canReopen(c)) acts.push('<button class="cm-reopen-btn" onclick="cmReplyLive(\'' + c.id + '\', true)">Ça ne convient pas ? Rouvrir</button>');
+    return (msgs.length ? '<div class="cm-thread" onmousedown="event.stopPropagation()">' + msgs.join('') + '</div>' : '') +
+      (acts.length ? '<div class="cm-thread-actions" onmousedown="event.stopPropagation()">' + acts.join('') + '</div>' : '');
+  }
+  // Ouvre le champ de réponse sous le fil (même champ que la réponse à un complément en mode maquette).
+  window.cmReplyLive = function (id, rouvrir) {
+    var c = findComment(id);
+    var item = document.querySelector('.cm-panel-item[data-id="' + id + '"]');
+    if (!c || !item || item.querySelector('textarea') || (rouvrir ? !canReopen(c) : !canReply(c))) return;
+    replyInList(item, c, {
+      placeholder: rouvrir ? 'Qu’est-ce qui ne va pas ? (obligatoire — Entrée = rouvrir, Échap = annuler)' : 'Ta réponse à l’équipe… (Entrée = envoyer, Échap = annuler)',
+      required: rouvrir ? 'Dis ce qui ne va pas pour rouvrir le ticket' : '',
+      keepOnBlur: true,
+      onSave: function (text) {
+        var r = { id: uid(), date: new Date().toISOString(), text: text, rouvrir: !!rouvrir, sync: null };
+        (c.replies = c.replies || []).push(r);
+        pushHistory(c, { date: r.date, status: c.status, source: 'moi', message: (rouvrir ? 'rouvrir : ' : 'réponse : ') + text });
+        persist();
+        scheduleReply(c, r);
+      }
+    });
+  };
+
   function renderList() {
     var pc = pageComments();
     var remaining = pc.filter(function (c) { return !isDone(c); });
@@ -1124,9 +1225,10 @@
           '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
           '<div class="txt">' + cmEsc(c.text) + '</div>' +
           (c.shot && c.shot.dataUrl ? '<img class="cm-shot" src="' + c.shot.dataUrl + '" alt="Capture" title="Voir la capture" onmousedown="event.stopPropagation()" onclick="cmShowShot(\'' + c.id + '\')">' : '') +
-          (c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">↳ ' + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
+          (SYNC ? '' : c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">↳ ' + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
           (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(c.complementMessage) + '</div>' : '') +
-          (c.feedbackMessage && c.status !== 'complement' ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
+          (c.feedbackMessage && c.status !== 'complement' && !(SYNC && c.thread && c.thread.length) ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
+          (SYNC ? threadHtml(c) : '') +
           '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
           syncChip(c) +
           (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + cmEsc(statusLabel(c)) + '</span>' : '') +
@@ -1188,25 +1290,30 @@
     cmStatus('Réponse enregistrée — elle partira dans le prochain rapport');
     return true;
   }
-  function replyInList(item, c) {
+  /* opts (mode live, répondre / rouvrir) : placeholder, required (message si vide : le champ reste ouvert),
+     keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir par mégarde), onSave(texte). */
+  function replyInList(item, c, opts) {
+    opts = opts || {};
     var meta = item.querySelector('.cm-meta');
     var ta = document.createElement('textarea');
     ta.className = 'cm-inline-edit cm-inline-reply';
-    ta.placeholder = 'Ta réponse au complément demandé… (Entrée = enregistrer, Échap = annuler)';
+    ta.placeholder = opts.placeholder || 'Ta réponse au complément demandé… (Entrée = enregistrer, Échap = annuler)';
     meta.parentNode.insertBefore(ta, meta);
     ta.focus();
     var finished = false;
     function finish(save) {
       if (finished) return;
-      finished = true;
       var v = ta.value.trim();
-      if (save && v) addReply(c, v); else ta.remove();
+      if (save && !v && opts.required) { cmStatus(opts.required); return; }
+      finished = true;
+      if (save && v) { if (opts.onSave) { ta.remove(); opts.onSave(v); } else addReply(c, v); }
+      else ta.remove();
     }
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
     });
-    ta.addEventListener('blur', function () { finish(true); });
+    ta.addEventListener('blur', function () { if (!opts.keepOnBlur) finish(true); });
   }
 
   /* Modification du texte directement dans la liste : Entrée = enregistrer, Maj+Entrée = nouvelle

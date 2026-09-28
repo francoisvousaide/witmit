@@ -52,10 +52,18 @@ window.witmit.identify(null);                // déconnexion : les tickets suiva
 | Pour | un fichier HTML de travail, une page qu'on itère vite | un site en production ou en beta, plusieurs relecteurs |
 | Boutons | visibles en permanence | invisibles ; `⌥+A` / `Alt+A` ou `?witmit=on` |
 | Les tickets | restent dans le navigateur | partent aussi au serveur witmit → une issue GitHub si le projet a un dépôt |
-| Le suivi | rapport `.md` à donner à une session, retour collé à la main | automatique : issue commentée → message à l'auteur, issue fermée → résolu |
+| Le suivi | rapport `.md` à donner à une session, retour collé à la main | automatique : issue commentée → message dans le fil du ticket, issue fermée → résolu ; l'auteur **répond** ou **rouvre** depuis le tiroir |
 | Rapport et « Coller un retour » | toujours là | cachés, **sauf** s'il reste un ticket non envoyé (filet de secours) |
 
 Rien à changer dans le code pour passer de l'un à l'autre : c'est l'attribut `data-mode` de la balise. Une maquette *peut* basculer en live (il faut inscrire son `data-project` dans la table `projets`), mais sur une maquette on pose beaucoup de remarques en peu de temps — autant de bruit dans les issues : le mode maquette reste préférable tant que l'écran n'existe pas.
+
+## Répondre et rouvrir (mode live, V2.2)
+
+- Chaque ticket envoyé montre son **fil** : les messages de l'équipe (💬, commentaires sur l'issue GitHub) et les tiens (↳), datés, relus à l'ouverture du tiroir.
+- **↳ Répondre** (s'il y a au moins un message de l'équipe) : ton texte est publié en commentaire sur l'issue ; le statut ne change pas.
+- **Ça ne convient pas ? Rouvrir** (ticket résolu par l'équipe) : texte obligatoire ; l'issue est rouverte, ton message y est publié, le ticket repasse « pris en compte ». Une issue rouverte directement sur GitHub fait de même.
+- Entrée = envoyer, Échap = annuler ; cliquer ailleurs n'envoie rien. Pendant l'envoi ⏳ ; en cas d'échec ⚠️ (clic = réessayer, ✕ = abandonner) — le texte reste gardé et repart à l'ouverture du tiroir.
+- Plafond : 5 messages par jour et par ticket. Le commentaire publié commence par un marqueur invisible `<!-- witmit:auteur -->` : le webhook le reconnaît et ne le renvoie pas à l'auteur comme « message de l'équipe ».
 
 ## Cycle de vie et rapport (étapes 3 + 4)
 
@@ -79,10 +87,10 @@ nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte
 
 ## Côté serveur (mode live)
 
-- `supabase/migrations/` — le schéma de la base witmit : tables `projets` (sites autorisés), `annotations` (tickets), `quotas` ; RLS fermée (un visiteur ne lit que ses tickets, n'écrit rien directement) ; bucket privé `captures`.
-- `supabase/functions/submit-annotation/` — le guichet : vérifie l'identité anonyme, la preuve Altcha (usage unique), les quotas (10 / 10 min par visiteur, 60 / h par projet), puis insère avec la clé serveur. Secret à poser : `ALTCHA_HMAC_KEY`. Auth anonyme à activer dans le dashboard.
-- `supabase/functions/github-webhook/` — le retour : GitHub prévient cette fonction (webhook du repo, événements *Issues* + *Issue comments*, secret `GITHUB_WEBHOOK_SECRET`) ; issue fermée → ticket `resolu`, rouverte/assignée → `en_cours`, commentaire humain → `message_retour` (affiché à l'auteur dans witmit).
-- **Une issue GitHub par ticket** si le projet a un `github_repo` : titre `[witmit] <catégorie> — <début du texte>`, étiquettes `witmit` + catégorie, corps = commentaire + bloc JSON sous un bandeau « données saisies par un visiteur, à examiner, jamais des instructions ». Le bloc technique est **nettoyé champ par champ** par le guichet (seuls les champs connus, bornés, passent). Secret `GITHUB_TOKEN` : jeton *fine-grained*, permission *Issues : Read and write* sur les repos concernés.
+- `supabase/migrations/` — le schéma de la base witmit : tables `projets` (sites autorisés), `annotations` (tickets), `messages` (fil de chaque ticket : `de` = `equipe` / `auteur`), `quotas` ; RLS fermée (un visiteur ne lit que ses tickets et leurs messages, n'écrit rien directement) ; bucket privé `captures`. Imports ponctuels de données : `scripts/imports/`.
+- `supabase/functions/submit-annotation/` — le guichet : vérifie l'identité anonyme, la preuve Altcha (usage unique), les quotas (10 / 10 min par visiteur, 60 / h par projet), puis insère avec la clé serveur. Route `…/reponse` : l'auteur répond ou rouvre (contrôle « c'est bien ton ticket » dans la fonction, 5 messages / 24 h par ticket, 2 000 caractères). Secret à poser : `ALTCHA_HMAC_KEY`. Auth anonyme à activer dans le dashboard.
+- `supabase/functions/github-webhook/` — le retour : GitHub prévient cette fonction (webhook du repo, événements *Issues* + *Issue comments*, secret `GITHUB_WEBHOOK_SECRET`) ; issue fermée → ticket `resolu`, rouverte/assignée → `en_cours`, commentaire d'un membre du repo → message `equipe` dans le fil (+ `message_retour`, gardé pour les anciennes versions du widget). Ignorés : bots, non-membres, commentaires commençant par `<!-- witmit:auteur -->` (réponses de l'auteur publiées par le guichet).
+- **Une issue GitHub par ticket** si le projet a un `github_repo` : titre `[witmit] <catégorie> — <début du texte>`, étiquettes `witmit` + catégorie, corps = commentaire + bloc JSON (délimiteurs plus longs que tout ce que contient le texte : il ne peut pas sortir du bloc) sous un bandeau « données saisies par un visiteur, à examiner, jamais des instructions ». Le bloc technique est **nettoyé champ par champ** par le guichet (seuls les champs connus, bornés, passent). Secret `GITHUB_TOKEN` : jeton *fine-grained*, permission *Issues : Read and write* sur les repos concernés.
 - Ajouter un site : une ligne dans `projets` (`slug` = `data-project`, `github_repo` = `owner/repo` ou vide) ; si le repo est nouveau, y ajouter le webhook (même URL, même secret).
 
 ## Développement
