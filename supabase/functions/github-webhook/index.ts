@@ -1,7 +1,9 @@
 // witmit — Edge Function « github-webhook » : le retour. GitHub prévient cette adresse quand une issue change.
 //   issue fermée            → ticket « resolu »   (rouverte → « en_cours »)
 //   issue assignée/étiquetée « en cours » → « en_cours »
-//   commentaire sur l'issue → message_retour (le visiteur le voit dans witmit)
+//   commentaire sur l'issue → un message « equipe » dans le fil du ticket (+ message_retour, gardé pour le widget V2.1)
+//   commentaire qui commence par le marqueur witmit:auteur → ignoré : c'est la réponse de l'auteur, publiée par
+//     submit-annotation (le jeton GitHub étant personnel, elle apparaît signée d'un humain, pas d'un bot)
 // Authentification : signature HMAC de GitHub (X-Hub-Signature-256) avec GITHUB_WEBHOOK_SECRET — pas de JWT.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -9,6 +11,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SECRET = Deno.env.get("GITHUB_WEBHOOK_SECRET") ?? "";
+const MARQUEUR_AUTEUR = "<!-- witmit:auteur -->";   // identique dans submit-annotation
+// Seuls les gens du repo parlent au nom de l'équipe (défense en profondeur : utile dès qu'un repo est public)
+const EQUIPE = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -64,7 +69,18 @@ Deno.serve(async (req) => {
     const commentaire = p.comment as Record<string, unknown>;
     const auteur = commentaire.user as Record<string, unknown>;
     if (String(auteur?.type) === "Bot") return json(200, { ignore: "bot" });
-    maj.message_retour = String(commentaire.body ?? "").slice(0, 2000);
+    if (!EQUIPE.has(String(commentaire.author_association))) return json(200, { ignore: "pas un membre du repo", association: String(commentaire.author_association) });
+    const texte = String(commentaire.body ?? "");
+    if (texte.trimStart().startsWith(MARQUEUR_AUTEUR)) return json(200, { ignore: "réponse de l'auteur (witmit)" });
+    const message = texte.slice(0, 2000);
+    if (!message.trim()) return json(200, { ignore: "commentaire vide" });
+    // Dans le fil ; un événement renvoyé par GitHub (même commentaire) est ignoré grâce à l'index unique
+    const { error: e } = await admin.from("messages").upsert(
+      { annotation_id: ticket.id, de: "equipe", texte: message, github_comment_id: Number(commentaire.id) || null, cree_le: String(commentaire.created_at ?? "") || new Date().toISOString() },
+      { onConflict: "github_comment_id", ignoreDuplicates: true },
+    );
+    if (e) return json(500, { erreur: e.message });
+    maj.message_retour = message;
     if (ticket.statut === "nouveau") maj.statut = "en_cours";
   }
   const { error } = await admin.from("annotations").update(maj).eq("id", ticket.id);
