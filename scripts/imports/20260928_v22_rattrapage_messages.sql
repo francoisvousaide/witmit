@@ -1,4 +1,4 @@
--- witmit V2.2 — rattrapage ponctuel (28/09/2026), après la migration 20260928_v22_messages.sql.
+-- witmit V2.2 — rattrapage ponctuel (28/09/2026), après la migration 20260928213712_v22_messages.sql.
 -- Le message_retour actuel de chaque ticket devient son premier message « equipe » dans le fil.
 -- Date approximative : la dernière mise à jour du ticket (la date exacte du commentaire n'a pas été gardée).
 -- Rejouable : un ticket qui a déjà un message « equipe » n'est pas touché.
