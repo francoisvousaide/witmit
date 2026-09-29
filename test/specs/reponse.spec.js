@@ -147,3 +147,39 @@ test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) =
   await expect(page.locator('.cm-panel-item')).toHaveCount(1);
   await expect(page.locator('.cm-thread, .cm-thread-actions')).toHaveCount(0);
 });
+
+// V2.3 — issue fermée « non prévue » (state_reason not_planned) : statut serveur « repondu »
+test('7. Répondu : même ✅, libellé « Répondu », verrouillé ; Rouvrir disponible', async ({ page }) => {
+  await ticketEnvoye(page, { statut: 'repondu', messages: [EQUIPE] });
+  const chip = page.locator('.cm-status-chip');
+  await expect(chip).toContainText('✅ Répondu le');
+  await expect(chip).not.toContainText('Résolu');
+  await expect(page.locator('.cm-panel-item .cm-st-locked')).toHaveCount(1);   // terminé : ✓ verrouillé
+  expect((await ticket(page)).status).toBe('resolu');
+  expect((await ticket(page)).repondu).toBe(true);
+  await page.locator('.cm-reopen-btn').click();
+  await page.locator('.cm-inline-reply').fill('Ma question n’est pas réglée');
+  await page.locator('.cm-inline-reply').press('Enter');
+  await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
+  expect(state.replies[0].body).toMatchObject({ rouvrir: true });
+  await expect(chip).toContainText('Pris en compte');
+  expect((await ticket(page)).repondu).toBeUndefined();
+  // refermée cette fois comme corrigée : « Résolu », plus « Répondu »
+  state.rows[0].statut = 'resolu';
+  await rouvrirTiroir(page);
+  await expect(chip).toContainText('✅ Résolu le');
+});
+
+test('8. Répondu puis rouvert sur GitHub : « pris en compte » ; fermé corrigé ensuite : « Résolu »', async ({ page }) => {
+  await ticketEnvoye(page, { statut: 'repondu' });
+  const chip = page.locator('.cm-status-chip');
+  await expect(chip).toContainText('Répondu');
+  state.rows[0].statut = 'en_cours';
+  await rouvrirTiroir(page);
+  await expect(chip).toContainText('Pris en compte');
+  expect((await ticket(page)).repondu).toBeUndefined();
+  state.rows[0].statut = 'resolu';
+  await rouvrirTiroir(page);
+  await expect(chip).toContainText('✅ Résolu le');
+  expect((await ticket(page)).repondu).toBeUndefined();
+});

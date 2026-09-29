@@ -692,7 +692,7 @@
         live.replies = live.replies.filter(function (x) { return x !== lr; });
         if (data.message) (live.thread = live.thread || []).push(data.message);
         if (data.rouvert) {
-          live.status = 'pris_en_compte'; live.sync.statut = 'en_cours'; delete live.resolvedAt; delete live.resolvedBy;
+          live.status = 'pris_en_compte'; live.sync.statut = 'en_cours'; delete live.resolvedAt; delete live.resolvedBy; delete live.repondu;
           pushHistory(live, { date: new Date().toISOString(), status: 'pris_en_compte', source: 'moi', message: 'rouvert' });
         }
         cmStatus(data.avertissement ? 'Message envoyé ☁️ — mais ' + data.avertissement.replace(/^message envoyé à l'équipe, mais /, '') : (data.rouvert ? 'Ticket rouvert, l’équipe est prévenue ☁️' : 'Réponse envoyée ☁️'));
@@ -723,8 +723,9 @@
       else if (c.sync.state === 'pending' && Date.now() - Date.parse(c.sync.at) > 120000) { c.sync = null; scheduleSync(c); } // envoi interrompu (page fermée)
     });
   }
-  // Le statut vu du serveur : nouveau → (rien) ; en_cours → « pris en compte » ; resolu → « résolu », avec le fil
-  // des messages (équipe / toi). Un ticket résolu par le serveur puis rouvert (depuis witmit ou GitHub) redevient « pris en compte ».
+  // Le statut vu du serveur : nouveau → (rien) ; en_cours → « pris en compte » ; resolu → « résolu » ; repondu (issue
+  // fermée « non prévue ») → terminé aussi, affiché « répondu » (c.repondu) ; avec le fil des messages (équipe / toi).
+  // Un ticket terminé par le serveur puis rouvert (depuis witmit ou GitHub) redevient « pris en compte ».
   function refreshStatuses() {
     if (!SYNC || !readSession()) return Promise.resolve();
     var ids = allComments.filter(function (c) { return c.sync && c.sync.state === 'sent'; }).map(function (c) { return c.id; });
@@ -742,9 +743,11 @@
         c.sync.statut = row.statut;
         if (row.message_retour) c.feedbackMessage = row.message_retour;
         if (thread) c.thread = thread;
-        if (row.statut === 'en_cours' && c.status === 'resolu' && c.resolvedBy === 'serveur') { c.status = 'pris_en_compte'; delete c.resolvedAt; delete c.resolvedBy; }
+        var fini = row.statut === 'resolu' || row.statut === 'repondu';
+        if (row.statut === 'en_cours' && c.status === 'resolu' && c.resolvedBy === 'serveur') { c.status = 'pris_en_compte'; delete c.resolvedAt; delete c.resolvedBy; delete c.repondu; }
         if (row.statut === 'en_cours' && c.status !== 'resolu') { c.status = 'pris_en_compte'; c.ackAt = c.ackAt || row.mis_a_jour_le; }
-        if (row.statut === 'resolu' && c.status !== 'resolu') { c.status = 'resolu'; c.resolvedAt = row.mis_a_jour_le; c.resolvedBy = 'serveur'; }
+        if (fini && c.status !== 'resolu') { c.status = 'resolu'; c.resolvedAt = row.mis_a_jour_le; c.resolvedBy = 'serveur'; }
+        if (fini && c.resolvedBy === 'serveur') { if (row.statut === 'repondu') c.repondu = true; else delete c.repondu; }
       });
       if (changed) { persist(); renderList(); renderMarkers(); }
     }).catch(function () {});
@@ -1107,7 +1110,7 @@
   function statusLabel(c) {
     var st = STATUS[c.status] || STATUS.nouveau;
     if (c.status === 'signale') return st.icon + ' Signalé le ' + frDate(c.signaledAt);
-    if (c.status === 'resolu') return st.icon + ' Résolu le ' + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
+    if (c.status === 'resolu') return st.icon + (c.repondu ? ' Répondu le ' : ' Résolu le ') + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
     if (c.status === 'pris_en_compte') return st.icon + ' Pris en compte' + (c.ackAt ? ' le ' + frDate(c.ackAt) : '');
     if (c.status === 'complement') return st.icon + ' Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '');
     return '';
@@ -1145,10 +1148,10 @@
 
   /* Le fil d'un ticket (mode live) : messages de l'équipe et les tiens, puis ceux pas encore partis ;
      sous le fil, « Répondre » (s'il y a au moins un message de l'équipe) et « Ça ne convient pas ? Rouvrir »
-     (ticket résolu par l'équipe). */
+     (ticket résolu ou répondu par l'équipe). */
   function canReply(c) { return !!(SYNC && c.sync && c.sync.id && (c.thread || []).some(function (m) { return m.de === 'equipe'; })); }
   function canReopen(c) {
-    return !!(SYNC && c.sync && c.sync.id && c.sync.statut === 'resolu' && c.status === 'resolu' && c.resolvedBy === 'serveur' &&
+    return !!(SYNC && c.sync && c.sync.id && (c.sync.statut === 'resolu' || c.sync.statut === 'repondu') && c.status === 'resolu' && c.resolvedBy === 'serveur' &&
       !(c.replies || []).some(function (r) { return r.rouvrir; }));
   }
   function threadHtml(c) {
