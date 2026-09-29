@@ -2362,8 +2362,12 @@
     return !!(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)));
   }
   document.addEventListener('keydown', function (e) {
+    // Échap, de la couche la plus proche à la plus lointaine : la bulle, puis le tiroir, puis le mode annotation.
+    // (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce champ, sans aller plus loin.)
     if (e.key === 'Escape') {
+      var panel = document.getElementById('cmPanel');
       if (pendingPopup) { e.preventDefault(); closePopup(true); }
+      else if (panel && panel.classList.contains('show')) { e.preventDefault(); cmTogglePanel(false); }
       else if (active) { e.preventDefault(); cmToggle(false); }
       return;
     }

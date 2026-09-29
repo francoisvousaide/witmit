@@ -60,3 +60,22 @@ test('data-drawer="overlay" : le tiroir recouvre la page', async ({ page }) => {
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => document.documentElement.style.marginRight)).toBe('');
 });
+
+test('Échap ferme le tiroir (après avoir annulé un champ en cours), puis quitte le mode annotation', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Un ticket');
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await page.locator('.cm-panel-item .body').click();             // ouvre la modification du texte dans la liste
+  await expect(page.locator('.cm-inline-edit')).toBeVisible();
+  await page.keyboard.press('Escape');                            // 1er Échap : annule le champ, le tiroir reste
+  await expect(page.locator('.cm-inline-edit')).toHaveCount(0);
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await page.keyboard.press('Escape');                            // 2e : ferme le tiroir
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('body')).toHaveClass(/cm-active/);
+  await page.keyboard.press('Escape');                            // 3e : quitte le mode annotation
+  await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+});
