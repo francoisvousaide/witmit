@@ -2,7 +2,7 @@
 // Le widget ne parle qu'à ce guichet. Trois routes :
 //   GET  …/submit-annotation/challenge  → un défi Altcha (petit calcul à résoudre par le navigateur)
 //   POST …/submit-annotation            → le ticket + la preuve du calcul ; vérifie, range, rend un reçu
-//   POST …/submit-annotation/reponse    → l'auteur répond à l'équipe, ou rouvre son ticket résolu (commentaire sur l'issue)
+//   POST …/submit-annotation/reponse    → l'auteur répond à l'équipe, ou rouvre son ticket résolu / répondu (commentaire sur l'issue)
 // Après l'insertion, si le projet a un repo GitHub : une issue par ticket (texte lisible + bloc JSON), lien noté sur le ticket.
 // Facultatif : auteur_nom + auteur_source (prénom déclaré par le site hôte…), nettoyé, noté sur le ticket et dans l'issue.
 // Secrets attendus : ALTCHA_HMAC_KEY, GITHUB_TOKEN (à poser dans Edge Functions → Secrets) ;
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
 // ---- Répondre / rouvrir (route …/reponse) ----
 // L'auteur d'un ticket écrit à l'équipe depuis le tiroir. Le message part en commentaire sur l'issue GitHub
 // (marqueur en tête, bandeau « données d'un visiteur »), puis est rangé dans le fil (messages, de = 'auteur').
-// rouvrir = true (ticket résolu seulement) : l'issue est rouverte et le ticket repasse « en cours ».
+// rouvrir = true (ticket résolu ou répondu seulement) : l'issue est rouverte et le ticket repasse « en cours ».
 // Le contrôle « c'est bien ton ticket » est ICI : la fonction écrit avec la clé serveur, la RLS ne la protège pas.
 // deno-lint-ignore no-explicit-any
 async function repondre(req: Request, userId: string, admin: any) {
@@ -257,7 +257,7 @@ async function repondre(req: Request, userId: string, admin: any) {
   // 2. ce qu'on a le droit de faire sur ce ticket
   const { data: p } = await admin.from("projets").select("github_repo, actif").eq("slug", t.projet).maybeSingle();
   if (!p?.actif || !p.github_repo || !t.github_issue_number || !GITHUB_TOKEN) return json(409, { erreur: "ce ticket n'a pas de suivi GitHub : réponse impossible" });
-  if (rouvrir && t.statut !== "resolu") return json(409, { erreur: "seul un ticket résolu peut être rouvert" });
+  if (rouvrir && t.statut !== "resolu" && t.statut !== "repondu") return json(409, { erreur: "seul un ticket résolu ou répondu peut être rouvert" });
 
   // 3. le texte (avant de consommer preuve et quotas : un texte refusé ne coûte rien)
   const texte = nettoyerTexte(body.texte);

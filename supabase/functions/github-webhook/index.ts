@@ -1,5 +1,6 @@
 // witmit — Edge Function « github-webhook » : le retour. GitHub prévient cette adresse quand une issue change.
-//   issue fermée            → ticket « resolu »   (rouverte → « en_cours »)
+//   issue fermée            → ticket « resolu » (corrigé), ou « repondu » si fermée « non prévue » / doublon
+//                             (state_reason not_planned / duplicate)   ; rouverte → « en_cours »
 //   issue assignée/étiquetée « en cours » → « en_cours »
 //   commentaire sur l'issue → un message « equipe » dans le fil du ticket (+ message_retour, gardé pour le widget V2.1)
 //   commentaire qui commence par le marqueur witmit:auteur → ignoré : c'est la réponse de l'auteur, publiée par
@@ -14,6 +15,8 @@ const SECRET = Deno.env.get("GITHUB_WEBHOOK_SECRET") ?? "";
 const MARQUEUR_AUTEUR = "<!-- witmit:auteur -->";   // identique dans submit-annotation
 // Seuls les gens du repo parlent au nom de l'équipe (défense en profondeur : utile dès qu'un repo est public)
 const EQUIPE = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+// Fermée sans correction : l'équipe a répondu (question, refus, doublon) — tout le reste (completed, vide) = résolu
+const FERMEE_SANS_CORRECTION = new Set(["not_planned", "duplicate"]);
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -59,7 +62,7 @@ Deno.serve(async (req) => {
 
   if (evenement === "issues") {
     const labels = ((issue.labels as Array<Record<string, unknown>>) ?? []).map((l) => String(l.name).toLowerCase());
-    if (action === "closed") maj.statut = "resolu";
+    if (action === "closed") maj.statut = FERMEE_SANS_CORRECTION.has(String(issue.state_reason ?? "")) ? "repondu" : "resolu";
     else if (action === "reopened") maj.statut = "en_cours";
     else if (action === "assigned" || (action === "labeled" && labels.includes("en cours"))) { if (ticket.statut === "nouveau") maj.statut = "en_cours"; }
     else return json(200, { ignore: action });
