@@ -500,7 +500,7 @@
       type: c.type === 'box' ? 'encadré' : c.type === 'text' ? 'texte' : (c.targets ? 'groupe' : 'clic'),
       quote: c.quote || undefined,
       position: c.anchor ? { relX: +(c.anchor.relX || 0).toFixed(3), relY: +(c.anchor.relY || 0).toFixed(3), relW: c.anchor.relW !== undefined ? +c.anchor.relW.toFixed(3) : undefined, relH: c.anchor.relH !== undefined ? +c.anchor.relH.toFixed(3) : undefined } : undefined,
-      page: { file: PAGE_FILE, title: PAGE_TITLE, path: location.pathname }, // pas de paramètres d'URL (peuvent contenir des données)
+      page: { file: PAGE_FILE, title: document.title || PAGE_TITLE, path: location.pathname }, // pas de paramètres d'URL (peuvent contenir des données)
       viewport: { width: window.innerWidth, height: window.innerHeight, scrollX: Math.round(window.scrollX), scrollY: Math.round(window.scrollY), pixelRatio: window.devicePixelRatio || 1 },
       browser: b.name + (b.engine ? ' (' + b.engine + ')' : ''), os: b.os,
       theme: themeInfo(),
@@ -522,7 +522,17 @@
     return lines.join('\n');
   }
 
-  var PAGE_FILE = (location.pathname.split('/').pop() || document.title || 'page').toLowerCase();
+  /* Clé de page des tickets. Maquette (file://) : le nom du fichier, comme avant. Site (http/https) : le
+     chemin complet (/adhesion/dons, pas seulement « dons »). La clé est RECALCULÉE à chaque changement
+     d'URL (voir « navigation sans rechargement ») : sur une application Next.js/React, cliquer un onglet
+     change l'URL sans recharger la page, donc sans relancer ce script. */
+  var IS_FILE = location.protocol === 'file:';
+  function pageKeyFor(pathname) {
+    if (IS_FILE) return ((pathname || '').split('/').pop() || document.title || 'page').toLowerCase();
+    var p = (pathname || '/').replace(/\/+$/, '');
+    return p || '/';
+  }
+  var PAGE_FILE = pageKeyFor(location.pathname);
   var PAGE_TITLE = document.title || PAGE_FILE;
   var STORAGE_KEY = 'witmit_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
@@ -631,7 +641,7 @@
       auteur_nom: c.author || undefined,
       auteur_source: c.author ? 'hote' : undefined,
       projet: CONFIG.project,
-      page: location.pathname || c.page,
+      page: c.path || location.pathname || c.page, // la page où le ticket a été créé, pas celle où il est renvoyé
       texte: c.text,
       categorie: c.category,
       id_local: c.id,
@@ -731,7 +741,7 @@
     var ids = allComments.filter(function (c) { return c.sync && c.sync.state === 'sent'; }).map(function (c) { return c.id; });
     if (!ids.length) return Promise.resolve();
     return getSession().then(function (sess) {
-      var q = '?select=id_local,statut,message_retour,mis_a_jour_le,messages(de,texte,rouvre,cree_le)&messages.order=cree_le.asc&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
+      var q = '?select=id_local,page,statut,message_retour,mis_a_jour_le,messages(de,texte,rouvre,cree_le)&messages.order=cree_le.asc&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
       return fetch(CONFIG.supabaseUrl + '/rest/v1/annotations' + q, { headers: sbHeaders(sess.access_token) });
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
       var changed = false;
@@ -739,6 +749,9 @@
         var c = findComment(row.id_local); if (!c || !c.sync) return;
         var thread = Array.isArray(row.messages) ? row.messages : null;
         if (c.sync.statut !== row.statut || (row.message_retour || '') !== (c.feedbackMessage || '')) changed = true;
+        // La page enregistrée au serveur fait foi (elle vient de l'URL réelle au moment de l'envoi) :
+        // corrige les tickets rangés sous une mauvaise page par les versions précédentes du widget.
+        if (!IS_FILE && row.page && c.page !== pageKeyFor(row.page)) { c.page = pageKeyFor(row.page); c.path = row.page; changed = true; }
         if (thread && JSON.stringify(thread) !== JSON.stringify(c.thread || [])) changed = true;
         c.sync.statut = row.statut;
         if (row.message_retour) c.feedbackMessage = row.message_retour;
@@ -796,7 +809,10 @@
     return d.innerHTML;
   }
   function pageComments() {
-    return allComments.filter(function (c) { return c.page === PAGE_FILE; });
+    // Anciens tickets d'un site (avant la V2.4) : rangés sous le dernier segment de l'URL (« dons »).
+    // La relecture des statuts les recale sur le chemin enregistré au serveur.
+    var legacy = IS_FILE ? null : PAGE_FILE.split('/').pop();
+    return allComments.filter(function (c) { return c.page === PAGE_FILE || (legacy && c.page === legacy); });
   }
 
   function load() {
@@ -944,11 +960,13 @@
       if (c.type === 'pin' && c.targets && c.targets.length > 1) {
         multi = [];
         c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (isVisible(el)) multi.push(el); });
+        multi = multi.filter(function (el) { return !clippedOut(el); });
         if (!multi.length) return;
         anchorEl = multi[0];
       } else if (c.anchor && c.anchor.path) {
         anchorEl = resolveStablePath(c.anchor.path);
         if (!isVisible(anchorEl)) return; // étape/onglet masqué pour l'instant : on n'affiche pas ce repère
+        if (c.type !== 'box' && clippedOut(anchorEl)) return; // défilé hors de sa zone visible
       }
       var boxGeom = null;
       if (c.type === 'box') {
@@ -1066,6 +1084,65 @@
     resizeTimer = setTimeout(function () { renderMarkers(); positionEditOutline(); }, 150);
   });
 
+  /* ---------- défilement : les repères suivent le contenu ----------
+     Les repères sont placés en coordonnées du document. Quand c'est la fenêtre qui défile, ils suivent
+     tout seuls ; mais beaucoup d'applications font défiler une ZONE intérieure (liste, panneau, <main>
+     en overflow:auto) : la fenêtre ne bouge pas, le contenu si. On écoute donc tous les défilements
+     (phase de capture : l'événement scroll ne remonte pas) et on replace les repères, une fois par image. */
+  var scrollRaf = null;
+  function onAnyScroll(e) {
+    var t = e.target;
+    if (t && t.nodeType === 1 && inUi(t)) return; // défilement de la liste du tiroir : rien à replacer
+    if (t === document || t === document.documentElement || t === document.body || t === window) return; // la fenêtre : déjà suivi
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(function () {
+      scrollRaf = null;
+      renderMarkers(); positionEditOutline();
+    });
+  }
+  document.addEventListener('scroll', onAnyScroll, true);
+  /* Pendant qu'on dessine un encadré ou qu'on sélectionne du texte, un coup de molette déformerait la
+     sélection : on bloque le défilement le temps du geste seulement. */
+  window.addEventListener('wheel', function (e) { if (active && dragging) e.preventDefault(); }, { passive: false, capture: true });
+
+  /* Un élément sorti de la partie visible de sa zone de défilement : son repère ne doit pas flotter
+     par-dessus le reste de la page (en-tête, panneau voisin). */
+  function clippedOut(el) {
+    if (!el) return false;
+    var r = el.getBoundingClientRect();
+    var node = el.parentElement;
+    while (node && node !== document.body && node !== document.documentElement) {
+      var cs = getComputedStyle(node);
+      if (/(auto|scroll|hidden|clip)/.test(cs.overflowX + cs.overflowY)) {
+        var pr = node.getBoundingClientRect();
+        if (r.bottom <= pr.top || r.top >= pr.bottom || r.right <= pr.left || r.left >= pr.right) return true;
+      }
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  /* ---------- navigation sans rechargement (Next.js, React Router…) ----------
+     L'application change l'URL par history.pushState / replaceState / retour arrière, sans recharger la
+     page : on recalcule la page courante et on redessine tiroir et repères. Sans ça, les tickets créés
+     après un clic d'onglet restaient rangés sous la page de départ (bug du 30/09/2026). */
+  function onRouteMaybeChanged() {
+    var k = pageKeyFor(location.pathname);
+    if (k === PAGE_FILE) return;
+    PAGE_FILE = k;
+    PAGE_TITLE = document.title || k;
+    if (pendingPopup) closePopup(true);
+    hideEditOutline();
+    Object.keys(sessionMarks).forEach(function (id) { try { unwrapMarks(sessionMarks[id]); } catch (e) {} delete sessionMarks[id]; });
+    renderList(); renderMarkers();
+  }
+  ['pushState', 'replaceState'].forEach(function (m) {
+    var orig = history[m];
+    if (typeof orig !== 'function') return;
+    history[m] = function () { var r = orig.apply(this, arguments); setTimeout(onRouteMaybeChanged, 0); return r; };
+  });
+  window.addEventListener('popstate', function () { setTimeout(onRouteMaybeChanged, 0); });
+
   /* Recalcule aussi quand LA PAGE ELLE-MÊME change de vue (étape suivante d'un formulaire, onglet,
      accordéon…) — générique, sans dépendre du mécanisme propre à chaque maquette : on observe le
      DOM et on ignore nos propres mutations (pastilles/encadrés/contour, tous marqués "cm-ui") pour
@@ -1078,14 +1155,22 @@
   var moTimer = null;
   var domObserver = new MutationObserver(function (mutations) {
     var relevant = mutations.some(function (m) {
-      if (m.type === 'attributes') return !isOwnNode(m.target);
+      if (m.type === 'attributes') {
+        if (m.attributeName === 'style' && (m.target === document.documentElement || pushedEls.some(function (r) { return r.el === m.target; }))) return false; // nos propres décalages
+        return !isOwnNode(m.target);
+      }
       for (var i = 0; i < m.addedNodes.length; i++) if (!isOwnNode(m.addedNodes[i])) return true;
       for (var j = 0; j < m.removedNodes.length; j++) if (!isOwnNode(m.removedNodes[j])) return true;
       return false;
     });
     if (!relevant) return;
     clearTimeout(moTimer);
-    moTimer = setTimeout(function () { renderMarkers(); positionEditOutline(); }, 120);
+    moTimer = setTimeout(function () {
+      onRouteMaybeChanged();
+      // Un tiroir / une barre fixée ouverte par le site APRÈS la liste witmit doit aussi lui faire de la place.
+      if (pushWidth) pushPage(pushWidth);
+      renderMarkers(); positionEditOutline();
+    }, 120);
   });
   domObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true, subtree: true });
 
@@ -1424,7 +1509,8 @@
     var pc = pageComments();
     if (!pc.length) return;
     pc.forEach(function (c) { if (sessionMarks[c.id]) { unwrapMarks(sessionMarks[c.id]); delete sessionMarks[c.id]; } });
-    allComments = allComments.filter(function (c) { return c.page !== PAGE_FILE; });
+    var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
+    allComments = allComments.filter(function (c) { return !ids[c.id]; });
     persist(); renderMarkers(); renderList();
     cmStatus('Commentaires de cette page effacés');
   };
@@ -1960,7 +2046,7 @@
         } else {
           var id = uid();
           savedId = id;
-          var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, pageTitle: PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
+          var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
           if (meta.type === 'box') {
             c.anchor = desc ? desc.anchor : meta.boxAnchor;
             c.fallback = meta.box;
@@ -2284,8 +2370,12 @@
         // élément pleine largeur (barre de navigation) : on le rétrécit
         el.style.maxWidth = 'calc(100% - ' + width + 'px)';
         if (cs.left === 'auto' && cs.right !== 'auto') el.style.right = (parseFloat(cs.right) + width) + 'px';
+      } else if (cs.right !== 'auto') {
+        // élément ancré à droite (tiroir du site, boutons flottants) : on l'éloigne du bord par `right`.
+        // Pas par `transform` : un tiroir animé (animation CSS « both ») écrase le transform en ligne,
+        // et passait alors sous la liste witmit (tiroir membres de TellUs-app, 30/09/2026).
+        el.style.right = (parseFloat(cs.right) + width) + 'px';
       } else {
-        // petit élément ancré à droite (boutons flottants) : on le décale
         var t = cs.transform && cs.transform !== 'none' ? cs.transform + ' ' : '';
         el.style.transform = t + 'translateX(-' + width + 'px)';
       }
