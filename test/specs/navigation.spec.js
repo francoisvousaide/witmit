@@ -35,7 +35,7 @@ test.describe('Navigation sans rechargement', () => {
     await H.addPin(page, '#r2', 'Sur l’accueil');
     await H.deactivate(page);
     await nav(page, 'Adhésion');
-    expect(await pinsCount(page)).toBe(0); // le repère de l'accueil ne suit pas sur l'autre page
+    await expect.poll(() => pinsCount(page)).toBe(0); // le repère de l'accueil ne suit pas sur l'autre page (redessin juste après le changement d'URL)
     await H.activate(page);
     await H.addPin(page, '#r3', 'Sur l’adhésion');
     await H.deactivate(page);
