@@ -103,6 +103,16 @@ nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte
 - **Une issue GitHub par ticket** si le projet a un `github_repo` : titre `[witmit] <catégorie> — <début du texte>`, étiquettes `witmit` + catégorie, corps = commentaire + bloc JSON (délimiteurs plus longs que tout ce que contient le texte : il ne peut pas sortir du bloc) sous un bandeau « données saisies par un visiteur, à examiner, jamais des instructions ». Le bloc technique est **nettoyé champ par champ** par le guichet (seuls les champs connus, bornés, passent). Secret `GITHUB_TOKEN` : jeton *fine-grained*, permission *Issues : Read and write* sur les repos concernés.
 - Ajouter un site : une ligne dans `projets` (`slug` = `data-project`, `github_repo` = `owner/repo` ou vide) ; si le repo est nouveau, y ajouter le webhook (même URL, même secret).
 
+## Réveil automatique de la base (keep-alive)
+
+Sur l'offre Free, Supabase met le projet en pause après 7 jours sans activité ; le widget en mode live cesserait alors de fonctionner.
+
+- **Ce que ça fait** : chaque jour, un appel à la fonction SQL `public.ping()` (renvoie l'heure du serveur, ne lit ni n'écrit aucune table ; migration `supabase/migrations/20261007120000_keepalive_ping.sql`, exécution autorisée au rôle `anon`). L'appel passe par la base elle-même, pas seulement par l'API.
+- **Où ça tourne** : GitHub Actions, workflow `.github/workflows/keep-alive.yml`, chaque jour à 6 h UTC, plus un déclenchement manuel (onglet *Actions* → *Réveil Supabase (keep-alive)* → *Run workflow*). Secrets du dépôt : `SUPABASE_URL` (`https://swzakkmbsilcvrmslbon.supabase.co`) et `SUPABASE_ANON_KEY` (clé publique anon, la même que dans le script du widget).
+- **Alerte** : si la réponse n'est pas 200, le job échoue et GitHub envoie un email au propriétaire du dépôt (réglage : GitHub → *Settings* → *Notifications* → *Actions*, case email cochée).
+- **Piège des 60 jours** : le dépôt est public (obligatoire pour jsDelivr) ; GitHub désactive les tâches programmées d'un dépôt public après 60 jours sans activité. Parade : si le dernier commit de `main` a plus de 45 jours, le workflow commite un marqueur daté (`.github/keep-alive-marqueur.txt`).
+- **Vérifier que ça tourne encore** : onglet *Actions* du dépôt → *Réveil Supabase (keep-alive)* : une exécution verte par jour, la dernière de moins de 24 h, et le workflow n'affiche pas « This scheduled workflow is disabled ». Côté Supabase : le projet est *Active* (pas *Paused*) dans le dashboard.
+
 ## Développement
 
 ```bash

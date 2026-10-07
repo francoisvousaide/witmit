@@ -1,0 +1,65 @@
+# Réveil quotidien de la base Supabase witmit (offre Free : pause après 7 jours sans activité).
+# Appelle la fonction SQL public.ping() via l'API REST de Supabase. Si la réponse n'est pas 200,
+# le job échoue et GitHub envoie un email d'alerte.
+# Doc : README.md, section « Réveil automatique de la base ».
+name: Réveil Supabase (keep-alive)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # chaque jour à 6 h UTC (7 h ou 8 h à Paris)
+  workflow_dispatch:       # bouton « Run workflow » pour un déclenchement manuel
+
+permissions:
+  contents: write          # seulement pour le marqueur anti-désactivation (étape 2)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Appeler public.ping() sur la base witmit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Secrets SUPABASE_URL / SUPABASE_ANON_KEY absents du dépôt."
+            exit 1
+          fi
+          status=$(curl -sS -o reponse.txt -w '%{http_code}' --max-time 30 \
+            --retry 3 --retry-delay 20 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}') || status="000"
+          echo "Code HTTP : $status"
+          echo "Réponse   : $(cat reponse.txt 2>/dev/null)"
+          if [ "$status" != "200" ]; then
+            echo "::error::La base witmit n'a pas répondu 200 (reçu $status). Vérifier si le projet est en pause : https://supabase.com/dashboard/project/swzakkmbsilcvrmslbon"
+            exit 1
+          fi
+
+      # Dépôt public : GitHub désactive les tâches programmées après 60 jours sans activité sur le dépôt.
+      # Si le dernier commit de main a plus de 45 jours, on ajoute un commit qui met à jour un marqueur daté.
+      - name: Garder le dépôt actif (parade des 60 jours)
+        if: always()
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Commit marqueur si main dort depuis plus de 45 jours
+        if: always()
+        run: |
+          last=$(git log -1 --format=%ct)
+          age_days=$(( ($(date +%s) - last) / 86400 ))
+          echo "Dernier commit sur main : il y a $age_days jours."
+          if [ "$age_days" -lt 45 ]; then
+            echo "Rien à faire."
+            exit 0
+          fi
+          date -u +%Y-%m-%d > .github/keep-alive-marqueur.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keep-alive-marqueur.txt
+          git commit -m "chore: marqueur keep-alive (dépôt inactif depuis $age_days jours)"
+          git push
