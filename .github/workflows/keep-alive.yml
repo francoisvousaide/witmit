@@ -2,12 +2,15 @@
 # Appelle la fonction SQL public.ping() via l'API REST de Supabase. Si la réponse n'est pas 200,
 # le job échoue et GitHub envoie un email d'alerte.
 # Doc : README.md, section « Réveil automatique de la base ».
-name: Réveil Supabase (keep-alive)
+name: Keep-alive Supabase
 
 on:
   schedule:
     - cron: '0 6 * * *'   # chaque jour à 6 h UTC (7 h ou 8 h à Paris)
   workflow_dispatch:       # bouton « Run workflow » pour un déclenchement manuel
+  push:                    # et à chaque modification de ce fichier sur main (sert de test immédiat)
+    branches: [main]
+    paths: ['.github/workflows/keep-alive.yml']
 
 permissions:
   contents: write          # seulement pour le marqueur anti-désactivation (étape 2)
