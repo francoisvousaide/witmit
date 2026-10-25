@@ -41,14 +41,14 @@ test.describe('mode live (Supabase simulé)', () => {
 
   test('2. identify AVANT le chargement du script : l\'appel mis en file est exécuté', async ({ page }) => {
     await page.addInitScript(() => {
-      (window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Éléonore' }]);
+      (window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Camille' }]);
     });
     await page.goto(H.fileUrl(PAGE) + '?witmit=on');
     await openDrawer(page);
-    await expect(author(page)).toHaveText('tes retours sont signés : Éléonore');
-    // après le chargement, un push dans la file s'exécute aussitôt
-    await page.evaluate(() => window.witmitQueue.push(['identify', { nom: 'Camille' }]));
     await expect(author(page)).toHaveText('tes retours sont signés : Camille');
+    // après le chargement, un push dans la file s'exécute aussitôt
+    await page.evaluate(() => window.witmitQueue.push(['identify', { nom: 'Paul' }]));
+    await expect(author(page)).toHaveText('tes retours sont signés : Paul');
   });
 
   test('3. identify(null) efface : plus de ligne, ticket suivant anonyme, rien de gardé au rechargement', async ({ page }) => {
@@ -113,13 +113,13 @@ test.describe('mode maquette', () => {
     await H.addPin(page, '#carte', 'Le montant est mal aligné');
     await H.deactivate(page);
     await openDrawer(page);
-    await expect(author(page)).toHaveText('tes retours sont signés : Élise');
+    await expect(author(page)).toHaveText('tes retours sont signés : Camille');
     page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     await expect(page.locator('#cmStatus')).toContainText('copié');
     const md = await page.evaluate(() => navigator.clipboard.readText());
-    expect(md).toContain('_Signalé par Élise_');
-    expect(md).toContain('"auteur": "Élise"');
+    expect(md).toContain('_Signalé par Camille_');
+    expect(md).toContain('"auteur": "Camille"');
   });
 
   test('7. sans auteur déclaré : aucune ligne, rien dans le rapport', async ({ page }) => {

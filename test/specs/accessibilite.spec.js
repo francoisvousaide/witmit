@@ -1,7 +1,8 @@
 // Accessibilité de ce que witmit dessine (WCAG 4.1.2, 2.5.8 ; textes de Léa 3.1 à 3.3, décisions 46 et 47).
 // Lot 3 : les deux boutons, le voyant, les zones cliquables, Échap, la touche « nouveau retour ».
 // Lot 4 : test 11 (largeur de la fenêtre de saisie). Lot 5 : tests 1 et 2 sur la règle du voyant (C5), 5b (visionneuse),
-// partie « tiroir » du test 11. Les tests 4 et 7 à 10 (focus, taille de texte, émojis, contraste, toasts) viennent aux lots suivants.
+// partie « tiroir » du test 11. Lot 7 : test 10 (messages passagers). Lot 8 : tests 4, 7, 8 et 9 (focus, taille de texte,
+// émojis, contraste) sur toute l'interface, maquette et live.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
 
@@ -345,4 +346,241 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);
   expect((await page.locator('#cmPanel').boundingBox()).width).toBe(380);
+});
+
+// Lot 8 — tests 4, 7, 8 et 9 sur toute l'interface : chaque vérification passe par les mêmes étapes, en maquette (page
+// sombre et page claire : tous les statuts, détails techniques, fenêtre de complément, fenêtre de modification, bandeau,
+// message passager, visionneuse) et en live (marques d'envoi, fil, réponse refusée, champ « répondre »).
+async function parcoursMaquette(page, nom, verifier) {
+  const cibles = nom === 'tellus-accueil.html'
+    ? ['.mcard.active .mcard-title', '.mcard:nth-child(2) .mcard-title', '.mcard:nth-child(3) .mcard-title', '.mcard:nth-child(4) .mcard-title', '.mcard:nth-child(5) .mcard-title']
+    : ['tbody tr:nth-child(1) td:nth-child(2)', 'tbody tr:nth-child(2) td:nth-child(2)', 'tbody tr:nth-child(3) td:nth-child(2)', 'tbody tr:nth-child(1) td:nth-child(1)', 'tbody tr:nth-child(2) td:nth-child(1)'];
+  const proj = nom === 'tellus-accueil.html' ? 'tellus' : 'kiosque';
+  await page.goto(H.fileUrl(nom));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  await verifier('bandeau');
+  for (const cel of cibles) await H.addPin(page, cel, 'Retour');
+  await verifier('message passager');
+  await page.evaluate((k) => {
+    const a = JSON.parse(localStorage.getItem(k)), d = new Date().toISOString();
+    Object.assign(a[1], { status: 'signale', signaledAt: d });
+    Object.assign(a[2], { status: 'pris_en_compte', ackAt: d, feedbackMessage: 'Vu' });
+    Object.assign(a[3], { status: 'complement', complementAt: d, complementMessage: 'Sur quelle page ?' });
+    Object.assign(a[4], { status: 'resolu', resolvedAt: d, resolvedBy: 'moi', replies: [{ text: 'Réponse', date: d }] });
+    localStorage.setItem(k, JSON.stringify(a));
+  }, 'witmit_' + proj + '_v1');
+  await page.reload();
+  await H.activate(page);
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  await page.locator('.cm-panel-item details.cm-tech summary').first().click();
+  await verifier('liste');
+  await page.locator('.cm-pin').nth(3).click();                       // fenêtre d'un complément demandé
+  await expect(page.locator('.cm-popup')).toBeVisible();
+  await verifier('fenêtre de complément');
+  await page.keyboard.press('Escape');
+  await page.locator('.cm-pin').first().click();                      // fenêtre de modification
+  await expect(page.locator('.cm-popup')).toBeVisible();
+  await verifier('fenêtre de modification');
+  await page.keyboard.press('Escape');
+  // Zone encadrée avec capture (html2canvas local), puis sa visionneuse.
+  if (nom === MAQUETTE) {
+    if (await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show'))) await page.locator('#cmPanelBtn').click();
+    if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
+    await page.waitForTimeout(400);
+    const b = await H.visibleBox(page, '.kpi-row');
+    await H.drag(page, b.x - 6, b.y - 6, b.x + b.width + 6, b.y + b.height + 6);
+    await page.locator('.cm-popup textarea').fill('Les trois tuiles');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await H.deactivate(page);
+    await page.locator('#cmPanelBtn').click();
+    await page.waitForTimeout(400);
+    await expect(page.locator('#cmPanel .cm-vignette')).toHaveCount(1, { timeout: 10000 });
+    await page.locator('#cmPanel .cm-vignette').click();
+    await expect(page.locator('.cm-lightbox')).toBeVisible();
+    await verifier('visionneuse');
+  }
+}
+async function parcoursLive(page, verifier) {
+  const state = {};
+  await H.mockSupabase(page, state);
+  await page.goto(H.fileUrl('generic-dashboard-sync.html'));
+  await H.clearStorage(page);
+  await page.goto(H.fileUrl('generic-dashboard-sync.html') + '?witmit=on');
+  await H.activate(page);
+  await H.addPin(page, 'tbody tr:nth-child(1) td:nth-child(2)', 'Retour 1');
+  await expect.poll(async () => (((await H.stored(page, 'witmit_kiosque-sync_v1'))[0] || {}).sync || {}).state, { timeout: 15000 }).toBe('sent');
+  const t = (await H.stored(page, 'witmit_kiosque-sync_v1'))[0];
+  state.rows.push({ id_local: t.id, statut: 'resolu', message_retour: 'Corrigé ?', mis_a_jour_le: '2026-09-28T10:00:00Z',
+    messages: [{ de: 'equipe', texte: 'Corrigé ?', rouvre: false, cree_le: '2026-09-28T10:00:00Z' }, { de: 'auteur', texte: 'Non', rouvre: true, cree_le: '2026-09-29T10:00:00Z' }] });
+  state.failNext = { status: 429, erreur: 'trop de tickets' };
+  await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Retour 2');   // refusé : « à renvoyer »
+  await expect(page.locator('#cmStatus')).toContainText('envoi impossible', { timeout: 15000 });
+  await verifier('échec d’envoi');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('.cm-msg')).toHaveCount(2, { timeout: 15000 });
+  await page.waitForTimeout(400);
+  await verifier('liste live');
+  await page.locator('.cm-reopen-btn').click();
+  await expect(page.locator('.cm-inline-reply')).toBeVisible();
+  await verifier('champ rouvrir');
+}
+
+test('4. focus : au clavier, un contour visible sur chaque élément de witmit atteint par tab ; aucun au clic souris', async ({ page }) => {
+  test.setTimeout(40000);
+  // Contour : outline, ou anneau dessiné par ::after (touches, champs), ou ombre portée de focus.
+  const contour = () => page.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || !el.closest('.cm-ui, .cm-popup, .cm-lightbox')) return { hors: true, nom: el && (el.id || el.className || el.tagName) };
+    const cs = getComputedStyle(el), apres = getComputedStyle(el, '::after');
+    const champ = el.closest('.wm-champ'), anneauChamp = champ ? getComputedStyle(champ, '::after') : null;
+    const visible = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (apres.content !== 'none' && apres.content !== 'normal' && apres.clipPath !== 'none')
+      || (anneauChamp && anneauChamp.content !== 'none' && anneauChamp.content !== 'normal') || (cs.boxShadow && cs.boxShadow !== 'none');
+    return { hors: false, nom: el.getAttribute('aria-label') || (el.innerText || '').trim().slice(0, 30) || el.className || el.tagName, visible: !!visible, fv: el.matches(':focus-visible') };
+  });
+  const parcourir = async (depart, n) => {
+    await page.locator(depart).first().focus();
+    await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');   // le focus devient « clavier »
+    const vus = [];
+    for (let i = 0; i < n; i++) {
+      const c = await contour();
+      if (c.hors) break;
+      vus.push(c.nom);
+      expect(c.visible, 'contour au clavier : ' + c.nom).toBe(true);
+      await page.keyboard.press('Tab');
+    }
+    return vus;
+  };
+  // maquette : liste ouverte (en-tête, lignes, pied), puis fenêtre de saisie
+  await page.goto(H.fileUrl(MAQUETTE));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  await H.addPin(page, CIBLE, 'Retour');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  const liste = await parcourir('#cmPanel .wm-cercle[aria-label="fermer"]', 40);
+  expect(liste.length).toBeGreaterThan(8);
+  await page.locator('#cmPanelBtn').click();
+  await H.activate(page);
+  await page.locator('.cm-pin').first().click();
+  await expect(page.locator('.cm-popup textarea')).toBeVisible();
+  const fenetre = await parcourir('.cm-popup textarea', 20);
+  expect(fenetre.length).toBeGreaterThan(4);
+  await page.keyboard.press('Escape');
+  // bandeau du mode annotation : « terminer »
+  await page.locator('#cmPill .wm-terminer').focus();
+  await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  if (await page.locator('#cmPill .wm-terminer').evaluate((el) => el === document.activeElement)) expect((await contour()).visible, 'terminer').toBe(true);
+  await H.deactivate(page);
+  // au clic souris : aucun contour (ni :focus-visible) sur les boutons, les touches et les cercles
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  for (const sel of ['#cmPanelBtn', '#cmPanel .cm-panel-foot .wm-touche >> nth=0', '#cmPanel .wm-cercle >> nth=0']) {
+    const loc = page.locator(sel);
+    const b = await loc.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    const fv = await page.evaluate(() => { const el = document.activeElement; return { fv: el.matches(':focus-visible'), apres: getComputedStyle(el, '::after').content, outline: getComputedStyle(el).outlineStyle }; });
+    await page.mouse.up();
+    expect(fv.fv, 'focus au clic : ' + sel).toBe(false);
+    expect(fv.outline, 'outline au clic : ' + sel).toBe('none');
+    if (await page.locator('.cm-popup').count()) await page.keyboard.press('Escape');
+    if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) { await page.locator('#cmPanelBtn').click(); await page.waitForTimeout(400); }
+  }
+});
+
+// Texte visible de witmit, hors éléments fournis par la page.
+const textesVisibles = (page) => page.evaluate(() => {
+  const out = [];
+  document.querySelectorAll('.cm-ui, .cm-popup, .cm-lightbox').forEach((root) => {
+    [root, ...root.querySelectorAll('*')].forEach((el) => {
+      if (el.closest('[data-wm-fourni="page"]')) return;
+      if (!Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.nodeValue.trim())) return;
+      if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;                                // texte réservé aux lecteurs d'écran (wm-lu) : 1 px
+      if (r.width <= 1 && r.height <= 1) return;
+      out.push({ texte: Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join('').trim().slice(0, 40), taille: parseFloat(getComputedStyle(el).fontSize), cls: (el.className && el.className.baseVal === undefined ? el.className : el.tagName) });
+    });
+  });
+  return out;
+});
+
+test('7. taille de texte : aucun texte visible de witmit sous 12 px, en maquette (page sombre et claire) et en live', async ({ page }) => {
+  test.setTimeout(60000);
+  const verifier = async (etape) => {
+    // taille 0 : chiffre gardé dans le voyant (#cmCount) mais jamais dessiné (le voyant est un disque, décision B)
+    const tous = await textesVisibles(page);
+    expect(tous.length, etape + ' : textes relevés').toBeGreaterThan(2);
+    const petits = tous.filter((t) => t.taille > 0 && t.taille < 12);
+    expect(petits, etape).toEqual([]);
+  };
+  await parcoursMaquette(page, MAQUETTE, verifier);
+  await parcoursMaquette(page, 'tellus-accueil.html', verifier);
+  await parcoursLive(page, verifier);
+});
+
+// Émojis et symboles dessinés (I3), comme charte 21a/21b ; ⌘ et ⌥ restent permis dans le texte courant.
+const EMOJI = /[\p{Extended_Pictographic}️⠿✕✓✔↳▸▾]/u;
+test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt de witmit, ni dans ses confirmations', async ({ page }) => {
+  test.setTimeout(60000);
+  const dialogues = [];
+  page.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
+  const verifier = async (etape) => {
+    const fautes = await page.evaluate((src) => {
+      const re = new RegExp(src, 'u'), out = [];
+      document.querySelectorAll('.cm-ui, .cm-popup, .cm-lightbox').forEach((root) => {
+        [root, ...root.querySelectorAll('*')].forEach((el) => {
+          if (el.closest('[data-wm-fourni="page"]')) return;
+          for (const n of el.childNodes) if (n.nodeType === 3 && re.test(n.nodeValue)) out.push(n.nodeValue.trim());
+          for (const a of ['title', 'aria-label', 'placeholder', 'alt']) if (el.getAttribute(a) && re.test(el.getAttribute(a))) out.push(a + ' : ' + el.getAttribute(a));
+        });
+      });
+      return out;
+    }, EMOJI.source);
+    expect(fautes, etape).toEqual([]);
+  };
+  await parcoursMaquette(page, MAQUETTE, verifier);
+  // confirmations (fenêtres du navigateur) : effacer (page), vider tout (site), fermer une fenêtre écrite
+  await page.keyboard.press('Escape');
+  if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  await page.locator('#cmClearPageBtn').click();
+  await page.locator('#cmClearSiteBtn').click();
+  await page.locator('#cmPanelBtn').click();
+  await H.activate(page);
+  const b = await H.visibleBox(page, CIBLE2);
+  await page.mouse.click(b.x + 4, b.y + 4);
+  await page.locator('.cm-popup textarea').fill('pas fini');
+  await page.locator('#cmToggleBtn').click();
+  await expect.poll(() => dialogues.length).toBeGreaterThanOrEqual(3);
+  for (const m of dialogues) expect(EMOJI.test(m), m).toBe(false);
+  await parcoursLive(page, verifier);
+});
+
+test('9. contraste (T12) : aucun texte en ink-faint hors champ, zone en creux ou désactivé, sur toute l’interface', async ({ page }) => {
+  test.setTimeout(60000);
+  const verifier = async (etape) => {
+    const fautes = await page.evaluate(() => {
+      const out = [];
+      document.querySelectorAll('.cm-ui, .cm-popup, .cm-lightbox').forEach((f) => {
+        if (f.parentElement && f.parentElement.closest('.cm-ui, .cm-popup, .cm-lightbox')) return;   // racines seulement
+        const probe = document.createElement('i'); probe.style.color = 'var(--wm-ink-faint)'; f.appendChild(probe);
+        const faint = getComputedStyle(probe).color; probe.remove();
+        [f, ...f.querySelectorAll('*')].forEach((el) => {
+          if (el.closest('[data-wm-fourni="page"], textarea, input, select, .wm-champ, .cm-feedback, .cm-msg-equipe, details pre, [disabled], [aria-disabled="true"], .wm-inactif, .wm-contour')) return;
+          const texte = Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.nodeValue.trim());
+          if (texte && getComputedStyle(el).color === faint) out.push((el.className && el.className.baseVal === undefined ? el.className : el.tagName) + ' « ' + el.textContent.trim().slice(0, 30) + ' »');
+        });
+      });
+      return out;
+    });
+    expect(fautes, etape).toEqual([]);
+  };
+  await parcoursMaquette(page, MAQUETTE, verifier);
+  await parcoursMaquette(page, 'tellus-accueil.html', verifier);
+  await parcoursLive(page, verifier);
 });
