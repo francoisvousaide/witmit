@@ -87,7 +87,7 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     // visible dans la liste, replié
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
-    await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveText('⚙️ Bug fonctionnel');
+    await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveText('Bug fonctionnel');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toBeHidden();
     await page.locator('.cm-panel-item details.cm-tech summary').click();
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toContainText('cible : main');

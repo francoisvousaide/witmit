@@ -32,6 +32,22 @@
   .bouton-site { display: inline-block; padding: 8px 14px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; cursor: pointer; }
   .image-vive { display: block; width: 100%; height: 220px; margin-top: 16px; border-radius: 8px; }
   @media (max-width: 760px) { .moities { grid-template-columns: 1fr; } }
+  /* Lot 2 : spécimens de witmit posés sur le site (fenêtre habillée, touches, icônes, focus). Ils portent la
+     classe cm-ui : witmit les dessine avec son vrai code (window.witmit._planche) et ne les annote pas. */
+  .specimens { position: relative; margin-top: 28px; padding: 36px 28px 40px; border-radius: 10px; overflow: hidden;
+    background: linear-gradient(90deg, #f6f1ea 0 50%, #14161a 50% 100%); }
+  .specimens .rayures { position: absolute; inset: 0; background:
+    repeating-linear-gradient(0deg, transparent 0 22px, rgba(127,127,127,.28) 22px 23px),
+    radial-gradient(circle at 30% 60%, #ff1f8e 0 70px, transparent 71px), radial-gradient(circle at 70% 35%, #00b7ff 0 80px, transparent 81px); pointer-events: none; }
+  .specimens h2 { position: relative; margin: 0 0 18px; font-size: 22px; color: #1d1b18; }
+  .specimens .rangee { position: relative; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .wm-specimen { position: relative; width: 380px; padding: 14px 24px 20px 22px; }
+  .wm-specimen .titre { font-family: var(--wm-font-titre); font-size: 15px; font-weight: 700; line-height: 1.3; margin: 0 0 12px; }
+  .wm-specimen .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+  .wm-specimen .lib { width: 100%; font-size: 12px; color: var(--wm-ink-soft); margin: 0 0 2px; }
+  .wm-specimen .grille { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px; color: var(--wm-ink-soft); }
+  .wm-specimen .grille span { display: flex; align-items: center; gap: 8px; color: var(--wm-ink); }
+  .wm-specimen .grille small { font-size: 12px; color: var(--wm-ink-soft); }
 </style>
 </head>
 <body>
@@ -84,6 +100,15 @@
       </svg>
     </section>
   </div>
+
+  <section class="specimens" id="specimens">
+    <div class="rayures"></div>
+    <h2>Fenêtres, touches, icônes et focus</h2>
+    <div class="rangee">
+      <div class="cm-ui wm-specimen" id="specimenTouches"></div>
+      <div class="cm-ui wm-specimen" id="specimenIcones" style="width:480px"></div>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -98,5 +123,39 @@
   });
 </script>
 <script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"></script>
+<script>
+  // Spécimens du lot 2, dessinés avec le vrai code de witmit (habiller, icônes).
+  (function () {
+    var P = window.witmit && window.witmit._planche;
+    if (!P) return;
+    var i = P.icone;
+    var t = document.getElementById('specimenTouches');
+    t.innerHTML =
+      '<p class="titre">Ton retour sur ce bouton</p>' +
+      '<div class="ligne"><span class="lib">principale · secondaire · annuler</span>' +
+        '<button type="button" class="wm-touche wm-principale" id="specPrincipale">envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche" id="specSecondaire">' + i('Bug', 16) + 'bug fonctionnel</button>' +
+        '<button type="button" class="wm-texte" id="specAnnuler">annuler</button></div>' +
+      '<div class="ligne"><span class="lib">désactivé · petite · enfoncée</span>' +
+        '<button type="button" class="wm-touche wm-principale" id="specDesactivee" disabled>envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche wm-petite" id="specPetite">terminer</button>' +
+        '<button type="button" class="wm-touche" aria-pressed="true" id="specEnfoncee">' + i('Tag', 16) + 'à classer</button></div>' +
+      '<div class="ligne"><span class="lib">icônes cerclées · désactivée · voyant</span>' +
+        '<button type="button" class="wm-cercle" aria-label="fermer" title="fermer" id="specFermer">' + i('X', 14) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="supprimer ce retour" title="supprimer ce retour" id="specSupprimer">' + i('Trash', 15) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="marquer résolu" title="marquer résolu" id="specResolu">' + i('Check', 15) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="supprimer (indisponible)" disabled id="specCercleOff">' + i('Trash', 15) + '</button>' +
+        '<span class="wm-voyant" title="voyant" id="specVoyant">nouveau</span></div>' +
+      '<div class="ligne"><span class="lib">champ (coupe de 6 px)</span>' +
+        '<span class="wm-champ" style="width:100%"><textarea class="wm-specimen-champ" id="specChamp" rows="2" style="width:100%;min-height:64px;resize:none;padding:9px 12px;border:1px solid var(--wm-line);background:var(--wm-surface-raised);font:500 14px/1.45 var(--wm-font-voix);color:var(--wm-ink)">Le bouton est trop petit</textarea></span></div>' +
+      '<div class="ligne" style="margin:0"><span class="lib">raccourcis</span>' +
+        '<span class="wm-repere">' + i('Command', 12) + '</span><span class="wm-repere">' + i('Option', 12) + '</span><span class="wm-repere">N</span><span class="wm-repere">échap</span></div>';
+    P.habiller(t);
+    var g = document.getElementById('specimenIcones');
+    g.innerHTML = '<p class="titre">Icônes (Phosphor Regular)</p><div class="grille">' +
+      P.icones.map(function (n) { return '<span>' + i(n, 16) + '<small>' + n + '</small></span>'; }).join('') + '</div>';
+    P.habiller(g);
+  })();
+</script>
 </body>
 </html>

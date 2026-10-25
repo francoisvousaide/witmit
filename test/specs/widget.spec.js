@@ -364,7 +364,7 @@ for (const P of PAGES) {
       const t = await page.getAttribute('body', 'data-wm-theme');
       expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();
-      const popupBg = await page.locator('.cm-popup').evaluate((el) => getComputedStyle(el).backgroundColor);
+      const popupBg = await page.locator('.cm-popup .wm-verre').evaluate((el) => getComputedStyle(el).backgroundColor); // couche de verre (F2)
       expect(popupBg).toBe(JETONS[t].verre);
       const popupText = await page.locator('.cm-popup textarea').evaluate((el) => getComputedStyle(el).color);
       expect(popupText).toBe(JETONS[t].encre);

@@ -39,8 +39,9 @@ test('TellUs : le widget prend l’inverse du thème de la page hôte', async ({
   await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'Sombre');
   await page.locator('.cm-pin').click();
-  const bg = await page.locator('.cm-popup').evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe('rgba(236, 232, 224, 0.6)'); // verre champagne (client-clair) sur un site sombre
+  // La matière est portée par la couche de verre (habiller, F2) : verre champagne (client-clair) sur un site sombre.
+  const bg = await page.locator('.cm-popup .wm-verre').evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(bg).toBe('rgba(236, 232, 224, 0.6)');
 });
 
 test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non', async ({ page }) => {

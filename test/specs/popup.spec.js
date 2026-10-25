@@ -41,7 +41,7 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     const t1 = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
     const t2 = await H.visibleBox(page, '.kpi-tile:nth-child(2)');
     await H.drag(page, t1.x - 4, t1.y - 4, t1.x + t1.width + 4, t1.y + t1.height + 4);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('🔲 Zone encadrée — Chiffre du jour, 1 240 €');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Zone encadrée — Chiffre du jour, 1 240 €');
     await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
     // on tire la poignée "e" (côté droit) jusqu'à couvrir la 2e tuile
     const h = await page.locator('.cm-handle-e').boundingBox();

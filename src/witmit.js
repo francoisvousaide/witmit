@@ -5,6 +5,31 @@
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourci : Alt+A (Windows/Linux) · ⌥+A (Mac)
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Marine' }) · identify(null) — voir plus bas.
+ *
+ * Icônes : tracés de Phosphor Icons, graisse Regular (@phosphor-icons/core 2.1.1), recopiés dans l'objet ICONES.
+ * Leur licence, qui doit voyager avec ce fichier :
+ *
+ *   MIT License
+ *
+ *   Copyright (c) 2023 Phosphor Icons
+ *
+ *   Permission is hereby granted, free of charge, to any person obtaining a copy
+ *   of this software and associated documentation files (the "Software"), to deal
+ *   in the Software without restriction, including without limitation the rights
+ *   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *   copies of the Software, and to permit persons to whom the Software is
+ *   furnished to do so, subject to the following conditions:
+ *
+ *   The above copyright notice and this permission notice shall be included in all
+ *   copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *   SOFTWARE.
  */
 (function () {
   if (window.__witmitLoaded) return; // chargé deux fois par erreur : on ne s'installe qu'une fois
@@ -82,6 +107,66 @@
     POLICES.forEach(function (p) {
       p[2].forEach(function (w) { try { document.fonts.load(w + ' 16px "' + p[0] + '"').catch(function () {}); } catch (e) {} });
     });
+  }
+
+  /* ---------- icônes : Phosphor Regular 2.1.1 (licence MIT, en tête de ce fichier) ----------
+     Tracés recopiés tels quels depuis assets/regular/<nom>.svg du paquet @phosphor-icons/core 2.1.1
+     (viewBox 0 0 256 256, couleur du texte). Aucun fichier ni aucune requête en plus. Une icône n'a qu'un
+     sens dans tout le widget (fiche Icones du design system) ; le nom accessible est porté par le bouton. */
+  var ICONES = {
+    PenNib: '<path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/>',
+    CrosshairSimple: '<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V184a8,8,0,0,0-16,0v31.63A88.13,88.13,0,0,1,40.37,136H72a8,8,0,0,0,0-16H40.37A88.13,88.13,0,0,1,120,40.37V72a8,8,0,0,0,16,0V40.37A88.13,88.13,0,0,1,215.63,120H184a8,8,0,0,0,0,16h31.63A88.13,88.13,0,0,1,136,215.63Z"/>',
+    CursorClick: '<path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/>',
+    BoundingBox: '<path d="M208,96a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96V48A16,16,0,0,0,80,32H48A16,16,0,0,0,32,48V80A16,16,0,0,0,48,96h8v64H48a16,16,0,0,0-16,16v32a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16v-8h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V176a16,16,0,0,0-16-16h-8V96ZM176,48h32V80H176ZM48,48H80V63.9a.51.51,0,0,0,0,.2V80H48ZM80,208H48V176H80v15.9a.51.51,0,0,0,0,.2V208Zm128,0H176V176h32Zm-24-48h-8a16,16,0,0,0-16,16v8H96v-8a16,16,0,0,0-16-16H72V96h8A16,16,0,0,0,96,80V72h64v8a16,16,0,0,0,16,16h8Z"/>',
+    TextT: '<path d="M208,56V88a8,8,0,0,1-16,0V64H136V192h24a8,8,0,0,1,0,16H96a8,8,0,0,1,0-16h24V64H64V88a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z"/>',
+    SelectionPlus: '<path d="M152,40a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,40Zm-8,168H112a8,8,0,0,0,0,16h32a8,8,0,0,0,0-16ZM208,48V72a8,8,0,0,0,16,0V48a16,16,0,0,0-16-16H184a8,8,0,0,0,0,16Zm8,56a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V112A8,8,0,0,0,216,104ZM40,152a8,8,0,0,0,8-8V112a8,8,0,0,0-16,0v32A8,8,0,0,0,40,152Zm32,56H48V184a8,8,0,0,0-16,0v24a16,16,0,0,0,16,16H72a8,8,0,0,0,0-16ZM72,32H48A16,16,0,0,0,32,48V72a8,8,0,0,0,16,0V48H72a8,8,0,0,0,0-16ZM240,208H224V192a8,8,0,0,0-16,0v16H192a8,8,0,0,0,0,16h16v16a8,8,0,0,0,16,0V224h16a8,8,0,0,0,0-16Z"/>',
+    ImageBroken: '<path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16h64a8,8,0,0,0,7.59-5.47l14.83-44.48L163,151.43a8.07,8.07,0,0,0,4.46-4.46l14.62-36.55,44.48-14.83A8,8,0,0,0,232,88V56A16,16,0,0,0,216,40ZM112.41,157.47,98.23,200H40V172l52-52,30.42,30.42L117,152.57A8,8,0,0,0,112.41,157.47ZM216,82.23,173.47,96.41a8,8,0,0,0-4.9,4.62l-14.72,36.82L138.58,144l-35.27-35.27a16,16,0,0,0-22.62,0L40,149.37V56H216Zm12.68,33a8,8,0,0,0-7.21-1.1l-23.8,7.94a8,8,0,0,0-4.9,4.61l-14.31,35.77-35.77,14.31a8,8,0,0,0-4.61,4.9l-7.94,23.8A8,8,0,0,0,137.73,216H216a16,16,0,0,0,16-16V121.73A8,8,0,0,0,228.68,115.24ZM216,200H148.83l3.25-9.75,35.51-14.2a8.07,8.07,0,0,0,4.46-4.46l14.2-35.51,9.75-3.25Z"/>',
+    Bug: '<path d="M144,92a12,12,0,1,1,12,12A12,12,0,0,1,144,92ZM100,80a12,12,0,1,0,12,12A12,12,0,0,0,100,80Zm116,64A87.76,87.76,0,0,1,213,167l22.24,9.72A8,8,0,0,1,232,192a7.89,7.89,0,0,1-3.2-.67L207.38,182a88,88,0,0,1-158.76,0L27.2,191.33A7.89,7.89,0,0,1,24,192a8,8,0,0,1-3.2-15.33L43,167A87.76,87.76,0,0,1,40,144v-8H16a8,8,0,0,1,0-16H40v-8a87.76,87.76,0,0,1,3-23L20.8,79.33a8,8,0,1,1,6.4-14.66L48.62,74a88,88,0,0,1,158.76,0l21.42-9.36a8,8,0,0,1,6.4,14.66L213,89.05a87.76,87.76,0,0,1,3,23v8h24a8,8,0,0,1,0,16H216ZM56,120H200v-8a72,72,0,0,0-144,0Zm64,95.54V136H56v8A72.08,72.08,0,0,0,120,215.54ZM200,144v-8H136v79.54A72.08,72.08,0,0,0,200,144Z"/>',
+    Ruler: '<path d="M235.32,73.37,182.63,20.69a16,16,0,0,0-22.63,0L20.68,160a16,16,0,0,0,0,22.63l52.69,52.68a16,16,0,0,0,22.63,0L235.32,96A16,16,0,0,0,235.32,73.37ZM84.68,224,32,171.31l32-32,26.34,26.35a8,8,0,0,0,11.32-11.32L75.31,128,96,107.31l26.34,26.35a8,8,0,0,0,11.32-11.32L107.31,96,128,75.31l26.34,26.35a8,8,0,0,0,11.32-11.32L139.31,64l32-32L224,84.69Z"/>',
+    PencilSimpleLine: '<path d="M227.32,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H216a8,8,0,0,0,0-16H115.32l112-112A16,16,0,0,0,227.32,73.37ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.69,147.32,64l24-24L216,84.69Z"/>',
+    ArrowsClockwise: '<path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/>',
+    Lightbulb: '<path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49C39.74,56.83,78.26,17.14,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.65,71.65,0,0,0,27.64,56.3A32,32,0,0,1,96,186v6h64v-6a32.15,32.15,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Zm-16.11-9.34a57.6,57.6,0,0,0-46.56-46.55,8,8,0,0,0-2.66,15.78c16.57,2.79,30.63,16.85,33.44,33.45A8,8,0,0,0,176,104a9,9,0,0,0,1.35-.11A8,8,0,0,0,183.89,94.66Z"/>',
+    SealQuestion: '<path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180Zm28-72c0,17.38-13.76,31.93-32,35.28V144a8,8,0,0,1-16,0v-8a8,8,0,0,1,8-8c13.23,0,24-9,24-20s-10.77-20-24-20-24,9-24,20v4a8,8,0,0,1-16,0v-4c0-19.85,17.94-36,40-36S168,88.15,168,108Z"/>',
+    Tag: '<path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/>',
+    CloudArrowUp: '<path d="M178.34,165.66,160,147.31V208a8,8,0,0,1-16,0V147.31l-18.34,18.35a8,8,0,0,1-11.32-11.32l32-32a8,8,0,0,1,11.32,0l32,32a8,8,0,0,1-11.32,11.32ZM160,40A88.08,88.08,0,0,0,81.29,88.68,64,64,0,1,0,72,216h40a8,8,0,0,0,0-16H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.12A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,100.8,66,8,8,0,0,0,3.2,15.34,7.9,7.9,0,0,0,3.2-.68A88,88,0,0,0,160,40Z"/>',
+    CircleNotch: '<path d="M232,128a104,104,0,0,1-208,0c0-41,23.81-78.36,60.66-95.27a8,8,0,0,1,6.68,14.54C60.15,61.59,40,93.27,40,128a88,88,0,0,0,176,0c0-34.73-20.15-66.41-51.34-80.73a8,8,0,0,1,6.68-14.54C208.19,49.64,232,87,232,128Z"/>',
+    CloudCheck: '<path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Zm37.66-93.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L144,148.69l42.34-42.35A8,8,0,0,1,197.66,106.34Z"/>',
+    WarningCircle: '<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/>',
+    Eye: '<path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z"/>',
+    CheckCircle: '<path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/>',
+    LockSimple: '<path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/>',
+    Question: '<path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/>',
+    ChatCircleText: '<path d="M168,112a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,112Zm-8,24H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm72-8A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"/>',
+    ArrowBendDownRight: '<path d="M229.66,157.66l-48,48a8,8,0,0,1-11.32-11.32L204.69,160H128A104.11,104.11,0,0,1,24,56a8,8,0,0,1,16,0,88.1,88.1,0,0,0,88,88h76.69l-34.35-34.34a8,8,0,0,1,11.32-11.32l48,48A8,8,0,0,1,229.66,157.66Z"/>',
+    ArrowBendUpLeft: '<path d="M232,200a8,8,0,0,1-16,0,88.1,88.1,0,0,0-88-88H51.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48A8,8,0,0,1,85.66,61.66L51.31,96H128A104.11,104.11,0,0,1,232,200Z"/>',
+    ArrowCounterClockwise: '<path d="M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"/>',
+    X: '<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>',
+    Trash: '<path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/>',
+    Check: '<path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/>',
+    DotsSixVertical: '<path d="M104,60A12,12,0,1,1,92,48,12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,116Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,116ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,184Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,184Z"/>',
+    EyeSlash: '<path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/>',
+    CaretRight: '<path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/>',
+    CaretDown: '<path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>',
+    CaretUp: '<path d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"/>',
+    MagnifyingGlassPlus: '<path d="M152,112a8,8,0,0,1-8,8H120v24a8,8,0,0,1-16,0V120H80a8,8,0,0,1,0-16h24V80a8,8,0,0,1,16,0v24h24A8,8,0,0,1,152,112Zm77.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88.11,88.11,0,1,1,11.31-11.31l50.07,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/>',
+    Info: '<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/>',
+    Signature: '<path d="M232,168H63.86c2.66-5.24,5.33-10.63,8-16.11,15,1.65,32.58-8.78,52.66-31.14,5,13.46,14.45,30.93,30.58,31.25,9.06.18,18.11-5.2,27.42-16.37C189.31,143.75,203.3,152,232,152a8,8,0,0,0,0-16c-30.43,0-39.43-10.45-40-16.11a7.67,7.67,0,0,0-5.46-7.75,8.14,8.14,0,0,0-9.25,3.49c-12.07,18.54-19.38,20.43-21.92,20.37-8.26-.16-16.66-19.52-19.54-33.42a8,8,0,0,0-14.09-3.37C101.54,124.55,88,133.08,79.57,135.29,88.06,116.42,94.4,99.85,98.46,85.9c6.82-23.44,7.32-39.83,1.51-50.1-3-5.38-9.34-11.8-22.06-11.8C61.85,24,49.18,39.18,43.14,65.65c-3.59,15.71-4.18,33.21-1.62,48s7.87,25.55,15.59,31.94c-3.73,7.72-7.53,15.26-11.23,22.41H24a8,8,0,0,0,0,16H37.41c-11.32,21-20.12,35.64-20.26,35.88a8,8,0,1,0,13.71,8.24c.15-.26,11.27-18.79,24.7-44.12H232a8,8,0,0,0,0-16ZM58.74,69.21C62.72,51.74,70.43,40,77.91,40c5.33,0,7.1,1.86,8.13,3.67,3,5.33,6.52,24.19-21.66,86.39C56.12,118.78,53.31,93,58.74,69.21Z"/>',
+    Broom: '<path d="M235.5,216.81c-22.56-11-35.5-34.58-35.5-64.8V134.73a15.94,15.94,0,0,0-10.09-14.87L165,110a8,8,0,0,1-4.48-10.34l21.32-53a28,28,0,0,0-16.1-37,28.14,28.14,0,0,0-35.82,16,.61.61,0,0,0,0,.12L108.9,79a8,8,0,0,1-10.37,4.49L73.11,73.14A15.89,15.89,0,0,0,55.74,76.8C34.68,98.45,24,123.75,24,152a111.45,111.45,0,0,0,31.18,77.53A8,8,0,0,0,61,232H232a8,8,0,0,0,3.5-15.19ZM67.14,88l25.41,10.3a24,24,0,0,0,31.23-13.45l21-53c2.56-6.11,9.47-9.27,15.43-7a12,12,0,0,1,6.88,15.92L145.69,93.76a24,24,0,0,0,13.43,31.14L184,134.73V152c0,.33,0,.66,0,1L55.77,101.71A108.84,108.84,0,0,1,67.14,88Zm48,128a87.53,87.53,0,0,1-24.34-42,8,8,0,0,0-15.49,4,105.16,105.16,0,0,0,18.36,38H64.44A95.54,95.54,0,0,1,40,152a85.9,85.9,0,0,1,7.73-36.29l137.8,55.12c3,18,10.56,33.48,21.89,45.16Z"/>',
+    ClipboardText: '<path d="M168,152a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,152Zm-8-40H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm56-64V216a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V48A16,16,0,0,1,56,32H92.26a47.92,47.92,0,0,1,71.48,0H200A16,16,0,0,1,216,48ZM96,64h64a32,32,0,0,0-64,0ZM200,48H173.25A47.93,47.93,0,0,1,176,64v8a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V64a47.93,47.93,0,0,1,2.75-16H56V216H200Z"/>',
+    DownloadSimple: '<path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/>',
+    Copy: '<path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/>',
+    EnvelopeSimple: '<path d="M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM203.43,64,128,133.15,52.57,64ZM216,192H40V74.19l82.59,75.71a8,8,0,0,0,10.82,0L216,74.19V192Z"/>',
+    ArrowElbowDownLeft: '<path d="M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"/>',
+    Command: '<path d="M180,144H160V112h20a36,36,0,1,0-36-36V96H112V76a36,36,0,1,0-36,36H96v32H76a36,36,0,1,0,36,36V160h32v20a36,36,0,1,0,36-36ZM160,76a20,20,0,1,1,20,20H160ZM56,76a20,20,0,0,1,40,0V96H76A20,20,0,0,1,56,76ZM96,180a20,20,0,1,1-20-20H96Zm16-68h32v32H112Zm68,88a20,20,0,0,1-20-20V160h20a20,20,0,0,1,0,40Z"/>',
+    Option: '<path d="M232,192a8,8,0,0,1-8,8H160.94a15.92,15.92,0,0,1-14.31-8.84L95.06,88H32a8,8,0,0,1,0-16H95.06a15.92,15.92,0,0,1,14.31,8.84L160.94,184H224A8,8,0,0,1,232,192ZM152,88h72a8,8,0,0,0,0-16H152a8,8,0,0,0,0,16Z"/>'
+  };
+  // <svg> d'une icône, à la taille voulue (px). Taille écrite en style : une règle de l'hôte sur « svg »
+  // (largeur à 100 %, display:block du preflight de Tailwind) ne la change pas. cls : classes en plus.
+  function icone(nom, px, cls) {
+    var d = ICONES[nom];
+    if (!d) return '';
+    px = px || 16;
+    return '<svg class="wm-icone' + (cls ? ' ' + cls : '') + '" data-icone="' + nom + '" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" focusable="false" style="width:' + px + 'px;height:' + px + 'px">' + d + '</svg>';
   }
 
   /* ---------- l'auteur, déclaré par le site hôte ----------
@@ -207,14 +292,104 @@
   .cm-ui { font-family:var(--wm-font-outil); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   mark.cm-highlight { background:none; color:inherit; }
 
+  /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; décisions F1 à F5, F8, F9) ----------
+     Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas découpée
+     elle-même : habiller() lui ajoute en premiers enfants trois couches muettes, sans clic, qui portent la
+     matière. .wm-ombre : copie floutée de la forme, posée 14 px plus bas (l'ombre d'un élément découpé
+     serait coupée avec lui). .wm-verre : la face de verre dépoli, découpée. .wm-contour : le trait de 1 px
+     et les deux coins witmit, en SVG retracé à la taille réelle. Aucun parent du verre ne porte filter,
+     opacity < 1, mask, clip-path, mix-blend-mode ni backdrop-filter, même pendant une animation : ils
+     couperaient le flou du fond (F4). Les fondus portent sur les couches enfants (F9). */
+  .cm-ui {
+    --wm-forme-fenetre: polygon(0 0, calc(100% - var(--wm-coupe-fenetre)) 0, 100% var(--wm-coupe-fenetre), 100% 100%, var(--wm-coupe-fenetre) 100%, 0 calc(100% - var(--wm-coupe-fenetre)));
+    --wm-forme-touche: polygon(var(--wm-coupe-touche) 0, 100% 0, 100% calc(100% - var(--wm-coupe-touche)), calc(100% - var(--wm-coupe-touche)) 100%, 0 100%, 0 var(--wm-coupe-touche));
+    /* Contour de focus d'une forme coupée : anneau de 2 px à 2 px de la forme, dont les coins suivent la
+       coupe (6 px + 0,586 × l'écart : 7,17 px au bord intérieur, 8,34 px au bord extérieur). */
+    --wm-anneau-touche: polygon(evenodd, 8.34px 0, 100% 0, 100% calc(100% - 8.34px), calc(100% - 8.34px) 100%, 0 100%, 0 8.34px, 8.34px 0,
+      9.17px 2px, 2px 9.17px, 2px calc(100% - 2px), calc(100% - 9.17px) calc(100% - 2px), calc(100% - 2px) calc(100% - 9.17px), calc(100% - 2px) 2px, 9.17px 2px);
+    /* Ombre de la copie floutée et survol des touches : un cran plus blanc (clair) ou plus clair (sombre). */
+    --wm-ombre-copie: rgba(0,0,0,.30);
+    --wm-face-touche-survol: rgba(255,255,255,.62);
+  }
+  body[data-wm-theme="client-sombre"] .cm-ui { --wm-ombre-copie: rgba(0,0,0,.35); --wm-face-touche-survol: rgba(255,255,255,.12); }
+  .cm-ui[hidden], .cm-ui [hidden] { display:none !important; }
+  .wm-habille { isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .wm-habille > .wm-ombre, .wm-habille > .wm-verre, .wm-habille > .wm-contour { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; border:0; pointer-events:none; }
+  .wm-habille > .wm-ombre { z-index:-2; top:14px; filter:blur(14px); }
+  .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; clip-path:var(--wm-forme-fenetre); background:var(--wm-ombre-copie); }
+  .wm-habille > .wm-verre { z-index:-1; clip-path:var(--wm-forme-fenetre); background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); }
+  .wm-habille > .wm-contour { z-index:1; overflow:visible; display:block; max-width:none; }
+  .wm-contour polygon { fill:none; stroke:var(--wm-contour-fenetre); stroke-width:1; }
+  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; }
+  /* Toutes les icônes : taille écrite sur la balise, couleur du texte qu'elles accompagnent. */
+  .cm-ui svg.wm-icone { display:inline-block; flex:none; vertical-align:-0.18em; overflow:visible; max-width:none; fill:currentColor; }
+  .cm-ui svg.wm-icone.wm-devant { margin-right:6px; }
+  .cm-ui svg.wm-icone.wm-signal { color:var(--wm-signal); }
+  .wm-tourne { animation:wmTourne 800ms linear infinite; }
+  @keyframes wmTourne { to { transform:rotate(360deg); } }
+
+  /* Touches (fiche Touche) : coins haut gauche et bas droit cassés de 6 px, trait fin ouvert aux coins,
+     face ton sur ton. La découpe et le trait vont sur ::before, jamais sur le bouton : son contour de focus
+     (::after) n'est ainsi pas rogné (F5). Principale : trait line-strong ; secondaire : trait line. */
+  .cm-ui .wm-touche { position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:0; margin:0; padding:0 10px 0 14px;
+    background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-outil); font-size:13px; font-weight:500; line-height:1; letter-spacing:normal; text-transform:none;
+    color:var(--wm-ink); white-space:nowrap; cursor:pointer; text-decoration:none; }
+  .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
+  .cm-ui .wm-touche.wm-principale::before { border-color:var(--wm-line-strong); }
+  .cm-ui .wm-touche:hover::before { background:var(--wm-face-touche-survol); }
+  .cm-ui .wm-touche:active::before { background:var(--wm-surface-raised); }
+  .cm-ui .wm-touche.wm-petite { height:32px; padding:0 8px 0 12px; gap:6px; }
+  .cm-ui .wm-touche.cm-on::before, .cm-ui .wm-touche[aria-pressed="true"]::before { background:var(--wm-surface-raised); border-color:var(--wm-line-strong); }
+  /* Désactivé (fiche Etats) : trait line, libellé et repère ink-faint, face inchangée, pas d'opacité. */
+  .cm-ui .wm-touche:disabled, .cm-ui .wm-touche[aria-disabled="true"] { color:var(--wm-ink-faint); cursor:default; }
+  .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { border-color:var(--wm-line); background:var(--wm-face-touche); }
+  .cm-ui .wm-touche:disabled .wm-repere, .cm-ui .wm-touche[aria-disabled="true"] .wm-repere { border-color:var(--wm-line); color:var(--wm-ink-faint); }
+  /* « annuler » et actions discrètes : texte seul, sans cadre (ink-soft : contraste sur le verre, T12). */
+  .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:0; box-shadow:none;
+    font-family:var(--wm-font-outil); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+  .cm-ui .wm-texte:hover { color:var(--wm-ink); }
+  /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
+  .cm-ui .wm-repere { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; margin-left:4px; border:1px solid var(--wm-line-strong);
+    border-radius:var(--wm-radius-repere); font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
+  /* Icône seule : icône Phosphor dans un cercle fin de 30 px, zone cliquable portée à 44 px par ::before. */
+  .cm-ui .wm-cercle { position:relative; display:inline-flex; align-items:center; justify-content:center; flex:none; width:30px; height:30px; margin:0; padding:0;
+    border:1px solid var(--wm-line-strong); border-radius:50%; background:transparent; box-shadow:none; color:var(--wm-ink-soft); font-size:0; line-height:0; cursor:pointer; }
+  .cm-ui .wm-cercle::before { content:''; position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; }
+  .cm-ui .wm-cercle:hover { color:var(--wm-ink); border-color:var(--wm-ink); }
+  .cm-ui .wm-cercle.wm-cercle-24 { width:24px; height:24px; }
+  .cm-ui .wm-cercle:disabled, .cm-ui .wm-cercle.wm-inactif { border-color:var(--wm-line); color:var(--wm-ink-faint); cursor:default; }
+  /* Champs et zones en creux : même coupe que les touches, trait ouvert aux coins coupés. */
+  .cm-ui .wm-champ { position:relative; display:block; }
+  .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { clip-path:var(--wm-forme-touche); border-radius:0; outline:none; }
+  .cm-ui .wm-champ > textarea:focus { border-color:var(--wm-line-strong); }
+
+  /* Focus clavier (fiche Etats), seulement en :focus-visible. Forme coupée : anneau qui suit les coins,
+     tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. */
+  .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus, .cm-ui .wm-texte:focus { outline:none; }
+  .cm-ui .wm-touche:focus-visible::after, .cm-ui .wm-champ:has(> textarea:focus-visible)::after {
+    content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  .cm-ui .wm-cercle:focus-visible, .cm-ui .wm-texte:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  @media (forced-colors:active) {
+    .wm-contour polygon, .wm-contour path { stroke:CanvasText; }
+    .cm-ui .wm-touche::before { border-color:ButtonText; }
+    .cm-ui .wm-touche:focus-visible::after, .cm-ui .wm-champ:has(> textarea:focus-visible)::after { background:Highlight; }
+  }
+
+  /* Voyant (F8) : disque net de 7 px à coordonnées entières, sans ombre ni halo ; sur fond clair (bouton
+     de métal clair, site sombre), cerne intérieur de 1,5 px en border. Le nombre reste dans le texte
+     (lecteurs d'écran, tests), hors de la vue. */
+  .cm-ui .wm-voyant, .cm-toggle-btn .cm-count-badge { display:block; box-sizing:border-box; width:7px; height:7px; min-width:0; padding:0; border-radius:50%; background:var(--wm-accent);
+    border:1.5px solid var(--wm-accent-ring); box-shadow:none; overflow:hidden; text-indent:-999px; white-space:nowrap; }
+  body[data-wm-theme="client-sombre"] .cm-ui .wm-voyant, body[data-wm-theme="client-sombre"] .cm-toggle-btn .cm-count-badge { border:0; }
+
   /* Boutons flottants, créés seulement si la page n'a pas déjà ses propres boutons #cmToggleBtn/#cmPanelBtn */
   .cm-fab { position:fixed; right:18px; bottom:18px; z-index:845; display:flex; gap:8px; } /* sous le panneau (850) : ne masque jamais ses boutons */
 
   /* Boutons compacts, ronds, icône seule — aspect intermédiaire aux jetons (habillés aux lots 2 et 3) */
   .cm-toggle-btn { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--wm-face-touche); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-line-strong); border-radius:50%; font-size:16px; color:var(--wm-ink); cursor:pointer; box-shadow:var(--wm-ombre-bouton); transition:transform 170ms ease, box-shadow 170ms ease; position:relative; }
   .cm-toggle-btn:hover { transform:scale(1.06); }
-  .cm-toggle-btn.cm-on { background:linear-gradient(180deg, var(--wm-metal-light-hi), var(--wm-metal-light-lo)); border-color:var(--wm-encre-repere); box-shadow:var(--wm-ombre-bouton-enfonce); }
-  .cm-toggle-btn .cm-count-badge { position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:var(--wm-radius-rond); background:var(--wm-accent); color:var(--wm-accent-ring); border:1px solid var(--wm-accent-ring); font-family:var(--wm-font-outil); font-size:9.5px; font-weight:600; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .cm-toggle-btn.cm-on { background:linear-gradient(180deg, var(--wm-metal-light-hi), var(--wm-metal-light-lo)); border-color:var(--wm-encre-repere); box-shadow:var(--wm-ombre-bouton-enfonce); color:var(--wm-encre-repere); }
+  .cm-toggle-btn .cm-count-badge { position:absolute; top:1px; right:1px; } /* forme : voyant de 7 px (F8), plus bas */
   .cm-toggle-btn .cm-count-badge:empty, .cm-toggle-btn .cm-count-badge[data-zero="1"] { display:none; }
 
   /* Mode live, widget caché : aucune couche visible (toutes portent cm-ui) tant qu'il n'est pas révélé */
@@ -251,12 +426,10 @@
   /* Pastille d'état — flotte sous la navbar par défaut, ne la recouvre jamais, et peut être
      déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture.
      Aspect intermédiaire : verre aux jetons, sans aplat (bandeau habillé au lot 7). */
-  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:500; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--wm-ombre-fenetre); white-space:nowrap; cursor:default; touch-action:none; }
+  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:500; font-size:12px; text-align:center; min-height:44px; padding:6px 22px 6px 18px; display:none; align-items:center; gap:12px; white-space:nowrap; cursor:default; touch-action:none; }
   .cm-pill.show { display:flex; }
   .cm-pill.cm-dragging .cm-drag-handle { opacity:1; }
-  .cm-pill .cm-drag-handle { font-size:14px; opacity:.65; line-height:1; color:var(--wm-ink-soft); }
-  .cm-pill button { font-family:var(--wm-font-outil); font-weight:500; font-size:12px; background:var(--wm-face-touche); border:1px solid var(--wm-line-strong); color:var(--wm-ink); border-radius:50px; padding:5px 12px; cursor:pointer; }
-  .cm-pill button:hover { border-color:var(--wm-ink); }
+  .cm-pill .cm-drag-handle { display:inline-flex; opacity:.65; line-height:1; color:var(--wm-ink-soft); }
 
   /* Repères sur le site : encre des repères (aspect intermédiaire ; fiche Reperes au lot 6). */
   .cm-pin { position:absolute; width:24px; height:24px; border-radius:50% 50% 50% 4px; background:var(--wm-encre-repere); color:var(--wm-encre-repere-claire); font-family:var(--wm-font-outil); font-weight:600; font-size:11px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-100%) rotate(-45deg); box-shadow:0 0 0 1px var(--wm-encre-repere-claire), 0 3px 10px rgba(0,0,0,0.28); z-index:840; cursor:pointer; }
@@ -328,32 +501,26 @@
   mark.cm-highlight { text-decoration:underline 2px currentColor; text-underline-offset:4px; text-decoration-skip-ink:none; border-radius:0; padding:0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 
   /* Fenêtre de saisie : verre aux jetons (aspect intermédiaire ; fiche Fenetre au lot 4). */
-  .cm-popup { position:absolute; z-index:950; width:260px; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); border-radius:12px; box-shadow:var(--wm-ombre-fenetre); padding:12px; color:var(--wm-ink); }
+  .cm-popup { position:absolute; z-index:950; width:260px; padding:14px 24px 20px 22px; color:var(--wm-ink); } /* matière : habiller() ; marges : les coins witmit restent libres */
   .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:var(--wm-font-titre); font-size:12px; font-weight:700; color:var(--wm-ink); margin-bottom:6px; max-height:48px; overflow-y:auto; }
   .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:8px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; color:var(--wm-ink); background:var(--wm-surface-raised); margin-bottom:8px; box-sizing:border-box; }
-  .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 8px; }
+  .cm-popup .wm-champ { margin-bottom:8px; }
+  .cm-popup .wm-champ > textarea { display:block; margin:0; }
+  .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 0; }
   .cm-popup .cm-cat { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; font-family:var(--wm-font-outil); font-size:12px; color:var(--wm-ink); background:var(--wm-face-touche); border:1px solid var(--wm-line); border-radius:7px; padding:5px 6px; }
   .cm-popup .cm-cat-auto { flex-shrink:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:500; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); padding:1px 6px; }
-  .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
-  .cm-popup button { font-family:var(--wm-font-outil); font-size:12px; font-weight:500; border-radius:7px; padding:6px 12px; border:1px solid transparent; cursor:pointer; background:transparent; color:var(--wm-ink); }
-  .cm-popup .cm-cancel { background:transparent; color:var(--wm-ink-soft); }
-  .cm-popup .cm-cancel:hover { color:var(--wm-ink); }
-  .cm-popup .cm-save { background:var(--wm-face-touche); border-color:var(--wm-line-strong); color:var(--wm-ink); font-weight:600; }
-  .cm-popup .cm-save:hover { border-color:var(--wm-ink); }
-  .cm-popup .cm-delete { background:transparent; color:var(--wm-ink-soft); margin-right:auto; padding:6px 8px; }
-  .cm-popup .cm-delete:hover { color:var(--wm-ink); text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
+  .cm-popup .cm-popup-actions { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; margin-top:16px; } /* fiche Fenetre : 4 px entre « annuler » et la touche */
+  .cm-popup .cm-delete { margin-right:auto; }
+  .cm-popup .cm-popup-actions { align-items:center; }
+  .cm-popup .cm-popup-actions .wm-texte { padding:0 6px; }
 
   /* Liste des retours : verre aux jetons (aspect intermédiaire ; fiche Tiroir au lot 5). */
-  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border-left:1px solid var(--wm-contour-fenetre); box-shadow:var(--wm-ombre-fenetre); color:var(--wm-ink); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   .cm-panel.show { transform:translateX(0); }
-  .cm-panel-head { padding:16px 16px 12px; border-bottom:1px solid var(--wm-line); }
+  .cm-panel-head { padding:16px 16px 12px 24px; border-bottom:1px solid var(--wm-line); }
   .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:var(--wm-font-titre); font-weight:700; font-size:15px; color:var(--wm-ink); }
   .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-weight:900; }
-  .cm-panel-head-row button { background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:16px; line-height:1; }
-  .cm-panel-head-row button:hover { color:var(--wm-ink); }
   .cm-panel-head-btns { display:flex; align-items:center; gap:10px; }
-  .cm-panel-head-row .cm-hide-widget { font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border:1px solid var(--wm-line); border-radius:10px; padding:3px 9px; color:var(--wm-ink-soft); }
-  .cm-panel-head-row .cm-hide-widget:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
   .cm-panel-sub { font-size:11px; color:var(--wm-ink-soft); margin-top:3px; }
   .cm-panel-author { font-size:11px; color:var(--wm-ink-soft); margin-top:4px; }
   .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
@@ -369,9 +536,10 @@
   .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:5px; }
   .cm-panel-item .cm-cat-chip { font-size:10.5px; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border:1px solid var(--wm-line); border-radius:10px; padding:1px 7px; white-space:nowrap; }
   .cm-panel-item details.cm-tech { font-size:10.5px; color:var(--wm-ink-soft); }
-  .cm-panel-item details.cm-tech summary { cursor:pointer; list-style:none; }
-  .cm-panel-item details.cm-tech summary::before { content:'▸ '; }
-  .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
+  .cm-panel-item details.cm-tech summary { cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:4px; }
+  .cm-panel-item details.cm-tech summary::-webkit-details-marker { display:none; }
+  .cm-panel-item details.cm-tech .wm-ouvert, .cm-panel-item details.cm-tech[open] .wm-ferme { display:none; }
+  .cm-panel-item details.cm-tech[open] .wm-ouvert { display:inline-block; }
   .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-family:var(--wm-font-outil); font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--wm-surface-raised); border-radius:6px; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
   .cm-panel-item .txt { font-family:var(--wm-font-voix); font-size:13px; font-weight:500; color:var(--wm-ink); line-height:1.4; word-wrap:break-word; }
   .cm-panel-item .cm-sync-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid var(--wm-line); color:var(--wm-ink-soft); background:var(--wm-surface-raised); }
@@ -386,8 +554,13 @@
   .cm-panel-item .cm-feedback-q { border-left-color:var(--wm-ink); }
   .cm-panel-item img.cm-shot { display:block; max-width:100%; max-height:110px; margin-top:6px; border:1px solid var(--wm-line); border-radius:6px; cursor:zoom-in; background:#fff; }
   .cm-lightbox { position:fixed; inset:0; z-index:990; background:rgba(0,0,0,.72); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; cursor:zoom-out; }
-  .cm-lightbox img { max-width:92vw; max-height:86vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.5); background:#fff; }
-  .cm-lightbox .cm-lightbox-hint { color:var(--wm-encre-repere-claire); font-family:var(--wm-font-outil); font-size:12px; opacity:.8; }
+  .cm-lightbox .cm-lightbox-fenetre { position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 24px 20px 20px; }
+  .cm-lightbox img { position:relative; display:block; max-width:88vw; max-height:80vh; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:#fff; }
+  .cm-lightbox .cm-lightbox-hint { position:relative; color:var(--wm-ink-soft); font-family:var(--wm-font-outil); font-size:12px; }
+  /* Apparition en 160 ms portée par chaque couche de la fenêtre, jamais par un parent du verre (F9). */
+  .cm-lightbox .cm-lightbox-fenetre > * { animation:wmApparait 160ms ease-out; }
+  @keyframes wmApparait { from { opacity:0; } to { opacity:1; } }
+  @media (prefers-reduced-motion:reduce) { .cm-lightbox .cm-lightbox-fenetre > *, .wm-tourne { animation:none; } }
   .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--wm-ink-soft); padding-left:6px; }
   .cm-panel-item .cm-when { color:var(--wm-ink-soft); font-size:10.5px; }
   .cm-panel-item .cm-thread { margin-top:5px; display:flex; flex-direction:column; gap:4px; }
@@ -395,46 +568,42 @@
   .cm-panel-item .cm-msg-equipe { background:var(--wm-surface-raised); border-left:2px solid var(--wm-line-strong); }
   .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--wm-line); margin-left:12px; }
   .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--wm-ink-soft); white-space:normal; }
-  .cm-panel-item .cm-msg-drop { background:none; border:none; padding:0 2px; color:var(--wm-ink-soft); cursor:pointer; font-size:11px; }
   .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
-  .cm-panel-item .cm-thread-actions button { font-family:var(--wm-font-outil); font-size:11px; border-radius:8px; padding:2px 8px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
-  .cm-panel-item .cm-thread-actions button:hover { color:var(--wm-ink); border-color:var(--wm-line-strong); }
-  .cm-panel-item .reopen { background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:13px; }
-  .cm-panel-item .reopen:hover { color:var(--wm-ink); }
-  .cm-panel-item .st.cm-st-locked { display:inline-flex; align-items:center; justify-content:center; background:var(--wm-surface-raised); border-color:var(--wm-line-strong); color:var(--wm-ink); cursor:default; }
   .cm-popup .cm-lock-line { font-size:11px; color:var(--wm-ink-soft); margin:-2px 0 6px; }
   .cm-popup.cm-locked textarea { background:transparent; color:var(--wm-ink-soft); }
   .cm-popup .cm-feedback { font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-left:2px solid var(--wm-ink); padding:4px 8px; border-radius:0 6px 6px 0; margin-bottom:6px; }
   .cm-popup .cm-reply-ta { min-height:50px; }
   .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .cm-panel-item .st { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--wm-line-strong); background:transparent; color:transparent; cursor:pointer; font-size:11px; line-height:1; padding:0; }
-  .cm-panel-item .st:hover { border-color:var(--wm-ink); color:var(--wm-ink); }
   .cm-panel-item.cm-done .num { opacity:.55; }
   .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
   .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:var(--wm-font-outil); font-size:10px; font-weight:500; border:1px solid var(--wm-line); border-radius:10px; background:transparent; color:var(--wm-ink-soft); padding:1px 7px; cursor:pointer; }
   .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
-  .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:13px; }
-  .cm-panel-item .del:hover { color:var(--wm-ink); }
   .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--wm-ink-soft); font-size:12.5px; line-height:1.5; }
   .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--wm-line); display:flex; gap:6px; flex-wrap:wrap; }
+  .cm-panel-foot:last-child { padding:12px 24px 22px 18px; } /* le coin witmit du bas droit reste libre */
   .cm-panel-report .cm-scope { flex-basis:100%; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--wm-ink-soft); cursor:pointer; }
   .cm-panel-report .cm-scope input { margin:0; }
   .cm-feedback-box { border-top:1px solid var(--wm-line); padding:10px; background:var(--wm-surface-raised); }
   .cm-feedback-box .cm-feedback-title { font-family:var(--wm-font-titre); font-weight:700; font-size:12px; color:var(--wm-ink); margin-bottom:6px; }
   .cm-feedback-box textarea { width:100%; box-sizing:border-box; min-height:84px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:6px 8px; font-family:var(--wm-font-outil); font-size:11px; line-height:1.4; color:var(--wm-ink); background:var(--wm-surface-raised); }
   .cm-feedback-box .cm-feedback-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:6px; }
-  .cm-feedback-box .cm-feedback-actions button { font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border-radius:8px; padding:6px 10px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
-  .cm-feedback-box .cm-feedback-actions button.primary { background:var(--wm-face-touche); color:var(--wm-ink); border-color:var(--wm-line-strong); font-weight:600; }
   .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden] { display:none; }
-  .cm-panel-foot button { flex:1; font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border-radius:8px; padding:8px 4px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
-  .cm-panel-foot button:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
-  .cm-panel-foot button.primary { background:var(--wm-face-touche); color:var(--wm-ink); border-color:var(--wm-line-strong); font-weight:600; }
-  .cm-panel-foot button.primary:hover { border-color:var(--wm-ink); }
+  .cm-panel-foot .wm-touche { flex:1 1 auto; }
+  .cm-feedback-box .cm-feedback-actions { align-items:center; }
+  .cm-panel-item .cm-item-actions .wm-cercle { width:30px; height:30px; }
+  .cm-panel-item .cm-thread-actions { align-items:center; }
+  .cm-panel-item .cm-msg-who { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
 
   /* Message d'état (toast) : verre aux jetons (aspect intermédiaire ; fiche Etats au lot 7). */
-  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12.5px; padding:8px 16px; border-radius:20px; box-shadow:var(--wm-ombre-fenetre); opacity:0; pointer-events:none; transition:opacity 200ms ease; white-space:nowrap; max-width:90vw; }
-  .cm-status.show { opacity:1; }
+  /* Message passager : petite fenêtre de verre sans coins witmit (fiche Etats). Le fondu de 200 ms porte
+     sur chaque couche enfant, jamais sur .cm-status, qui contient le verre (F4, F9) ; visibility suit. */
+  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:18px; min-height:40px; padding:11px 20px 11px 16px; pointer-events:none; width:max-content; max-width:min(420px, 90vw); white-space:normal; visibility:hidden; transition:visibility 0s linear 200ms; }
+  .cm-status.show { visibility:visible; transition-delay:0s; }
+  .cm-status > * { opacity:0; transition:opacity 200ms ease; }
+  .cm-status.show > * { opacity:1; }
+  .cm-status > .wm-contenu { position:relative; display:block; }
+  @media (prefers-reduced-motion:reduce) { .cm-status, .cm-status > * { transition:none; } }
   @media (max-width:700px) {
     .cm-panel { width:86vw; }
     .cm-popup { width:80vw; max-width:280px; }
@@ -445,9 +614,9 @@
 <div class="cm-frame cm-ui" id="cmFrame"></div>
 
 <div class="cm-pill cm-ui" id="cmPill" title="Glisse la pastille pour la déplacer">
-  <span class="cm-drag-handle" aria-hidden="true">⠿</span>
-  🖊️ Clic = élément · ⌘/Ctrl+clic = plusieurs · Glisser = zone · Maj+glisser = texte
-  <button onclick="cmToggle(false)">Terminer</button>
+  <span class="cm-drag-handle" aria-hidden="true">${icone('DotsSixVertical', 14)}</span>
+  Clic = élément · ⌘/Ctrl+clic = plusieurs · Glisser = zone · Maj+glisser = texte
+  <button class="wm-touche wm-petite" onclick="cmToggle(false)">Terminer</button>
 </div>
 
 <div class="cm-panel cm-ui" id="cmPanel">
@@ -455,8 +624,8 @@
     <div class="cm-panel-head-row">
       <span>Commentaires — <span id="cmPanelCount">0</span></span>
       <span class="cm-panel-head-btns">
-        <button class="cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="Cacher witmit sur ce site (Alt+A / ⌥+A ou ?witmit=on pour le retrouver)" hidden>🙈 Masquer witmit</button>
-        <button onclick="cmTogglePanel(false)" aria-label="Fermer">✕</button>
+        <button class="cm-hide-widget wm-texte" onclick="cmReveal(false)" id="cmHideBtn" title="Cacher witmit sur ce site (Alt+A / ⌥+A ou ?witmit=on pour le retrouver)" hidden>${icone('EyeSlash', 14)}Masquer witmit</button>
+        <button class="wm-cercle" onclick="cmTogglePanel(false)" aria-label="Fermer" title="Fermer">${icone('X', 14)}</button>
       </span>
     </div>
     <div class="cm-panel-sub" id="cmPanelSub"></div>
@@ -466,27 +635,69 @@
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">Coller un retour</div>
     <textarea placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea>
-    <div class="cm-feedback-actions"><button onclick="cmPasteFeedback(false)">Annuler</button><button class="primary" onclick="cmApplyFeedback()">Appliquer</button></div>
+    <div class="cm-feedback-actions"><button class="wm-texte" onclick="cmPasteFeedback(false)">Annuler</button><button class="primary wm-touche wm-principale" onclick="cmApplyFeedback()">Appliquer</button></div>
   </div>
   <div class="cm-panel-foot cm-panel-tools">
-    <button onclick="cmClearAll()">🗑️ Effacer (page)</button>
-    <button onclick="cmClearSite()">🧹 Vider tout (site)</button>
-    <button onclick="cmPasteFeedback()" id="cmPasteBtn">📥 Coller un retour</button>
+    <button class="wm-touche wm-petite" onclick="cmClearAll()">${icone('Trash', 16)}Effacer (page)</button>
+    <button class="wm-touche wm-petite" onclick="cmClearSite()">${icone('Broom', 16)}Vider tout (site)</button>
+    <button class="wm-touche wm-petite" onclick="cmPasteFeedback()" id="cmPasteBtn">${icone('ClipboardText', 16)}Coller un retour</button>
   </div>
   <div class="cm-panel-foot cm-panel-report" id="cmReportFoot">
     <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
-    <button onclick="cmExport()">📤 Télécharger</button>
-    <button onclick="cmCopy()">📋 Copier</button>
-    <button class="primary" onclick="cmSendMail()">📧 Envoyer</button>
+    <button class="wm-touche wm-petite" onclick="cmExport()">${icone('DownloadSimple', 16)}Télécharger</button>
+    <button class="wm-touche wm-petite" onclick="cmCopy()">${icone('Copy', 16)}Copier</button>
+    <button class="primary wm-touche wm-petite wm-principale" onclick="cmSendMail()">${icone('EnvelopeSimple', 16)}Envoyer</button>
   </div>
 </div>
 
 <div class="cm-status cm-ui" id="cmStatus"></div>
 `;
   var BUTTONS_HTML = `
-<button class="cm-toggle-btn cm-ui" onclick="cmToggle()" id="cmToggleBtn" title="Mode commentaire"><span class="cm-btn-off">💬</span><span class="cm-btn-on" style="display:none;">✕</span></button>
-<button class="cm-toggle-btn cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" title="Voir les commentaires de cette page">📋<span class="cm-count-badge" id="cmCount" data-zero="1"></span></button>
+<button class="cm-toggle-btn cm-ui" onclick="cmToggle()" id="cmToggleBtn" title="Mode commentaire"><span class="cm-btn-off">${icone('CrosshairSimple', 20)}</span><span class="cm-btn-on" style="display:none;">${icone('X', 16)}</span></button>
+<button class="cm-toggle-btn cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" title="Voir les commentaires de cette page">${icone('PenNib', 22)}<span class="cm-count-badge" id="cmCount" data-zero="1"></span></button>
 `;
+
+  /* ---------- habillage des fenêtres (F2, F3) ----------
+     habiller(el) pose en premiers enfants de el trois couches muettes (aria-hidden, sans clic) : l'ombre,
+     le verre et le contour (trait de 1 px + coins witmit, sauf sansCoins pour les messages passagers).
+     Le contenu ne change pas de place dans le DOM. Un seul ResizeObserver retrace les contours quand une
+     fenêtre change de taille, et une fois de plus quand les polices sont arrivées. */
+  var habilles = [];
+  var formeObs = window.ResizeObserver ? new ResizeObserver(function (entries) {
+    entries.forEach(function (e) { tracerContour(e.target); });
+  }) : null;
+  function tracerContour(el) {
+    if (!el.isConnected) { if (formeObs) formeObs.unobserve(el); habilles = habilles.filter(function (x) { return x !== el; }); return; } // fenêtre retirée
+    var svg = el.querySelector(':scope > .wm-contour');
+    if (!svg) return;
+    var W = el.offsetWidth, H = el.offsetHeight, c = 11;
+    if (!W || !H) return;                                           // caché : retracé quand il apparaît
+    svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    // Trait à 0,5 px du bord (net sur un pixel), angles haut droit et bas gauche cassés de 11 px.
+    svg.querySelector('polygon').setAttribute('points', '0.5,0.5 ' + (W - c - 0.2) + ',0.5 ' + (W - 0.5) + ',' + (c + 0.2) + ' ' +
+      (W - 0.5) + ',' + (H - 0.5) + ' ' + (c + 0.2) + ',' + (H - 0.5) + ' 0.5,' + (H - c - 0.2));
+    // Coins witmit : équerres de 14 px posées à 7 px des angles droits (haut gauche, bas droit).
+    var coins = svg.querySelectorAll('path');
+    if (coins.length === 2) {
+      coins[0].setAttribute('d', 'M8.4 16.8V8.4H16.8');
+      coins[1].setAttribute('d', 'M' + (W - 8.4) + ' ' + (H - 16.8) + 'V' + (H - 8.4) + 'H' + (W - 16.8));
+    }
+  }
+  function habiller(el, sansCoins) {
+    if (!el || el.querySelector(':scope > .wm-verre')) return el;
+    el.classList.add('wm-habille');
+    el.insertAdjacentHTML('afterbegin',
+      '<span class="wm-ombre" aria-hidden="true"><i></i></span><span class="wm-verre" aria-hidden="true"></span>' +
+      '<svg class="wm-contour" aria-hidden="true" focusable="false"><polygon points=""></polygon>' + (sansCoins ? '' : '<path d=""></path><path d=""></path>') + '</svg>');
+    habilles.push(el);
+    if (el.isConnected) tracerContour(el);                         // sinon : tracé par l'observateur à l'insertion
+    if (formeObs) formeObs.observe(el);
+    return el;
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { habilles.slice().forEach(tracerContour); });
+  // Réservé aux pages de test du dépôt (planche de la charte) : dessiner les touches et les icônes avec le vrai
+  // code. Ce n'est pas une interface publique : elle peut changer sans prévenir.
+  window.witmit._planche = { icone: icone, habiller: habiller, icones: Object.keys(ICONES) };
 
   /* Le widget injecte lui-même son style et son interface — la page hôte n'a rien à copier. */
   function injectUI() {
@@ -497,6 +708,9 @@
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+    habiller(document.getElementById('cmPanel'));
+    habiller(document.getElementById('cmPill'));
+    habiller(document.getElementById('cmStatus'), true);   // message passager : trop petit pour les coins witmit
     if (!document.getElementById('cmToggleBtn')) {
       var fab = document.createElement('div');
       fab.className = 'cm-fab cm-ui';
@@ -508,21 +722,21 @@
   /* ---------- catégories : règles par mots-clés, 100 % locales (aucune IA, rien ne sort) ----------
      La catégorie est proposée d'après le texte du commentaire et reste modifiable dans la bulle. */
   var CATEGORIES = [
-    { key: 'bug-visuel',      icon: '🐞', label: 'Bug visuel',
+    { key: 'bug-visuel',      icon: 'ImageBroken', label: 'Bug visuel',
       words: ['casse', 'deborde', 'chevauche', 'decale', 'coupe', 'tronque', 'mal aligne', 'superpose', 'disparait', "ne s'affiche pas", 'ne s affiche pas', 'illisible', 'flou', 'pixelise', 'deforme', 'ecrase'] },
-    { key: 'bug-fonctionnel', icon: '⚙️', label: 'Bug fonctionnel',
+    { key: 'bug-fonctionnel', icon: 'Bug', label: 'Bug fonctionnel',
       words: ['ne marche pas', 'ne fonctionne pas', 'marche pas', 'fonctionne pas', 'erreur', 'plante', 'bloque', 'rien ne se passe', 'impossible de', 'ne repond pas', "ne s'enregistre pas", 'ne s enregistre pas', 'crash', 'boucle', 'bug', 'ne se charge pas', 'ne charge pas', 'pas a jour', 'rafraichi', 'actualise', 'perdu', 'vide'] },
-    { key: 'ajustement',      icon: '📐', label: 'Ajustement visuel',
+    { key: 'ajustement',      icon: 'Ruler', label: 'Ajustement visuel',
       words: ['trop grand', 'trop petit', 'trop large', 'trop etroit', 'trop haut', 'trop bas', 'plus grand', 'plus petit', 'plus large', 'plus etroit', 'agrandir', 'reduire', 'espace', 'marge', 'align', 'centr', 'couleur', 'police', 'gras', 'taille', 'contraste', 'arrondi', 'ombre', 'bordure', 'padding', 'largeur', 'hauteur'] },
-    { key: 'texte',           icon: '✏️', label: 'Texte à changer',
+    { key: 'texte',           icon: 'PencilSimpleLine', label: 'Texte à changer',
       words: ['faute', 'orthographe', 'typo', 'reformuler', 'remplacer par', 'renommer', 'libelle', 'wording', 'majuscule', 'accent', 'traduire', 'traduction', 'ecrire', 'formulation', 'coquille', 'pluriel', 'singulier'] },
-    { key: 'comportement',    icon: '🔁', label: 'Changement de comportement',
+    { key: 'comportement',    icon: 'ArrowsClockwise', label: 'Changement de comportement',
       words: ['devrait', 'plutot que', 'au lieu de', 'quand on clique', 'quand je clique', 'a la place', 'ordre', 'enchainement', 'rediriger', 'ouvrir', 'fermer', 'par defaut', 'automatiquement', 'desactiver', 'activer', 'trier', 'filtrer'] },
-    { key: 'suggestion',      icon: '💡', label: 'Suggestion',
+    { key: 'suggestion',      icon: 'Lightbulb', label: 'Suggestion',
       words: ['il faudrait', 'ce serait bien', 'idee', 'ajouter', 'proposer', 'on pourrait', 'manque', 'et si', 'pourquoi pas', 'serait mieux', 'penser a', 'prevoir'] },
-    { key: 'question',        icon: '❓', label: 'Question',
+    { key: 'question',        icon: 'SealQuestion', label: 'Question',
       words: ['pourquoi', 'comment', 'est-ce que', 'est ce que', "c'est quoi", 'c est quoi', 'a quoi sert', 'que se passe', 'quelle est', 'quel est', 'peut-on', 'peut on'] },
-    { key: 'a-classer',       icon: '🏷️', label: 'À classer', words: [] }
+    { key: 'a-classer',       icon: 'Tag', label: 'À classer', words: [] }
   ];
   function categoryOf(key) {
     for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].key === key) return CATEGORIES[i];
@@ -826,7 +1040,7 @@
       if (!live) return;
       return sendComment(live).then(function (data) {
         live.sync = { state: 'sent', id: data.id, statut: data.statut, at: new Date().toISOString() };
-        cmStatus('Ticket envoyé ☁️');
+        cmStatus('Ticket envoyé');
       }).catch(function (err) {
         live.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
         cmStatus('Envoi impossible (' + live.sync.error + ') — le ticket est gardé en local, nouvel essai plus tard');
@@ -852,7 +1066,7 @@
           live.status = 'pris_en_compte'; live.sync.statut = 'en_cours'; delete live.resolvedAt; delete live.resolvedBy; delete live.repondu;
           pushHistory(live, { date: new Date().toISOString(), status: 'pris_en_compte', source: 'moi', message: 'rouvert' });
         }
-        cmStatus(data.avertissement ? 'Message envoyé ☁️ — mais ' + data.avertissement.replace(/^message envoyé à l'équipe, mais /, '') : (data.rouvert ? 'Ticket rouvert, l’équipe est prévenue ☁️' : 'Réponse envoyée ☁️'));
+        cmStatus(data.avertissement ? 'Message envoyé — mais ' + data.avertissement.replace(/^message envoyé à l'équipe, mais /, '') : (data.rouvert ? 'Ticket rouvert, l’équipe est prévenue' : 'Réponse envoyée'));
       }).catch(function (err) {
         lr.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
         cmStatus('Envoi impossible (' + lr.sync.error + ') — ton message est gardé, nouvel essai plus tard');
@@ -928,10 +1142,10 @@
   }
 
   function syncChip(c) {
-    if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="Pas encore envoyé">⏳ à envoyer</span>' : '';
-    if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="Reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">☁️ envoyé</span>';
-    if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="Envoi en cours">⏳ envoi…</span>';
-    return '<span class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + ' — cliquer pour réessayer">⚠️ à renvoyer</span>';
+    if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="Pas encore envoyé">' + icone('CloudArrowUp', 14, 'wm-devant') + 'à envoyer</span>' : '';
+    if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="Reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">' + icone('CloudCheck', 14, 'wm-devant') + 'envoyé</span>';
+    if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="Envoi en cours">' + icone('CircleNotch', 14, 'wm-devant wm-tourne') + 'envoi…</span>';
+    return '<span class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + ' — cliquer pour réessayer">' + icone('WarningCircle', 14, 'wm-devant wm-signal') + 'à renvoyer</span>';
   }
   window.cmRetrySync = function (id) { var c = findComment(id); if (c) { c.sync = null; scheduleSync(c); } };
 
@@ -1330,22 +1544,26 @@
        pris en compte peut être rouvert (il redevient nouveau et remplacera l'ancien au prochain rapport).
        Le ✓ manuel = « résolu par moi ». */
   var STATUS = {
-    nouveau:        { icon: '',    label: 'Nouveau' },
-    signale:        { icon: '🔒', label: 'Signalé' },
-    pris_en_compte: { icon: '👁', label: 'Pris en compte' },
-    complement:     { icon: '❔', label: 'Complément demandé' },
-    resolu:         { icon: '✅', label: 'Résolu' }
+    nouveau:        { icon: '',             label: 'Nouveau' },
+    signale:        { icon: 'LockSimple',   label: 'Signalé' },
+    pris_en_compte: { icon: 'Eye',          label: 'Pris en compte' },
+    complement:     { icon: 'Question',     label: 'Complément demandé' },
+    resolu:         { icon: 'CheckCircle',  label: 'Résolu' }   // même icône pour résolu et répondu (décision du 29/09)
   };
   function isDone(c) { return c.status === 'resolu'; }
   function isEditable(c) { return !c.status || c.status === 'nouveau'; }
   function frDate(iso) { try { return new Date(iso).toLocaleDateString('fr-FR'); } catch (e) { return ''; } }
   function statusLabel(c) {
-    var st = STATUS[c.status] || STATUS.nouveau;
-    if (c.status === 'signale') return st.icon + ' Signalé le ' + frDate(c.signaledAt);
-    if (c.status === 'resolu') return st.icon + (c.repondu ? ' Répondu le ' : ' Résolu le ') + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
-    if (c.status === 'pris_en_compte') return st.icon + ' Pris en compte' + (c.ackAt ? ' le ' + frDate(c.ackAt) : '');
-    if (c.status === 'complement') return st.icon + ' Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '');
+    if (c.status === 'signale') return 'Signalé le ' + frDate(c.signaledAt);
+    if (c.status === 'resolu') return (c.repondu ? 'Répondu le ' : 'Résolu le ') + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
+    if (c.status === 'pris_en_compte') return 'Pris en compte' + (c.ackAt ? ' le ' + frDate(c.ackAt) : '');
+    if (c.status === 'complement') return 'Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '');
     return '';
+  }
+  // Le libellé du statut précédé de son icône (HTML), pour la liste et la fenêtre.
+  function statusHtml(c) {
+    var st = STATUS[c.status] || STATUS.nouveau;
+    return (st.icon ? icone(st.icon, 14, 'wm-devant') : '') + cmEsc(statusLabel(c));
   }
   function pushHistory(c, entry) { (c.history = c.history || []).push(entry); }
   var HIDE_DONE_KEY = 'witmit_hide_done';
@@ -1389,20 +1607,20 @@
   function threadHtml(c) {
     var msgs = (c.thread || []).map(function (m) {
       var equipe = m.de === 'equipe';
-      var who = equipe ? '💬 Équipe' : (m.rouvre ? '↩ Tu as rouvert le ticket' : '↳ Toi');
+      var who = equipe ? icone('ChatCircleText', 14) + 'Équipe' : (m.rouvre ? icone('ArrowCounterClockwise', 14) + 'Tu as rouvert le ticket' : icone('ArrowBendDownRight', 14) + 'Toi');
       return '<div class="cm-msg cm-msg-' + (equipe ? 'equipe' : 'auteur') + '"><span class="cm-msg-who">' + who + ' · ' + cmEsc(frDate(m.cree_le)) + '</span>' + cmEsc(m.texte) + '</div>';
     });
     (c.replies || []).forEach(function (r) {
       var err = r.sync && r.sync.state === 'error';
       var chip = err
-        ? '<span class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + ' — cliquer pour réessayer">⚠️ à renvoyer</span>' +
-          '<button class="cm-msg-drop" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="Abandonner ce message" aria-label="Abandonner ce message">✕</button>'
-        : '<span class="cm-sync-chip" title="Envoi en cours">⏳ envoi…</span>';
-      msgs.push('<div class="cm-msg cm-msg-auteur cm-msg-pending"><span class="cm-msg-who">' + (r.rouvrir ? '↩ Tu rouvres le ticket' : '↳ Toi') + ' · ' + cmEsc(frDate(r.date)) + ' ' + chip + '</span>' + cmEsc(r.text) + '</div>');
+        ? '<span class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + ' — cliquer pour réessayer">' + icone('WarningCircle', 14, 'wm-devant wm-signal') + 'à renvoyer</span>' +
+          '<button class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="Abandonner ce message" aria-label="Abandonner ce message">' + icone('X', 12) + '</button>'
+        : '<span class="cm-sync-chip" title="Envoi en cours">' + icone('CircleNotch', 14, 'wm-devant wm-tourne') + 'envoi…</span>';
+      msgs.push('<div class="cm-msg cm-msg-auteur cm-msg-pending"><span class="cm-msg-who">' + (r.rouvrir ? icone('ArrowCounterClockwise', 14) + 'Tu rouvres le ticket' : icone('ArrowBendDownRight', 14) + 'Toi') + ' · ' + cmEsc(frDate(r.date)) + ' ' + chip + '</span>' + cmEsc(r.text) + '</div>');
     });
     var acts = [];
-    if (canReply(c)) acts.push('<button class="cm-reply-btn" onclick="cmReplyLive(\'' + c.id + '\', false)">↳ Répondre</button>');
-    if (canReopen(c)) acts.push('<button class="cm-reopen-btn" onclick="cmReplyLive(\'' + c.id + '\', true)">Ça ne convient pas ? Rouvrir</button>');
+    if (canReply(c)) acts.push('<button class="cm-reply-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', false)">' + icone('ArrowBendUpLeft', 16) + 'Répondre</button>');
+    if (canReopen(c)) acts.push('<button class="cm-reopen-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', true)">Ça ne convient pas ? Rouvrir</button>');
     return (msgs.length ? '<div class="cm-thread" onmousedown="event.stopPropagation()">' + msgs.join('') + '</div>' : '') +
       (acts.length ? '<div class="cm-thread-actions" onmousedown="event.stopPropagation()">' + acts.join('') + '</div>' : '');
   }
@@ -1447,7 +1665,7 @@
         (done ? ' <button class="cm-hide-done' + (hideDone() ? ' cm-on' : '') + '" onclick="cmToggleHideDone()">' + (hideDone() ? 'Afficher les résolus' : 'Masquer les résolus') + '</button>' : '');
     }
     if (!pc.length) {
-      list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton 💬 ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
+      list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton ' + icone('CrosshairSimple', 14) + ' ou ' + SHORTCUT_LABEL + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
       majPiedsTiroir();
       return;
     }
@@ -1457,25 +1675,25 @@
       html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + (isDone(c) ? ' cm-done' : '') + '" data-id="' + c.id + '">' +
         '<div class="num">' + (i + 1) + '</div>' +
         '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
-          '<div class="zone">' + typeIcon(c.type) + ' ' + cmEsc(c.zone) + '</div>' +
+          '<div class="zone">' + typeIcon(c.type, c.targets && c.targets.length > 1) + cmEsc(c.zone) + '</div>' +
           '<div class="txt">' + cmEsc(c.text) + '</div>' +
           (c.shot && c.shot.dataUrl ? '<img class="cm-shot" src="' + c.shot.dataUrl + '" alt="Capture" title="Voir la capture" onmousedown="event.stopPropagation()" onclick="cmShowShot(\'' + c.id + '\')">' : '') +
-          (SYNC ? '' : c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">↳ ' + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
-          (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(c.complementMessage) + '</div>' : '') +
-          (c.feedbackMessage && c.status !== 'complement' && !(SYNC && c.thread && c.thread.length) ? '<div class="cm-feedback">💬 ' + cmEsc(c.feedbackMessage) + '</div>' : '') +
+          (SYNC ? '' : c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">' + icone('ArrowBendDownRight', 14, 'wm-devant') + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
+          (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">' + icone('Question', 14, 'wm-devant') + cmEsc(c.complementMessage) + '</div>' : '') +
+          (c.feedbackMessage && c.status !== 'complement' && !(SYNC && c.thread && c.thread.length) ? '<div class="cm-feedback">' + icone('ChatCircleText', 14, 'wm-devant') + cmEsc(c.feedbackMessage) + '</div>' : '') +
           (SYNC ? threadHtml(c) : '') +
-          '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + categoryOf(c.category).icon + ' ' + categoryOf(c.category).label + '</span>' +
+          '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + icone(categoryOf(c.category).icon, 14, 'wm-devant') + categoryOf(c.category).label + '</span>' +
           syncChip(c) +
-          (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + cmEsc(statusLabel(c)) + '</span>' : '') +
-          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
+          (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + statusHtml(c) + '</span>' : '') +
+          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>' + icone('CaretRight', 14, 'wm-ferme') + icone('CaretDown', 14, 'wm-ouvert') + 'détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
           '</div></div>' +
         '<div class="cm-item-actions">' +
-          (!isDone(c) ? '<button class="st" onclick="cmResolve(\'' + c.id + '\')" title="Marquer résolu (par moi) — verrouille le ticket" aria-label="Résoudre">✓</button>' : '<span class="st cm-st-locked" title="Résolu — verrouillé">✓</span>') +
-          (c.status === 'signale' ? '<button class="reopen" onclick="cmReopen(\'' + c.id + '\')" title="Rouvrir pour corriger (sera renvoyé au prochain rapport)" aria-label="Rouvrir">↩</button>' : '') +
-          '<button class="del" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer">✕</button>' +
+          (!isDone(c) ? '<button class="st wm-cercle" onclick="cmResolve(\'' + c.id + '\')" title="Marquer résolu (par moi) — verrouille le ticket" aria-label="Résoudre">' + icone('Check', 15) + '</button>' : '<span class="st cm-st-locked wm-cercle wm-inactif" title="Résolu — verrouillé">' + icone('CheckCircle', 15) + '</span>') +
+          (c.status === 'signale' ? '<button class="reopen wm-cercle" onclick="cmReopen(\'' + c.id + '\')" title="Rouvrir pour corriger (sera renvoyé au prochain rapport)" aria-label="Rouvrir">' + icone('ArrowCounterClockwise', 15) + '</button>' : '') +
+          '<button class="del wm-cercle" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer" title="Supprimer">' + icone('Trash', 15) + '</button>' +
         '</div></div>';
     });
-    if (!html) html = '<div class="cm-panel-empty">Tout est résolu sur cette page 🎉</div>';
+    if (!html) html = '<div class="cm-panel-empty">Tout est résolu sur cette page.</div>';
     list.innerHTML = html;
     majPiedsTiroir();
   }
@@ -1830,8 +2048,12 @@
     return targets.length + ' éléments — ' + names.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : '');
   }
 
-  /* Icône par type d'annotation — visible dans la bulle, la liste et le rapport. */
-  function typeIcon(type) {
+  /* Icône par type de cible, dans la fenêtre et la liste (fiche Icones) : élément, zone, passage de texte,
+     plusieurs éléments. Le rapport Markdown garde ses symboles jusqu'au lot 8 (C3, Léa 3.12). */
+  function typeIcon(type, multi) {
+    return icone(multi ? 'SelectionPlus' : type === 'box' ? 'BoundingBox' : type === 'text' ? 'TextT' : 'CursorClick', 14, 'wm-devant');
+  }
+  function typeEmojiRapport(type) {
     return type === 'box' ? '🔲' : type === 'text' ? '✏️' : '📍';
   }
 
@@ -2104,20 +2326,22 @@
     var pop = document.createElement('div');
     pop.className = 'cm-popup cm-ui' + (locked ? ' cm-locked' : '');
     pop.innerHTML =
-      '<div class="cm-zone">' + typeIcon(meta && meta.type) + ' ' + cmEsc(zone) + '</div>' +
-      (locked ? '<div class="cm-lock-line">' + cmEsc(statusLabel(meta.existing)) + ' — non modifiable</div>' : '') +
-      '<textarea' + (locked ? ' readonly' : '') + ' placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
-      (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea>' +
-      (askReply ? '<div class="cm-feedback cm-feedback-q">❔ ' + cmEsc(meta.existing.complementMessage || 'Complément demandé') + '</div>' +
-                  '<textarea class="cm-reply-ta" placeholder="Ta réponse… (Entrée = enregistrer)"></textarea>' : '') +
-      '<div class="cm-cat-row"><select class="cm-cat"' + (locked ? ' disabled' : '') + ' title="Catégorie (proposée d’après le texte, modifiable)">' +
-      CATEGORIES.map(function (cat) { return '<option value="' + cat.key + '">' + cat.icon + ' ' + cat.label + '</option>'; }).join('') +
+      '<div class="cm-zone">' + typeIcon(meta && meta.type, meta && meta.targets && meta.targets.length > 1) + cmEsc(zone) + '</div>' +
+      (locked ? '<div class="cm-lock-line">' + icone('LockSimple', 14, 'wm-devant') + cmEsc(statusLabel(meta.existing)) + ' — non modifiable</div>' : '') +
+      '<span class="wm-champ"><textarea' + (locked ? ' readonly' : '') + ' placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
+      (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea></span>' +
+      (askReply ? '<div class="cm-feedback cm-feedback-q">' + icone('Question', 14, 'wm-devant') + cmEsc(meta.existing.complementMessage || 'Complément demandé') + '</div>' +
+                  '<span class="wm-champ"><textarea class="cm-reply-ta" placeholder="Ta réponse… (Entrée = enregistrer)"></textarea></span>' : '') +
+      '<div class="cm-cat-row"><select class="cm-cat wm-coupe"' + (locked ? ' disabled' : '') + ' title="Catégorie (proposée d’après le texte, modifiable)">' +
+      CATEGORIES.map(function (cat) { return '<option value="' + cat.key + '">' + cat.label + '</option>'; }).join('') +
       '</select><span class="cm-cat-auto">auto</span></div>' +
       '<div class="cm-popup-actions">' +
-      (isEdit ? '<button class="cm-delete" title="Supprimer ce commentaire">🗑</button>' : '') +
-      '<button class="cm-cancel">' + (locked && !askReply ? 'Fermer' : 'Annuler') + '</button>' +
-      (locked && !askReply ? '' : '<button class="cm-save">' + (askReply ? 'Enregistrer la réponse' : 'Enregistrer') + '</button>') + '</div>';
+      (isEdit ? '<button class="cm-delete wm-cercle" title="Supprimer ce commentaire" aria-label="Supprimer ce commentaire">' + icone('Trash', 15) + '</button>' : '') +
+      '<button class="cm-cancel wm-texte">' + (locked && !askReply ? 'Fermer' : 'Annuler') + '</button>' +
+      (locked && !askReply ? '' : '<button class="cm-save wm-touche wm-principale">' + (askReply ? 'Enregistrer la réponse' : 'Enregistrer') + '</button>') + '</div>';
+    habiller(pop);
     document.body.appendChild(pop);
+    tracerContour(pop);                                             // tout de suite, sans attendre l'observateur
     placePopup(pop, targetRectOf(meta), x, y);
     pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-zone'));
@@ -2403,7 +2627,7 @@
     meta.targetsChanged = true;
     showEditOutline(meta.targets.map(function (t) { return t.el; }));
     var zoneEl = pendingPopup.querySelector('.cm-zone');
-    if (zoneEl) zoneEl.textContent = typeIcon('pin') + ' ' + multiLabel(meta.targets);
+    if (zoneEl) zoneEl.innerHTML = typeIcon('pin', meta.targets.length > 1) + cmEsc(multiLabel(meta.targets));
     cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés — ' + MULTI_KEY + '+clic pour en ajouter ou retirer' : '1 élément sélectionné');
   }
 
@@ -2635,7 +2859,9 @@
   var statusTimer = null;
   function cmStatus(msg) {
     var el = document.getElementById('cmStatus');
-    el.textContent = msg;
+    var txt = el.querySelector(':scope > .wm-contenu');
+    if (!txt) { txt = document.createElement('span'); txt.className = 'wm-contenu'; el.appendChild(txt); }
+    txt.textContent = msg;
     el.classList.add('show');
     clearTimeout(statusTimer);
     statusTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
@@ -2716,10 +2942,12 @@
     if (!c || !c.shot || !c.shot.dataUrl) return;
     var ov = document.createElement('div');
     ov.className = 'cm-lightbox cm-ui';
-    ov.innerHTML = '<img alt="Capture de la zone commentée"><div class="cm-lightbox-hint">Cliquer pour fermer</div>';
+    ov.innerHTML = '<div class="cm-lightbox-fenetre"><img alt="Capture de la zone commentée"><div class="cm-lightbox-hint">Cliquer pour fermer</div></div>';
+    habiller(ov.firstChild);
     ov.querySelector('img').src = c.shot.dataUrl;
     ov.onclick = function () { ov.remove(); };
     document.body.appendChild(ov);
+    tracerContour(ov.firstChild);
   };
 
   /* ---------- rapport : un fichier Markdown = texte lisible + bloc JSON par ticket ----------
@@ -2775,8 +3003,8 @@
       L.push('');
       grp.items.forEach(function (c) {
         n++;
-        var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c).replace(/^\S+\s/, '');
-        L.push('### #' + n + ' · ' + typeIcon(c.type) + ' ' + c.zone + ' — ' + categoryOf(c.category).label + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
+        var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c);
+        L.push('### #' + n + ' · ' + typeEmojiRapport(c.type) + ' ' + c.zone + ' — ' + categoryOf(c.category).label + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
         L.push('');
         if (c.author) { L.push('_Signalé par ' + c.author + '_'); L.push(''); }
         L.push(c.text);

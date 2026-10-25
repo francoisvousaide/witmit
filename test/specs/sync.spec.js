@@ -48,7 +48,7 @@ test('2. un clic enregistré part au guichet : identité, défi résolu, ticket,
   expect(t.sync.id).toBe('srv-1');
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('.cm-sync-chip')).toHaveText('☁️ envoyé');
+  await expect(page.locator('.cm-sync-chip')).toHaveText('envoyé');
   // l'identité est réutilisée pour un second ticket
   await page.locator('#cmPanelBtn').click();
   await H.activate(page);
@@ -81,7 +81,7 @@ test('4. échec (quota) : le ticket reste en local ⚠️, renvoyé à l’ouver
   await page.locator('#cmPanelBtn').click();   // ouvrir le tiroir = nouvel essai
   await waitSent(page);
   expect(state.posts).toHaveLength(2);
-  await expect(page.locator('.cm-sync-chip')).toHaveText('☁️ envoyé');
+  await expect(page.locator('.cm-sync-chip')).toHaveText('envoyé');
 });
 
 test('5. le statut est relu depuis le serveur : résolu + message de retour', async ({ page }) => {

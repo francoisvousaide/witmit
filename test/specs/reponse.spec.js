@@ -37,10 +37,10 @@ test('1. le fil est affiché : messages de l’équipe et les tiens, datés, dan
   const msgs = page.locator('.cm-msg');
   await expect(msgs).toHaveCount(3);
   await expect(msgs.nth(0)).toHaveClass(/cm-msg-equipe/);
-  await expect(msgs.nth(0)).toContainText('💬 Équipe · 28/09/2026');
+  await expect(msgs.nth(0)).toContainText('Équipe · 28/09/2026');
   await expect(msgs.nth(0)).toContainText('Corrigé, peux-tu vérifier ?');
-  await expect(msgs.nth(1)).toContainText('↳ Toi');
-  await expect(msgs.nth(2)).toContainText('↩ Tu as rouvert le ticket · 29/09/2026');
+  await expect(msgs.nth(1)).toContainText('Toi');
+  await expect(msgs.nth(2)).toContainText('Tu as rouvert le ticket · 29/09/2026');
   await expect(page.locator('.cm-feedback')).toHaveCount(0);   // le fil remplace l'ancien message unique
   expect((await ticket(page)).thread).toHaveLength(3);
 });
@@ -82,7 +82,7 @@ test('3. Rouvrir : texte obligatoire, puis le ticket résolu repasse « pris en 
   await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
   expect(state.replies[0].body).toMatchObject({ texte: 'Le bouton est toujours décalé', rouvrir: true });
   await expect(page.locator('.cm-status-chip')).toContainText('Pris en compte');
-  await expect(page.locator('.cm-msg').nth(1)).toContainText('↩ Tu as rouvert le ticket');
+  await expect(page.locator('.cm-msg').nth(1)).toContainText('Tu as rouvert le ticket');
   await expect(page.locator('.cm-reopen-btn')).toHaveCount(0);
   expect((await ticket(page)).status).toBe('pris_en_compte');
   // la relecture suivante (serveur : en_cours) garde « pris en compte »
@@ -152,7 +152,7 @@ test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) =
 test('7. Répondu : même ✅, libellé « Répondu », verrouillé ; Rouvrir disponible', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'repondu', messages: [EQUIPE] });
   const chip = page.locator('.cm-status-chip');
-  await expect(chip).toContainText('✅ Répondu le');
+  await expect(chip).toContainText('Répondu le');
   await expect(chip).not.toContainText('Résolu');
   await expect(page.locator('.cm-panel-item .cm-st-locked')).toHaveCount(1);   // terminé : ✓ verrouillé
   expect((await ticket(page)).status).toBe('resolu');
@@ -167,7 +167,7 @@ test('7. Répondu : même ✅, libellé « Répondu », verrouillé ; Rouvrir di
   // refermée cette fois comme corrigée : « Résolu », plus « Répondu »
   state.rows[0].statut = 'resolu';
   await rouvrirTiroir(page);
-  await expect(chip).toContainText('✅ Résolu le');
+  await expect(chip).toContainText('Résolu le');
 });
 
 test('8. Répondu puis rouvert sur GitHub : « pris en compte » ; fermé corrigé ensuite : « Résolu »', async ({ page }) => {
@@ -180,6 +180,6 @@ test('8. Répondu puis rouvert sur GitHub : « pris en compte » ; fermé corrig
   expect((await ticket(page)).repondu).toBeUndefined();
   state.rows[0].statut = 'resolu';
   await rouvrirTiroir(page);
-  await expect(chip).toContainText('✅ Résolu le');
+  await expect(chip).toContainText('Résolu le');
   expect((await ticket(page)).repondu).toBeUndefined();
 });
