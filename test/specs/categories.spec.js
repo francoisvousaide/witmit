@@ -42,29 +42,84 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     await H.activate(page);
   });
 
-  test('la catégorie suit la frappe, peut être forcée à la main, et persiste', async ({ page }) => {
+  // Catégories en touches dépliées dans la fenêtre (I4, fiche Fenetre) : sélecteur fermé en touche pleine largeur,
+  // ouvert, huit touches avec aria-pressed ; souris, flèches, Entrée et Échap.
+  test('la catégorie suit la frappe, se choisit en touches (souris et clavier), et persiste', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
     await page.mouse.click(b.x + 5, b.y + 5);
     const ta = page.locator('.cm-popup textarea');
     const sel = page.locator('.cm-popup .cm-cat');
-    await expect(sel).toHaveValue('a-classer');
-    await expect(page.locator('.cm-popup .cm-cat-auto')).toBeVisible();
+    const auto = page.locator('.cm-popup .cm-cat-auto');
+    const liste = page.locator('.cm-popup .cm-cat-liste');
+    const choix = (k) => page.locator(`.cm-popup .cm-cat-choix[data-cat="${k}"]`);
+    await expect(sel).toHaveAttribute('data-cat', 'a-classer');
+    await expect(sel).toHaveAttribute('aria-expanded', 'false');
+    await expect(liste).toBeHidden();
+    await expect(auto).toBeVisible();
+    await expect(sel).toHaveAttribute('aria-label', 'catégorie : à classer, proposée automatiquement');
     await ta.pressSequentially('Le chiffre déborde de la tuile');
-    await expect(sel).toHaveValue('bug-visuel');
+    await expect(sel).toHaveAttribute('data-cat', 'bug-visuel');
+    await expect(sel.locator('.cm-cat-nom')).toHaveText('bug visuel');
     await ta.fill('Il faudrait un séparateur de milliers');
-    await expect(sel).toHaveValue('suggestion');
-    await sel.selectOption('texte');                       // choix manuel
-    await expect(page.locator('.cm-popup .cm-cat-auto')).toBeHidden();
-    await ta.pressSequentially(' — bug'); // ne doit plus changer la catégorie
-    await expect(sel).toHaveValue('texte');
+    await expect(sel).toHaveAttribute('data-cat', 'suggestion');
+    // Ouvert : les huit catégories dans la fenêtre, la catégorie proposée enfoncée, et elle seule.
+    await sel.click();
+    await expect(sel).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.cm-popup .cm-cat-choix')).toHaveText(['bug visuel', 'bug fonctionnel', 'ajustement visuel', 'texte à changer',
+      'changement de comportement', 'suggestion', 'question', 'à classer']);
+    await expect(choix('suggestion')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.cm-popup .cm-cat-choix[aria-pressed="true"]')).toHaveCount(1);
+    const dedans = await page.evaluate(() => {
+      const p = document.querySelector('.cm-popup').getBoundingClientRect();
+      return Array.from(document.querySelectorAll('.cm-popup .cm-cat-choix')).every((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left >= p.left && r.right <= p.right && r.top >= p.top && r.bottom <= p.bottom && r.height === 36;
+      });
+    });
+    expect(dedans).toBe(true);
+    // Choix à la souris : la liste se replie, « auto » disparaît, la frappe ne change plus la catégorie.
+    await choix('texte').click();
+    await expect(sel).toHaveAttribute('data-cat', 'texte');
+    await expect(sel).toHaveAttribute('aria-expanded', 'false');
+    await expect(auto).toBeHidden();
+    await expect(sel).toHaveAttribute('aria-label', 'catégorie : texte à changer');
+    await ta.pressSequentially(' — bug');
+    await expect(sel).toHaveAttribute('data-cat', 'texte');
+    // Au clavier : flèche bas ouvre sur la catégorie choisie ; flèches, début et fin pour aller ; Entrée pour choisir.
+    await sel.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(choix('texte')).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(choix('comportement')).toBeFocused();
+    await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft');
+    await expect(choix('ajustement')).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(choix('bug-visuel')).toBeFocused();
+    await page.keyboard.press('ArrowLeft');                    // en boucle : de la première à la dernière
+    await expect(choix('a-classer')).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(choix('question')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(sel).toHaveAttribute('data-cat', 'question');
+    await expect(sel).toHaveAttribute('aria-expanded', 'false');
+    await expect(sel).toBeFocused();
+    // Échap dans les touches : les catégories se replient, la fenêtre reste ouverte.
+    await page.keyboard.press('ArrowDown');
+    await expect(choix('question')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(liste).toBeHidden();
+    await expect(page.locator('.cm-popup')).toHaveCount(1);
+    await expect(sel).toBeFocused();
     await ta.press('Enter');
     const data = await H.stored(page, KEY);
-    expect(data[0]).toMatchObject({ category: 'texte', categoryManual: true });
+    expect(data[0]).toMatchObject({ category: 'question', categoryManual: true });
     await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveCount(1);
-    // réouverture : la catégorie forcée est conservée
+    // Réouverture : la catégorie choisie est gardée, sans « auto », enfoncée dans la liste.
     await page.locator('.cm-pin').click();
-    await expect(page.locator('.cm-popup .cm-cat')).toHaveValue('texte');
+    await expect(page.locator('.cm-popup .cm-cat')).toHaveAttribute('data-cat', 'question');
     await expect(page.locator('.cm-popup .cm-cat-auto')).toBeHidden();
+    await page.locator('.cm-popup .cm-cat').click();
+    await expect(choix('question')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('bloc technique : sélecteur, page, fenêtre, navigateur, thème, erreurs console récentes', async ({ page }) => {

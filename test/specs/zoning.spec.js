@@ -29,16 +29,16 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     expect(data[0].anchor.path).toMatch(/article:nth-of-type\(1\)$/);
   });
 
-  test('encadré sur les 3 tuiles → "Zone encadrée — …" avec les textes contenus', async ({ page }) => {
+  test('encadré sur les 3 tuiles → "zone encadrée : …" avec les textes contenus', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-row');
     await H.drag(page, b.x - 4, b.y - 4, b.x + b.width + 4, b.y + b.height + 4);
     const zone = page.locator('.cm-popup .cm-zone');
-    await expect(zone).toContainText('Zone encadrée — Chiffre du jour');
+    await expect(zone).toContainText('zone encadrée : Chiffre du jour');
     await expect(zone).toContainText('(+');
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
     const data = await H.stored(page, 'witmit_kiosque_v1');
-    expect(data[0].zone.startsWith('Zone encadrée — Chiffre du jour')).toBe(true);
+    expect(data[0].zone.startsWith('zone encadrée : Chiffre du jour')).toBe(true);
     expect(data[0].anchor.path).toBeTruthy(); // ancré au plus petit élément englobant (main), pas au centre
   });
 
@@ -47,7 +47,7 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     const pill = await page.locator('#cmPill').boundingBox(); // le bandeau du mode, posé en haut : on s'arrête avant lui
     // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu
     await H.drag(page, brand.x + brand.width / 2, brand.y - 4, Math.min(brand.x + brand.width + 120, pill.x - 8), brand.y + brand.height + 4);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Zone encadrée — dans : KIOSQUE · Ventes · Stocks · Réglages');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('zone encadrée dans : KIOSQUE · Ventes · Stocks · Réglages');
   });
 
   test('les icônes de type apparaissent dans la liste et dans le rapport', async ({ page }) => {
@@ -59,11 +59,11 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-item .zone').nth(0)).toHaveText('Boulangerie Martin');
-    await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('Zone encadrée — Commandes, 37');
+    await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('zone encadrée : Commandes, 37');
     page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     const txt = await page.evaluate(() => navigator.clipboard.readText());
     expect(txt).toContain('### #1 · 📍 Boulangerie Martin');
-    expect(txt).toContain('### #2 · 🔲 Zone encadrée — Commandes, 37');
+    expect(txt).toContain('### #2 · 🔲 zone encadrée : Commandes, 37');
   });
 });

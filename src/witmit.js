@@ -370,6 +370,8 @@
   /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
   .cm-ui .wm-repere { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; margin-left:4px; border:1px solid var(--wm-line-strong);
     border-radius:var(--wm-radius-repere); font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
+  /* Texte pour les lecteurs d'écran seulement (« cmd » derrière l'icône ⌘). */
+  .cm-ui .wm-lu { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   /* Icône seule : icône Phosphor dans un cercle fin de 30 px, zone cliquable portée à 44 px par ::before. */
   .cm-ui .wm-cercle { position:relative; display:inline-flex; align-items:center; justify-content:center; flex:none; width:30px; height:30px; margin:0; padding:0;
     border:1px solid var(--wm-line-strong); border-radius:50%; background:transparent; box-shadow:none; color:var(--wm-ink-soft); font-size:0; line-height:0; cursor:pointer; }
@@ -381,6 +383,8 @@
   .cm-ui .wm-champ { position:relative; display:block; }
   .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { clip-path:var(--wm-forme-touche); border-radius:0; outline:none; }
   .cm-ui .wm-champ > textarea:focus { border-color:var(--wm-line-strong); }
+  /* Une règle de focus de la page hôte (ombre colorée, « :focus-visible { box-shadow } ») n'atteint pas nos champs. */
+  .cm-ui textarea:focus, .cm-ui textarea:focus-visible, .cm-ui input:focus, .cm-ui input:focus-visible, .cm-ui select:focus, .cm-ui select:focus-visible { box-shadow:none; }
 
   /* Focus clavier (fiche Etats), seulement en :focus-visible. Forme coupée : anneau qui suit les coins,
      tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. */
@@ -461,8 +465,9 @@
   body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: default; }
   /* Curseurs de notre interface (la règle générique ci-dessus les neutraliserait) */
   body.cm-active .cm-ui button, body.cm-active .cm-pin, body.cm-active .cm-panel-item .body, body.cm-active .cm-panel-item .del { cursor:pointer; }
-  body.cm-active .cm-popup .cm-zone { cursor:move; }
+  body.cm-active .cm-popup .cm-tete { cursor:move; }
   body.cm-active .cm-popup textarea { cursor:text; }
+  body.cm-active .cm-popup .cm-vignette { cursor:zoom-in; }
   body .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
   body .cm-pill.cm-dragging, body .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
@@ -562,19 +567,65 @@
   /* Passage de texte : souligné à la couleur du texte lui-même (lisible sur tout fond), sans aplat. */
   mark.cm-highlight { text-decoration:underline 2px currentColor; text-underline-offset:4px; text-decoration-skip-ink:none; border-radius:0; padding:0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 
-  /* Fenêtre de saisie : verre aux jetons (aspect intermédiaire ; fiche Fenetre au lot 4). */
-  .cm-popup { position:absolute; z-index:950; width:260px; padding:14px 24px 20px 22px; color:var(--wm-ink); } /* matière : habiller() ; marges : les coins witmit restent libres */
-  .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:var(--wm-font-titre); font-size:12px; font-weight:700; color:var(--wm-ink); margin-bottom:6px; max-height:48px; overflow-y:auto; }
-  .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:8px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; color:var(--wm-ink); background:var(--wm-surface-raised); margin-bottom:8px; box-sizing:border-box; }
-  .cm-popup .wm-champ { margin-bottom:8px; }
-  .cm-popup .wm-champ > textarea { display:block; margin:0; }
-  .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 0; }
-  .cm-popup .cm-cat { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; font-family:var(--wm-font-outil); font-size:12px; color:var(--wm-ink); background:var(--wm-face-touche); border:1px solid var(--wm-line); border-radius:7px; padding:5px 6px; }
-  .cm-popup .cm-cat-auto { flex-shrink:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:500; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); padding:1px 6px; }
-  .cm-popup .cm-popup-actions { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; margin-top:16px; } /* fiche Fenetre : 4 px entre « annuler » et la touche */
+  /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
+     380 px, au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
+     poignée (titre, croix, élément visé dessous) ; corps : champ coupé en Syne, catégorie en touches
+     dépliées (I4), actions. Les marges laissent libres les deux coins witmit. */
+  .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
+  @media (max-width:480px) { .cm-popup { width:min(380px, calc(100vw - 16px)); } }
+  .cm-popup .cm-tete { position:relative; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
+  .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
+  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-popup .cm-zone .wm-icone { margin:0; }
+  .cm-popup .cm-zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; color:var(--wm-ink-soft); white-space:nowrap; }
+  .cm-popup .cm-aide-multi .wm-repere { margin:0; }
+  .cm-popup .cm-corps { position:relative; padding:12px 24px 20px 20px; }
+  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
+  .cm-popup .cm-libelle-cat { margin-top:12px; }
+  /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), Syne 14 px. Sans
+     poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
+     Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
+  .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:64px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
+    border:1px solid var(--wm-line); border-radius:0; background:var(--wm-surface-raised); box-shadow:none; outline:none;
+    font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
+  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:44px; }
+  .cm-popup .cm-champ-reponse { margin-top:12px; }
+  /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
+  .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
+  /* Vignette de la capture d'une zone : 112 × 64 px, coupe de 6 px, trait line-strong. */
+  .cm-popup .cm-vignette-ligne { display:flex; align-items:center; gap:12px; margin-top:10px; }
+  .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
+  .cm-popup .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-popup .cm-vignette img { display:block; width:100%; height:100%; max-width:none; object-fit:cover; }
+  .cm-popup .cm-vignette:focus { outline:none; }
+  .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  .cm-popup .cm-vignette-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
+     touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
+  .cm-popup .cm-cat.wm-touche { display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:13px; font-weight:400; }
+  .cm-popup .cm-cat-nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
+  .cm-popup .cm-cat-liste { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .cm-popup .cm-cat-choix.wm-touche { max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:12px; font-weight:400; }
+  .cm-popup .cm-cat-choix span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  /* Lecture seule : verrou, texte de la personne entre « », catégorie en méta. Complément : zone en creux. */
+  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-lock-line { margin:0 0 8px; }
+  .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:600; }
+  .cm-popup .cm-meta-lu { margin-top:8px; }
+  .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-meta-lu .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
+  .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); clip-path:var(--wm-forme-touche); }
+  .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  /* Actions : supprimer (cercle, jamais rouge) à gauche ; « annuler » en texte et la touche principale à droite. */
+  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:16px; }
   .cm-popup .cm-delete { margin-right:auto; }
-  .cm-popup .cm-popup-actions { align-items:center; }
   .cm-popup .cm-popup-actions .wm-texte { padding:0 6px; }
+  .cm-popup .cm-popup-actions .wm-touche { padding:0 8px 0 12px; }
 
   /* Liste des retours : verre aux jetons (aspect intermédiaire ; fiche Tiroir au lot 5). */
   .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
@@ -631,10 +682,6 @@
   .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--wm-line); margin-left:12px; }
   .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--wm-ink-soft); white-space:normal; }
   .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
-  .cm-popup .cm-lock-line { font-size:11px; color:var(--wm-ink-soft); margin:-2px 0 6px; }
-  .cm-popup.cm-locked textarea { background:transparent; color:var(--wm-ink-soft); }
-  .cm-popup .cm-feedback { font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-left:2px solid var(--wm-ink); padding:4px 8px; border-radius:0 6px 6px 0; margin-bottom:6px; }
-  .cm-popup .cm-reply-ta { min-height:50px; }
   .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .cm-panel-item.cm-done .num { opacity:.55; }
   .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
@@ -669,7 +716,6 @@
   @media (prefers-reduced-motion:reduce) { .cm-status, .cm-status > * { transition:none; } }
   @media (max-width:700px) {
     .cm-panel { width:86vw; }
-    .cm-popup { width:80vw; max-width:280px; }
     .cm-pill { max-width:92vw; white-space:normal; text-align:left; }
   }
 `;
@@ -2056,7 +2102,7 @@
     if (titleEl && titleEl !== container && !titleEl.closest('.cm-ui')) label = textExcerpt(titleEl, 60);
     if (!label) label = textExcerpt(container, 50);
     if (!label && container.className && typeof container.className === 'string') label = container.className.split(' ')[0];
-    return label || 'Élément de la page';
+    return label || 'élément de la page';
   }
 
   /* Détection à granularité fine : selon l'endroit précis où l'on clique, on cible l'élément le plus
@@ -2068,7 +2114,7 @@
     // Nos propres surlignages (<mark>) ne sont jamais un repère : ils disparaissent au rechargement.
     while (el && el.nodeType === 1 && el.classList.contains('cm-highlight')) el = el.parentElement;
     if (!el || el === document.body || el === document.documentElement) {
-      return { label: 'Zone générale de la page', el: null };
+      return { label: 'zone générale de la page', el: null };
     }
 
     var atomic = el.closest && el.closest(ATOMIC_SELECTOR);
@@ -2078,9 +2124,9 @@
         textExcerpt(atomic, 60);
       if (!atomicLabel && atomic.tagName) {
         var tag = atomic.tagName.toLowerCase();
-        atomicLabel = tag === 'input' ? ('Champ ' + (atomic.getAttribute('placeholder') || atomic.type || '')).trim() : 'Élément (' + tag + ')';
+        atomicLabel = tag === 'input' ? ('champ ' + (atomic.getAttribute('placeholder') || atomic.type || '')).trim() : 'élément (' + tag + ')';
       }
-      return { label: atomicLabel || 'Élément de la page', el: atomic };
+      return { label: atomicLabel || 'élément de la page', el: atomic };
     }
 
     // On remonte depuis le point cliqué : premier texte direct rencontré → c'est lui ;
@@ -2121,16 +2167,16 @@
       if (names.length < 3) names.push(textExcerpt(c, 30)); else extra++;
     }
     var label = names.length
-      ? 'Zone encadrée — ' + names.join(', ') + (extra ? ' (+' + extra + ')' : '')
-      : 'Zone encadrée — dans : ' + (container ? detectZone(container).label : 'la page');
+      ? 'zone encadrée : ' + names.join(', ') + (extra ? ' (+' + extra + ')' : '')
+      : 'zone encadrée ' + (container ? 'dans : ' + detectZone(container).label : 'dans la page');
     return { label: label, el: container };
   }
 
-  /* Libellé d'une sélection de plusieurs éléments : « 3 éléments — A, B, C (+n) » */
+  /* Libellé d'une sélection de plusieurs éléments : « 3 éléments : A, B, C (+n) » (Léa 3.8) */
   function multiLabel(targets) {
     if (targets.length === 1) return targets[0].label;
     var names = targets.slice(0, 3).map(function (t) { return t.label; });
-    return targets.length + ' éléments — ' + names.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : '');
+    return targets.length + ' éléments : ' + names.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : '');
   }
 
   /* Icône par type de cible, dans la fenêtre et la liste (fiche Icones) : élément, zone, passage de texte,
@@ -2362,12 +2408,15 @@
     return null;
   }
   function placePopup(pop, R, fallbackX, fallbackY) {
-    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 28;
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    // Règle de largeur (M1) : 380 px, jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
+    // comprise, que 100vw ne retire pas).
+    if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
+    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 48; // place de l'épingle (F6 : 24 px, à 22 px au-dessus)
     function clampX(x) { return Math.max(vx + 8, Math.min(x, vx + vw - W - 8)); }
     function apply(x, y) { pop.style.left = x + 'px'; pop.style.top = y + 'px'; }
-    if (!R) { apply(clampX(fallbackX), fallbackY + 10); return; }
+    if (!R) { apply(clampX(fallbackX), Math.max(vy + 8, Math.min(fallbackY + 10, vy + vh - Hh - 8))); return; }
     var cands = [
       { x: R.x, y: R.y + R.h + gap },
       { x: R.x, y: R.y - Hh - gap - pinRoom },
@@ -2383,11 +2432,16 @@
     apply(clampX(R.x), R.y + R.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
     pop.scrollIntoView({ block: 'nearest' });
   }
+  /* La fenêtre a grandi (catégories dépliées, texte long) : elle remonte pour ne pas sortir par le bas. */
+  function recalerFenetre(pop) {
+    var vy = window.scrollY, vh = window.innerHeight, top = pop.offsetTop, H = pop.offsetHeight;
+    if (top + H > vy + vh - 8) pop.style.top = Math.max(vy + 8, vy + vh - 8 - H) + 'px';
+  }
 
-  /* La bulle se déplace en la prenant par son bandeau (le libellé de zone). */
+  /* La fenêtre se déplace en la prenant par sa tête entière (titre et élément visé), sauf la croix. */
   function makePopupDraggable(pop, handle) {
-    handle.title = 'Glisser pour déplacer la bulle';
     handle.addEventListener('pointerdown', function (e) {
+      if (e.target.closest && e.target.closest('button')) return;
       e.stopPropagation(); e.preventDefault();
       var offX = e.pageX - pop.offsetLeft, offY = e.pageY - pop.offsetTop;
       try { handle.setPointerCapture(e.pointerId); } catch (err) {}
@@ -2398,139 +2452,278 @@
     });
   }
 
+  /* ---------- fenêtre de saisie : textes et morceaux (fiche Fenetre ; Léa 3.7 et 3.8) ---------- */
+  // Point d'accroche de la décision c1 de François (25/10) : en live, la corbeille de la fenêtre disparaît pour
+  // un retour déjà reçu par witmit. La règle complète (recuLe, C9) se code au lot 5 ; d'ici là, tout retour
+  // modifiable garde sa corbeille, comme avant.
+  function supprimable(c) { return true; }
+  function nomCategorie(key) { return categoryOf(key).label.toLowerCase(); }
+  // Nom du statut dans la ligne de verrou (Léa 2.1 et 2.2) : en minuscules, sans date.
+  function nomStatut(c) {
+    if (c.status === 'signale') return 'signalé';
+    if (c.status === 'pris_en_compte') return 'pris en compte';
+    if (c.status === 'complement') return 'complément demandé';
+    if (c.status === 'resolu') return c.resolvedBy === 'moi' ? 'résolu par moi' : c.repondu ? 'répondu' : 'résolu';
+    return '';
+  }
+  // Nombre d'éléments visés par une fenêtre « plusieurs éléments » (0 sinon).
+  function nbCibles(meta) {
+    if (!meta || meta.type !== 'pin') return 0;
+    if (meta.targets && meta.targets.length > 1) return meta.targets.length;
+    var ex = meta.existing;
+    return ex && ex.targets && ex.targets.length > 1 && !(meta.targets && meta.targets.length) ? ex.targets.length : 0;
+  }
+  // Titre de la fenêtre selon la cible (Léa 3.7) : bouton, lien, champ, texte, zone, N éléments, élément.
+  function titreFenetre(meta) {
+    var n = nbCibles(meta);
+    if (n > 1) return 'Ton retour sur ces ' + n + ' éléments';
+    if (meta && meta.type === 'box') return 'Ton retour sur cette zone';
+    if (meta && meta.type === 'text') return 'Ton retour sur ce texte';
+    var el = meta && meta.targets && meta.targets.length ? meta.targets[0].el : meta && meta.outlineEl;
+    if (Array.isArray(el)) el = el[0];
+    if (el && el.nodeType === 1) {
+      if (el.matches('input[type="button"], input[type="submit"], input[type="reset"], input[type="image"]') || el.closest('button, [role="button"], summary')) return 'Ton retour sur ce bouton';
+      if (el.closest('a[href], [role="link"]')) return 'Ton retour sur ce lien';
+      if (el.matches('input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]')) return 'Ton retour sur ce champ';
+    }
+    return 'Ton retour sur cet élément';
+  }
+  // Tête : titre, élément visé (poignée, icône du type, libellé sur une ligne, complet en info-bulle) et,
+  // pour plusieurs éléments, la ligne d'aide « ⌘+clic : ajouter ou retirer un élément ».
+  function majTete(pop, meta, zone) {
+    var n = nbCibles(meta);
+    pop.querySelector('.cm-titre').textContent = titreFenetre(meta);
+    pop.querySelector('.cm-zone').innerHTML =
+      '<span class="cm-poignee" aria-hidden="true">' + icone('DotsSixVertical', 14) + '</span>' +
+      icone(n > 1 ? 'SelectionPlus' : meta && meta.type === 'box' ? 'BoundingBox' : meta && meta.type === 'text' ? 'TextT' : 'CursorClick', 14, 'cm-type') +
+      '<span class="cm-zone-txt"></span>';
+    var txt = pop.querySelector('.cm-zone-txt');
+    txt.textContent = zone || '';
+    txt.title = zone || '';
+    var aide = pop.querySelector('.cm-aide-multi');
+    aide.hidden = !(n > 1 && !pop.classList.contains('cm-locked'));
+  }
+  var AIDE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>' +
+    '<span>+clic : ajouter ou retirer un élément</span>';
+
   function openPopup(x, y, zone, meta) {
     closePopup(true); // (efface aussi la couleur "actif" de la bulle précédente)
     applyTheme();     // le fond du site a pu changer sans que rien ne le signale
     var isEdit = !!(meta && meta.existing);
     var locked = isEdit && !isEditable(meta.existing);           // signalé / pris en compte / complément / résolu : lecture seule
     var askReply = isEdit && meta.existing.status === 'complement'; // … sauf qu'on peut répondre à un complément
-    setFocused(isEdit ? meta.existing.id : null);
+    var ex = isEdit ? meta.existing : null;
+    setFocused(isEdit ? ex.id : null);
     if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
-    if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + meta.existing.id + '"]'); // (re)trouvé après un éventuel re-rendu
+    if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + ex.id + '"]'); // (re)trouvé après un éventuel re-rendu
     if (!locked && meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
+    var libelleTouche = askReply ? 'enregistrer la réponse' : LIVE ? 'envoyer' : 'enregistrer';
+    var repere = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
+    var shot = isEdit && ex.shot && ex.shot.dataUrl ? ex.shot : null;
+    var vignette = shot ? '<div class="cm-vignette-ligne"><button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture">' +
+      '<span class="cm-vignette-face"><img alt="capture de la zone"></span></button><span class="cm-vignette-meta">capture de la zone · ' +
+      (shot.width || '?') + ' × ' + (shot.height || '?') + ' · ' + Math.max(1, Math.round(shot.dataUrl.length * 0.75 / 1024)) + ' ko</span></div>' : '';
+    var corps;
+    if (askReply) {
+      // Complément demandé (mode maquette) : le retour, la question de l'équipe en creux, le champ de réponse.
+      corps = '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' +
+        '<div class="cm-feedback cm-feedback-q"><div class="cm-feedback-titre">' + icone('Question', 14) + '<b>complément demandé :</b></div>' +
+        '<div class="cm-feedback-msg">« ' + cmEsc(ex.complementMessage || 'Peux-tu préciser ?') + ' »</div></div>' +
+        '<span class="wm-champ cm-champ-reponse"><textarea class="cm-reply-ta" placeholder="ta réponse… (entrée : enregistrer)"></textarea></span>';
+    } else if (locked) {
+      // Lecture seule : verrou, texte entre « », catégorie en méta ; une seule action, « fermer ».
+      corps = '<div class="cm-lock-line">' + icone('LockSimple', 14) + '<b>' + cmEsc(nomStatut(ex)) + '</b> <span>· non modifiable</span></div>' +
+        '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' + vignette +
+        '<div class="cm-meta-lu" title="catégorie">' + icone(categoryOf(ex.category).icon, 14) + '<span>' + cmEsc(nomCategorie(ex.category)) + '</span></div>';
+    } else {
+      corps = '<span class="cm-libelle" id="cmLibChamp">ce que tu as remarqué</span>' +
+        '<span class="wm-champ"><textarea aria-labelledby="cmLibChamp" placeholder="ta remarque, ta question ou ta critique… (maj+entrée : nouvelle ligne)">' + (isEdit ? cmEsc(ex.text) : '') + '</textarea></span>' +
+        '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span>' + (LIVE ? "écris ton retour avant d'envoyer." : "écris ton retour avant d'enregistrer.") + '</span></div>' +
+        vignette +
+        '<span class="cm-libelle cm-libelle-cat" id="cmCatLibelle">catégorie</span>' +
+        '<div class="cm-cat-bloc"><button type="button" class="cm-cat wm-touche" aria-expanded="false" aria-controls="cmCatListe" title="catégorie : proposée d\'après ton texte, à changer si besoin">' +
+          '<span class="cm-cat-ico" aria-hidden="true"></span><span class="cm-cat-nom"></span><span class="cm-cat-auto" title="proposée automatiquement">auto</span><span class="cm-cat-caret" aria-hidden="true"></span></button>' +
+        '<div class="cm-cat-liste" id="cmCatListe" role="group" aria-labelledby="cmCatLibelle" hidden>' +
+          CATEGORIES.map(function (cat) {
+            return '<button type="button" class="cm-cat-choix wm-touche" data-cat="' + cat.key + '" aria-pressed="false">' + icone(cat.icon, 14) + '<span>' + cmEsc(cat.label.toLowerCase()) + '</span></button>';
+          }).join('') + '</div></div>';
+    }
+    var avecCorbeille = isEdit && !locked && supprimable(ex);
     var pop = document.createElement('div');
     pop.className = 'cm-popup cm-ui' + (locked ? ' cm-locked' : '');
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-labelledby', 'cmTitreFenetre');
     pop.innerHTML =
-      '<div class="cm-zone">' + typeIcon(meta && meta.type, meta && meta.targets && meta.targets.length > 1) + cmEsc(zone) + '</div>' +
-      (locked ? '<div class="cm-lock-line">' + icone('LockSimple', 14, 'wm-devant') + cmEsc(statusLabel(meta.existing)) + ' — non modifiable</div>' : '') +
-      '<span class="wm-champ"><textarea' + (locked ? ' readonly' : '') + ' placeholder="Ton commentaire, ta question ou ta critique… (Entrée = enregistrer, Maj+Entrée = nouvelle ligne, Échap = annuler)">' +
-      (isEdit ? cmEsc(meta.existing.text) : '') + '</textarea></span>' +
-      (askReply ? '<div class="cm-feedback cm-feedback-q">' + icone('Question', 14, 'wm-devant') + cmEsc(meta.existing.complementMessage || 'Complément demandé') + '</div>' +
-                  '<span class="wm-champ"><textarea class="cm-reply-ta" placeholder="Ta réponse… (Entrée = enregistrer)"></textarea></span>' : '') +
-      '<div class="cm-cat-row"><select class="cm-cat wm-coupe"' + (locked ? ' disabled' : '') + ' title="Catégorie (proposée d’après le texte, modifiable)">' +
-      CATEGORIES.map(function (cat) { return '<option value="' + cat.key + '">' + cat.label + '</option>'; }).join('') +
-      '</select><span class="cm-cat-auto">auto</span></div>' +
-      '<div class="cm-popup-actions">' +
-      (isEdit ? '<button class="cm-delete wm-cercle" title="Supprimer ce commentaire" aria-label="Supprimer ce commentaire">' + icone('Trash', 15) + '</button>' : '') +
-      '<button class="cm-cancel wm-texte">' + (locked && !askReply ? 'Fermer' : 'Annuler') + '</button>' +
-      (locked && !askReply ? '' : '<button class="cm-save wm-touche wm-principale">' + (askReply ? 'Enregistrer la réponse' : 'Enregistrer') + '</button>') + '</div>';
+      '<div class="cm-tete" title="glisse pour déplacer la fenêtre">' +
+        '<div class="cm-tete-l1"><span class="cm-titre" id="cmTitreFenetre"></span>' +
+        '<button type="button" class="cm-fermer wm-cercle" aria-label="annuler" title="annuler">' + icone('X', 14) + '</button></div>' +
+        '<div class="cm-zone"></div><div class="cm-aide-multi" hidden>' + AIDE_MULTI + '</div>' +
+      '</div>' +
+      '<div class="cm-corps">' + corps +
+        '<div class="cm-popup-actions">' +
+        (avecCorbeille ? '<button type="button" class="cm-delete wm-cercle" title="supprimer ce retour" aria-label="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
+        '<button type="button" class="cm-cancel wm-texte">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
+        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" disabled>' + libelleTouche + repere + '</button>') +
+        '</div>' +
+      '</div>';
+    majTete(pop, meta, zone);
+    if (shot && pop.querySelector('.cm-vignette')) {               // (pas de vignette dans la fenêtre d'un complément)
+      pop.querySelector('.cm-vignette img').src = shot.dataUrl;
+      pop.querySelector('.cm-vignette').onclick = function (e) { e.stopPropagation(); window.cmShowShot(ex.id); };
+    }
     habiller(pop);
     document.body.appendChild(pop);
     tracerContour(pop);                                             // tout de suite, sans attendre l'observateur
     placePopup(pop, targetRectOf(meta), x, y);
     pop._meta = meta;
-    makePopupDraggable(pop, pop.querySelector('.cm-zone'));
-    var ta = pop.querySelector('textarea');
+    makePopupDraggable(pop, pop.querySelector('.cm-tete'));
+    var fermer = function (e) { e.stopPropagation(); closePopup(true); };
+    pop.querySelector('.cm-fermer').onclick = fermer;
+    pop.querySelector('.cm-cancel').onclick = fermer;
+    var ta = locked ? null : pop.querySelector('textarea');
+    var save = pop.querySelector('.cm-save');
+    // Le champ grandit avec le texte (sans poignée), jusqu'à 240 px, puis défile.
+    function ajuster(t) { t.style.height = 'auto'; t.style.height = Math.min(240, Math.max(64, t.scrollHeight + 2)) + 'px'; }
     if (askReply) {
       var rta = pop.querySelector('.cm-reply-ta');
       rta.focus();
+      var majReponse = function () { save.disabled = !rta.value.trim(); };
+      rta.addEventListener('input', majReponse);
       rta.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (addReply(meta.existing, rta.value.trim())) closePopup(true); }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (addReply(ex, rta.value.trim())) closePopup(true); }
       });
-      pop.querySelector('.cm-save').onclick = function (e) { e.stopPropagation(); if (addReply(meta.existing, rta.value.trim())) closePopup(true); };
-    } else if (!locked) {
-      ta.focus();
+      save.onclick = function (e) { e.stopPropagation(); if (addReply(ex, rta.value.trim())) closePopup(true); };
     }
-    if (isEdit && !locked) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); }
+    if (locked) { pendingPopup = pop; return; }
 
-    // Catégorie : proposée automatiquement pendant la frappe, tant que l'utilisateur ne l'a pas choisie lui-même
-    var catSel = pop.querySelector('.cm-cat'), catAuto = pop.querySelector('.cm-cat-auto');
-    var catTouched = !!(isEdit && meta.existing.categoryManual);
-    catSel.value = isEdit && meta.existing.category ? meta.existing.category : categorize(ta.value);
-    catAuto.style.display = catTouched ? 'none' : '';
-    ta.addEventListener('input', function () { if (!catTouched) catSel.value = categorize(ta.value); });
-    catSel.addEventListener('change', function () { catTouched = true; catAuto.style.display = 'none'; });
-    catSel.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    ta.focus();
+    if (isEdit) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); ajuster(ta); }
+    var refus = pop.querySelector('.cm-refus');
+    function majTouche() {
+      save.disabled = !ta.value.trim();
+      if (ta.value.trim()) refus.hidden = true;                    // la phrase disparaît dès la première lettre
+    }
+    majTouche();
 
+    // Catégorie (I4) : proposée pendant la frappe tant que la personne ne l'a pas choisie elle-même.
+    var catBtn = pop.querySelector('.cm-cat'), catListe = pop.querySelector('.cm-cat-liste');
+    var choix = Array.prototype.slice.call(pop.querySelectorAll('.cm-cat-choix'));
+    var catTouched = !!(isEdit && ex.categoryManual);
+    var catVal = isEdit && ex.category ? ex.category : categorize(ta.value);
+    function majCategorie() {
+      var cat = categoryOf(catVal), nom = nomCategorie(catVal);
+      catBtn.dataset.cat = cat.key;
+      catBtn.querySelector('.cm-cat-ico').innerHTML = icone(cat.icon, 16);
+      catBtn.querySelector('.cm-cat-nom').textContent = nom;
+      catBtn.querySelector('.cm-cat-auto').hidden = catTouched;
+      catBtn.setAttribute('aria-label', 'catégorie : ' + nom + (catTouched ? '' : ', proposée automatiquement'));
+      choix.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-cat') === cat.key ? 'true' : 'false'); });
+    }
+    function deplier(ouvert, focusChoix) {
+      catListe.hidden = !ouvert;
+      catBtn.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+      catBtn.querySelector('.cm-cat-caret').innerHTML = icone(ouvert ? 'CaretUp' : 'CaretDown', 14);
+      if (ouvert) {
+        recalerFenetre(pop);
+        if (focusChoix) (pop.querySelector('.cm-cat-choix[aria-pressed="true"]') || choix[0]).focus();
+      }
+    }
+    majCategorie(); deplier(false);
+    catBtn.onclick = function (e) { e.stopPropagation(); deplier(catListe.hidden, false); };
+    catBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); deplier(true, true); }
+    });
+    choix.forEach(function (b, i) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        catVal = b.getAttribute('data-cat'); catTouched = true;
+        majCategorie(); deplier(false); catBtn.focus();
+      };
+      b.addEventListener('keydown', function (e) {
+        var k = e.key, j = null;
+        if (k === 'ArrowRight' || k === 'ArrowDown') j = (i + 1) % choix.length;
+        else if (k === 'ArrowLeft' || k === 'ArrowUp') j = (i - 1 + choix.length) % choix.length;
+        else if (k === 'Home') j = 0;
+        else if (k === 'End') j = choix.length - 1;
+        else if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); deplier(false); catBtn.focus(); return; } // referme les catégories, pas la fenêtre
+        if (j !== null) { e.preventDefault(); choix[j].focus(); }
+      });
+    });
+
+    ta.addEventListener('input', function () {
+      if (!catTouched) { catVal = categorize(ta.value); majCategorie(); }
+      majTouche(); ajuster(ta); recalerFenetre(pop);
+    });
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        var sb = pop.querySelector('.cm-save');
-        if (sb && !locked) sb.click();
+        if (save.disabled) { refus.hidden = false; return; }     // rien ne part, la fenêtre reste ouverte (Léa 3.7)
+        save.click();
       }
     });
 
-    pop.querySelector('.cm-cancel').onclick = function (e) { e.stopPropagation(); closePopup(true); };
-    if (isEdit) {
+    if (avecCorbeille) {
       pop.querySelector('.cm-delete').onclick = function (e) {
         e.stopPropagation();
         endBoxEdit(meta);
         setFocused(null);
-        window.cmDeleteById(meta.existing.id);
+        window.cmDeleteById(ex.id);
         hideEditOutline();
         pop.remove();
         pendingPopup = null;
       };
     }
-    if (locked) { pendingPopup = pop; return; }
-    pop.querySelector('.cm-save').onclick = function (e) {
+    save.onclick = function (e) {
       e.stopPropagation();
       var text = ta.value.trim();
+      if (!text) { refus.hidden = false; return; }
       endBoxEdit(meta);
       var savedId = null;
-      if (text) {
-        var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
-        // Sélection multiple (ou modifiée) : libellé, ancrage de la pastille et liste des cibles recalculés
-        var multi = null;
-        if (meta.type === 'pin' && meta.targets && meta.targets.length && (meta.targets.length > 1 || meta.targetsChanged)) {
-          var first = meta.targets[0].el, cptM = cornerAnchorPoint(first, meta.pinX, meta.pinY);
-          multi = {
-            zone: multiLabel(meta.targets),
-            anchor: anchorForPoint(cptM.x, cptM.y, first), fallback: { x: cptM.x, y: cptM.y },
-            targets: meta.targets.length > 1 ? meta.targets.map(function (t) { return { path: getStablePath(t.el), label: t.label }; }) : undefined
-          };
-        }
-        if (isEdit) {
-          savedId = meta.existing.id;
-          meta.existing.text = text;
-          meta.existing.category = catSel.value;
-          meta.existing.categoryManual = catTouched;
-          if (desc) { meta.existing.zone = desc.label; meta.existing.anchor = desc.anchor; meta.existing.fallback = meta.box; (function (ex, bx) { setTimeout(function () { captureFor(ex, bx, function () { ex.sync = null; scheduleSync(ex); }); }, 60); })(meta.existing, meta.box); }
-          if (multi) { meta.existing.zone = multi.zone; meta.existing.anchor = multi.anchor; meta.existing.fallback = multi.fallback; meta.existing.targets = multi.targets; }
-          if (desc || multi) { var prev = meta.existing.tech || {}; meta.existing.tech = captureTech(meta.existing); meta.existing.tech.date = prev.date || meta.existing.tech.date; meta.existing.tech.consoleErrors = prev.consoleErrors || []; }
-          cmStatus('Commentaire modifié');
-          if (!desc) { meta.existing.sync = null; scheduleSync(meta.existing); } // encadré ajusté : renvoyé après la nouvelle capture
-        } else {
-          var id = uid();
-          savedId = id;
-          var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
-          if (meta.type === 'box') {
-            c.anchor = desc ? desc.anchor : meta.boxAnchor;
-            c.fallback = meta.box;
-            if (meta.boxEl) meta.boxEl.classList.add('cm-box-saved');
-          } else {
-            c.anchor = meta.pointAnchor;
-            c.fallback = { x: meta.pinX, y: meta.pinY };
-            if (multi) { c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
-            if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
-          }
-          c.category = catSel.value;
-          c.categoryManual = catTouched;
-          c.tech = captureTech(c);
-          if (AUTHOR) c.author = AUTHOR;   // l'auteur du moment, gravé sur le ticket
-          allComments.push(c);
-          cmStatus('Commentaire enregistré');
-          if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback, function () { scheduleSync(c); }); }, 60); }
-          else scheduleSync(c);
-        }
-        persist(); renderMarkers(); renderList();
-      } else if (!isEdit && meta.type === 'text' && meta.marks) {
-        unwrapMarks(meta.marks);
-      } else if (!isEdit && meta.type === 'box' && meta.boxEl) {
-        meta.boxEl.remove();
-      } else if (isEdit && meta.boxChanged) {
-        renderMarkers();
+      var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
+      // Sélection multiple (ou modifiée) : libellé, ancrage de la pastille et liste des cibles recalculés
+      var multi = null;
+      if (meta.type === 'pin' && meta.targets && meta.targets.length && (meta.targets.length > 1 || meta.targetsChanged)) {
+        var first = meta.targets[0].el, cptM = cornerAnchorPoint(first, meta.pinX, meta.pinY);
+        multi = {
+          zone: multiLabel(meta.targets),
+          anchor: anchorForPoint(cptM.x, cptM.y, first), fallback: { x: cptM.x, y: cptM.y },
+          targets: meta.targets.length > 1 ? meta.targets.map(function (t) { return { path: getStablePath(t.el), label: t.label }; }) : undefined
+        };
       }
+      if (isEdit) {
+        savedId = ex.id;
+        ex.text = text;
+        ex.category = catVal;
+        ex.categoryManual = catTouched;
+        if (desc) { ex.zone = desc.label; ex.anchor = desc.anchor; ex.fallback = meta.box; (function (c2, bx) { setTimeout(function () { captureFor(c2, bx, function () { c2.sync = null; scheduleSync(c2); }); }, 60); })(ex, meta.box); }
+        if (multi) { ex.zone = multi.zone; ex.anchor = multi.anchor; ex.fallback = multi.fallback; ex.targets = multi.targets; }
+        if (desc || multi) { var prev = ex.tech || {}; ex.tech = captureTech(ex); ex.tech.date = prev.date || ex.tech.date; ex.tech.consoleErrors = prev.consoleErrors || []; }
+        cmStatus('Commentaire modifié');
+        if (!desc) { ex.sync = null; scheduleSync(ex); } // encadré ajusté : renvoyé après la nouvelle capture
+      } else {
+        var id = uid();
+        savedId = id;
+        var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
+        if (meta.type === 'box') {
+          c.anchor = desc ? desc.anchor : meta.boxAnchor;
+          c.fallback = meta.box;
+          if (meta.boxEl) meta.boxEl.classList.add('cm-box-saved');
+        } else {
+          c.anchor = meta.pointAnchor;
+          c.fallback = { x: meta.pinX, y: meta.pinY };
+          if (multi) { c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
+          if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
+        }
+        c.category = catVal;
+        c.categoryManual = catTouched;
+        c.tech = captureTech(c);
+        if (AUTHOR) c.author = AUTHOR;   // l'auteur du moment, gravé sur le ticket
+        allComments.push(c);
+        cmStatus('Commentaire enregistré');
+        if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback, function () { scheduleSync(c); }); }, 60); }
+        else scheduleSync(c);
+      }
+      persist(); renderMarkers(); renderList();
       hideEditOutline();
       pop.remove();
       pendingPopup = null;
@@ -2720,8 +2913,8 @@
     else meta.targets.push({ el: zone.el, label: zone.label });
     meta.targetsChanged = true;
     showEditOutline(meta.targets.map(function (t) { return t.el; }));
-    var zoneEl = pendingPopup.querySelector('.cm-zone');
-    if (zoneEl) zoneEl.innerHTML = typeIcon('pin', meta.targets.length > 1) + cmEsc(multiLabel(meta.targets));
+    majTete(pendingPopup, meta, multiLabel(meta.targets));
+    tracerContour(pendingPopup);
     cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés — ' + MULTI_KEY + '+clic pour en ajouter ou retirer' : '1 élément sélectionné');
   }
 

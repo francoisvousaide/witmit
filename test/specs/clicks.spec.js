@@ -50,7 +50,7 @@ test('clic simple : la bulle attend ~250 ms ; double-clic : aucune bulle interm�
   await page.keyboard.press('Escape');
   const seen = [];
   await page.exposeFunction('cmSeen', (t) => seen.push(t));
-  await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-zone'); if (z) window.cmSeen((z.querySelector('svg[data-icone]') || { dataset: {} }).dataset.icone || ''); }).observe(document.body, { childList: true, subtree: true }));
+  await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-zone'); if (z) window.cmSeen((z.querySelector('svg.cm-type') || { dataset: {} }).dataset.icone || ''); }).observe(document.body, { childList: true, subtree: true }));
   await page.mouse.dblclick(b.x + 12, b.y + b.height / 2);
   await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« Boulangerie »');
   await page.waitForTimeout(400);

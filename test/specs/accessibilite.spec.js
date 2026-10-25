@@ -1,6 +1,7 @@
 // Accessibilité de ce que witmit dessine (WCAG 4.1.2, 2.5.8 ; textes de Léa 3.1 à 3.3, décisions 46 et 47).
 // Lot 3 : les deux boutons, le voyant, les zones cliquables, Échap, la touche « nouveau retour ».
-// Les tests 4 et 7 à 11 (focus, taille de texte, émojis, contraste, toasts, largeurs) viennent aux lots suivants.
+// Lot 4 : test 11 (largeur de la fenêtre de saisie). Les tests 4 et 7 à 10 (focus, taille de texte, émojis, contraste,
+// toasts) et la partie « tiroir » du test 11 viennent aux lots suivants.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
 
@@ -120,4 +121,38 @@ test('6. touche « nouveau retour » : raccourci N annoncé ; elle ferme la list
   await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
   await expect(page.locator('body')).toHaveClass(/cm-active/);
   await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
+});
+
+// ---------- Lot 4 : largeur de la fenêtre de saisie (M1). Le tiroir pleine largeur vient au lot 5. ----------
+
+test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, catégories dépliées comprises', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  for (const [nom, cible] of [[MAQUETTE, CIBLE], [MAQUETTE, '.kpi-tile:nth-child(3) .kpi-value'], ['tellus-accueil.html', '.mcard.active .mcard-title']]) {
+    await page.goto(H.fileUrl(nom));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, cible);
+    await page.mouse.click(b.x + 4, b.y + 4);
+    await expect(page.locator('.cm-popup')).toBeVisible();
+    await page.locator('.cm-popup .cm-cat').click();
+    const r = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const p = document.querySelector('.cm-popup').getBoundingClientRect();
+      const dedans = Array.from(document.querySelectorAll('.cm-popup .cm-tete, .cm-popup .cm-corps > *, .cm-popup .cm-cat-choix, .cm-popup .cm-save'))
+        .every((el) => { const q = el.getBoundingClientRect(); return !q.width || (q.left >= p.left - 0.5 && q.right <= p.right + 0.5); });
+      return { vw, left: p.left, right: p.right, width: p.width, dedans };
+    });
+    expect(r.left, `${nom} ${cible}`).toBeGreaterThanOrEqual(8);
+    expect(r.right, `${nom} ${cible}`).toBeLessThanOrEqual(r.vw - 8 + 0.5);
+    expect(r.width, `${nom} ${cible}`).toBeGreaterThan(300);
+    expect(r.dedans, `${nom} ${cible}`).toBe(true);
+    await page.keyboard.press('Escape');
+  }
+  // Sur ordinateur, la fenêtre fait 380 px.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(H.fileUrl(MAQUETTE));
+  await H.activate(page);
+  const b = await H.visibleBox(page, CIBLE);
+  await page.mouse.click(b.x + 4, b.y + 4);
+  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(380);
 });

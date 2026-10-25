@@ -41,9 +41,12 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-pin').nth(0)).toHaveClass(/cm-done/);
     await page.locator('.cm-pin').nth(0).click();
     await expect(page.locator('.cm-popup')).toHaveClass(/cm-locked/);
-    await expect(page.locator('.cm-popup textarea')).toHaveAttribute('readonly', '');
+    await expect(page.locator('.cm-popup textarea')).toHaveCount(0);                    // lecture seule : plus de champ
+    await expect(page.locator('.cm-popup .cm-texte-lu')).toHaveText(/^« (Premier|Second) »$/);
     await expect(page.locator('.cm-popup .cm-save')).toHaveCount(0);
-    await expect(page.locator('.cm-popup .cm-lock-line')).toContainText('non modifiable');
+    await expect(page.locator('.cm-popup .cm-lock-line')).toHaveText('résolu par moi · non modifiable');
+    await expect(page.locator('.cm-popup .cm-cancel')).toHaveText('fermer');
+    await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);                 // une seule action, « fermer » (fiche Fenetre)
     await page.keyboard.press('Escape');
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
@@ -180,7 +183,9 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await page.mouse.click(30, 600); await H.activate(page);
     await page.locator('.cm-pin').nth(0).click();
     await expect(page.locator('.cm-popup .cm-feedback-q')).toContainText('Sur quel écran ?');
-    await expect(page.locator('.cm-popup textarea').first()).toHaveAttribute('readonly', '');
+    await expect(page.locator('.cm-popup textarea')).toHaveCount(1);                    // seul le champ de réponse
+    await expect(page.locator('.cm-popup .cm-feedback-q')).toContainText('complément demandé :');
+    await expect(page.locator('.cm-popup .cm-save')).toBeDisabled();                  // désactivée tant que la réponse est vide
     await page.locator('.cm-popup .cm-reply-ta').fill('Le tableau de bord');
     await page.locator('.cm-popup .cm-save').click();
     await expect(page.locator('.cm-popup')).toHaveCount(0);
