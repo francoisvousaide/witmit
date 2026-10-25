@@ -31,6 +31,8 @@
   .moitie-sombre .carte { background: #22252b; }
   .bouton-site { display: inline-block; padding: 8px 14px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; cursor: pointer; }
   .image-vive { display: block; width: 100%; height: 220px; margin-top: 16px; border-radius: 8px; }
+  /* Lot 6 : un petit élément du site (moins de 24 px), pour vérifier qu'il ne garde que les deux coins. */
+  .pastille-site { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 10px; border-radius: 50%; border: 1px solid currentColor; font: 600 11px/1 system-ui, sans-serif; vertical-align: middle; }
   @media (max-width: 760px) { .moities { grid-template-columns: 1fr; } }
   /* Lot 2 : spécimens de witmit posés sur le site (fenêtre habillée, touches, icônes, focus). Ils portent la
      classe cm-ui : witmit les dessine avec son vrai code (window.witmit._planche) et ne les annote pas. */
@@ -78,7 +80,7 @@
       <div class="carte" id="carteClaire">
         <strong>Carte claire</strong>
         <p>Un élément de taille moyenne, à viser d'un clic.</p>
-        <button type="button" class="bouton-site" id="boutonClair">Bouton du site</button>
+        <button type="button" class="bouton-site" id="boutonClair">Bouton du site</button><span class="pastille-site" id="petitClair" title="information">i</span>
       </div>
     </section>
     <section class="moitie moitie-sombre" id="moitieSombre">
@@ -87,7 +89,7 @@
       <div class="carte" id="carteSombre">
         <strong>Carte sombre</strong>
         <p>Un élément de taille moyenne, à viser d'un clic.</p>
-        <button type="button" class="bouton-site" id="boutonSombre">Bouton du site</button>
+        <button type="button" class="bouton-site" id="boutonSombre">Bouton du site</button><span class="pastille-site" id="petitSombre" title="information">i</span>
       </div>
       <svg class="image-vive" id="imageVive" viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label="Image vive">
         <defs>

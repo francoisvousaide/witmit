@@ -653,3 +653,97 @@ test('23. contraste sur le verre (T12) : aucun texte en ink-faint hors champ, zo
     expect(fautes, nom).toEqual([]);
   }
 });
+
+// Lot 6 — repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7).
+async function planche(page) {
+  await page.goto(H.fileUrl('planche-charte.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+}
+// Couleur du coin witmit haut gauche d'un cadre (::before de .wm-cadre) et état de ses traits.
+const cadreDe = (loc) => loc.evaluate((b) => {
+  const c = b.querySelector(':scope > .wm-cadre'), cs = getComputedStyle(c), av = getComputedStyle(c, '::before');
+  const r = c.getBoundingClientRect(), e = b.getBoundingClientRect();
+  const fond = av.backgroundImage.match(/rgba?\([^)]*\)/);
+  return { coin: fond ? fond[0] : null, epaisseur: av.backgroundSize.split(',')[0].trim().split(' ')[1], marge: Math.round(e.left - r.left), traitH: cs.getPropertyValue('--wm-th').replace(/\s/g, ''), traitV: cs.getPropertyValue('--wm-tv').replace(/\s/g, ''), sombre: b.classList.contains('wm-sur-sombre') };
+});
+
+test('24. une seule encre par repère, d’après le fond derrière lui ; un petit élément n’a que les deux coins', async ({ page }) => {
+  await planche(page);
+  await H.addPin(page, '#petitClair', 'petit');
+  await H.addPin(page, '#carteSombre', 'grand');
+  await page.waitForTimeout(1500);                                  // fin de l'effet « vient d'être commenté »
+  const petit = await cadreDe(page.locator('.cm-box-outline').nth(0));
+  const grand = await cadreDe(page.locator('.cm-box-outline').nth(1));
+  // Petit élément (18 px + 2 × 16 px de marge < 56 px) : coins seuls, encre sur fond clair.
+  expect(petit).toMatchObject({ coin: 'rgb(20, 20, 18)', epaisseur: '3.6px', marge: 16, traitH: 'transparent', traitV: 'transparent', sombre: false });
+  // Grand élément sur la moitié sombre : coins et traits de 1 px à 55 %, blanc cassé.
+  expect(grand).toMatchObject({ coin: 'rgb(246, 243, 238)', marge: 16, traitH: 'rgba(246,243,238,.55)', traitV: 'rgba(246,243,238,.55)', sombre: true });
+  // Épingles : verre champagne et chiffre encre sur fond clair ; verre graphite et chiffre blanc cassé sur fond sombre.
+  const pins = await page.locator('.cm-pin').evaluateAll((ps) => ps.map((p) => ({ fond: getComputedStyle(p).backgroundColor, chiffre: getComputedStyle(p).color, h: p.getBoundingClientRect().height })));
+  expect(pins).toEqual([
+    { fond: 'rgba(236, 232, 224, 0.6)', chiffre: 'rgb(20, 20, 18)', h: 24 },
+    { fond: 'rgba(20, 19, 17, 0.66)', chiffre: 'rgb(246, 243, 238)', h: 24 }
+  ]);
+  // Actif (survol) : métal, sans verre ; les cadres du retour passent à traits pleins.
+  await page.locator('.cm-pin').nth(1).hover();
+  const actif = await page.locator('.cm-pin').nth(1).evaluate((p) => ({ fond: getComputedStyle(p).backgroundImage, flou: getComputedStyle(p).backdropFilter }));
+  expect(actif.fond).toContain('linear-gradient');
+  expect(actif.flou).toBe('none');
+  expect((await cadreDe(page.locator('.cm-box-outline').nth(1))).traitH).toBe('#f6f3ee');
+});
+
+test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointillés ; passage souligné entre deux coins', async ({ page }) => {
+  await planche(page);
+  await H.addPin(page, '#boutonClair', 'bouton');
+  await page.waitForTimeout(1500);                                  // fin de l'effet « vient d'être commenté »
+  const [c] = await H.stored(page, 'witmit_planche_v1');
+  await expect(page.locator('.cm-pin')).toHaveAttribute('aria-label', 'retour 1');
+  await expect(page.locator('.cm-pin')).toHaveAttribute('role', 'button');
+  await H.retourColle(page, [c.id + ' pris_en_compte']);            // l'équipe a changé le statut : du nouveau (C5)
+  await page.mouse.move(400, 900);
+  await expect(page.locator('.cm-pin .wm-voyant-epingle')).toHaveCount(1);
+  await expect(page.locator('.cm-pin')).toHaveAttribute('aria-label', 'retour 1, pris en compte, nouveau');
+  const v = await page.locator('.cm-pin .wm-voyant-epingle').evaluate((el) => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return { w: r.width, h: r.height, fond: cs.backgroundColor, ombre: cs.boxShadow }; });
+  expect(v).toEqual({ w: 7, h: 7, fond: 'rgb(255, 242, 0)', ombre: 'none' });
+  // Traité : contour en pointillés, ni ombre ni liseré.
+  await H.retourColle(page, [c.id + ' resolu']);
+  await page.mouse.move(400, 900);                                // aucun survol (ligne de la liste ou épingle)
+  const t = await page.locator('.cm-pin').evaluate((p) => ({ trait: getComputedStyle(p).outlineStyle, ombre: getComputedStyle(p).boxShadow }));
+  expect(t).toEqual({ trait: 'dashed', ombre: 'none' });
+  // Passage de texte sur la moitié sombre : souligné de 2 px blanc cassé, coins witmit de 7 px au début et à la fin.
+  await page.locator('#cmPanelBtn').click();                      // ferme la liste (le voyant s'éteint : vu)
+  await expect(page.locator('.cm-pin .wm-voyant-epingle')).toHaveCount(0);
+  await page.waitForTimeout(400);                                   // fin du retour de la page (liste en mode « pousser »)
+  const p = await H.visibleBox(page, '#moitieSombre > p');
+  await H.drag(page, p.x + 4, p.y + 10, p.x + 160, p.y + 10, { shift: true });
+  await page.locator('.cm-popup textarea').fill('passage');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await page.waitForTimeout(1500);
+  const m = await page.locator('mark.cm-highlight').evaluateAll((ms) => ms.map((el) => {
+    const cs = getComputedStyle(el), av = getComputedStyle(el, '::before'), ap = getComputedStyle(el, '::after');
+    return { fond: cs.backgroundColor, trait: cs.textDecorationThickness, couleur: cs.textDecorationColor, debut: el.classList.contains('wm-debut') ? av.width : null, fin: el.classList.contains('wm-fin') ? ap.width : null };
+  }));
+  expect(m[0]).toMatchObject({ fond: 'rgba(0, 0, 0, 0)', trait: '2px', couleur: 'rgb(246, 243, 238)', debut: '7px' });
+  expect(m[m.length - 1].fin).toBe('7px');
+});
+
+test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre ne recouvre ni le cadre ni l’épingle', async ({ page }) => {
+  await planche(page);
+  const img = await H.visibleBox(page, '#imageVive');
+  await H.drag(page, img.x + 40, img.y + 30, img.x + 260, img.y + 160);
+  await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
+  const poignees = await page.locator('.cm-box-editable .cm-handle').evaluateAll((hs) => hs.map((h) => {
+    const r = h.getBoundingClientRect(), a = getComputedStyle(h, '::after');
+    return { dir: h.dataset.dir, prise: Math.round(r.width), carre: a.content === 'none' ? null : a.width };
+  }));
+  // Zone de plus de 88 px de côté : prise de 44 px ; les coins haut gauche et bas droit n'ont pas de carré.
+  for (const h of poignees) expect(h, h.dir).toEqual({ dir: h.dir, prise: 44, carre: h.dir === 'nw' || h.dir === 'se' ? null : '8px' });
+  await page.locator('.cm-popup textarea').fill('zone');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await page.locator('.cm-pin').click();
+  const pop = await page.locator('.cm-popup').boundingBox(), pin = await page.locator('.cm-pin').boundingBox(), box = await page.locator('.cm-box-editable').boundingBox();
+  const chevauche = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
+  expect(chevauche(pop, pin)).toBe(false);
+  expect(chevauche(pop, box)).toBe(false);
+});

@@ -106,6 +106,17 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   }));
   expect(cercles.length).toBeGreaterThan(1);
   for (const c of cercles) expect(c.touche, c.nom).toBe(true);
+  // Épingle (F6) : 24 px dessinés, zone de 44 px par un ::after transparent ; à 10 px hors du dessin (9,5 px, pour
+  // rester dans la zone malgré les positions au demi-pixel), le clic la touche encore ; à 14 px, plus.
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await page.waitForTimeout(400);
+  const e = await page.locator('.cm-pin').first().evaluate((el) => {
+    const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const touche = (x, y) => { const t = document.elementFromPoint(x, y); return !!(t && t.closest('.cm-pin') === el); };
+    return { w: r.width, h: r.height, gauche: touche(r.left - 9.5, cy), droite: touche(r.right + 9.5, cy), haut: touche(cx, r.top - 9.5), bas: touche(cx, r.bottom + 9.5), loin: touche(r.left - 14, cy) };
+  });
+  expect(e).toEqual({ w: 24, h: 24, gauche: true, droite: true, haut: true, bas: true, loin: false });
 });
 
 test('5. Échap : la fenêtre, puis la liste, puis le mode ; à la fin, les deux boutons relâchés', async ({ page }) => {

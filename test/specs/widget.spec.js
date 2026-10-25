@@ -134,18 +134,30 @@ for (const P of PAGES) {
     test('9. la pastille reste accrochée à son élément après redimensionnement', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Ancrage');
-      const before = await page.locator(P.pinTarget).first().boundingBox();
-      const pinBefore = await page.locator('.cm-pin').boundingBox();
+      // Ancrage F6 (fiche Reperes) : bord droit de l'épingle aligné sur le cadre de l'élément (16 px de marge),
+      // bord bas 22 px au-dessus de l'élément (6 px au-dessus du cadre), ou 22 px sous lui faute de place en haut.
+      const ancrage = async () => {
+        const cible = await page.locator(P.pinTarget).first().boundingBox();
+        const el = await page.locator('.cm-box-outline').boundingBox();   // boîte de l'élément visé
+        const pin = await page.locator('.cm-pin').boundingBox();
+        const dessous = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-dessous'));
+        return {
+          droite: Math.abs((pin.x + pin.width) - (el.x + el.width + 16)),
+          bas: dessous ? Math.abs(pin.y - (el.y + el.height + 22)) : Math.abs((pin.y + pin.height) - (el.y - 22)),
+          surLaCible: Math.abs((el.x + el.width) - (cible.x + cible.width)) < 30 && Math.abs(el.y - cible.y) < 30,
+          hauteur: pin.height
+        };
+      };
+      const avant = await ancrage();
       await page.setViewportSize({ width: 820, height: 700 });
       await page.waitForTimeout(400); // le recalcul est différé de 150 ms
-      const after = await page.locator(P.pinTarget).first().boundingBox();
-      const pinAfter = await page.locator('.cm-pin').boundingBox();
-      // Point d'ancrage = coin haut-droit de l'élément visé, avant comme après.
-      const dxBefore = Math.abs((pinBefore.x + pinBefore.width / 2) - (before.x + before.width));
-      const dxAfter = Math.abs((pinAfter.x + pinAfter.width / 2) - (after.x + after.width));
-      expect(dxBefore).toBeLessThan(30);
-      expect(dxAfter).toBeLessThan(30);
-      expect(Math.abs(pinAfter.y - after.y)).toBeLessThan(30);
+      const apres = await ancrage();
+      for (const a of [avant, apres]) {
+        expect(a.droite).toBeLessThan(2);
+        expect(a.bas).toBeLessThan(2);
+        expect(a.surLaCible).toBe(true);
+        expect(a.hauteur).toBe(24);
+      }
     });
 
     test('10. les commentaires survivent au rechargement de la page (pastille, contour, surlignage)', async ({ page }) => {
@@ -372,8 +384,11 @@ for (const P of PAGES) {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
       await page.waitForTimeout(1800); // laisse passer l'effet « vient d'être commenté »
-      const pinBg = await page.locator('.cm-pin').evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(pinBg).toBe('rgb(20, 20, 18)'); // encre des repères, la même sur toutes les pages
+      // Épingle (fiches Epingle et Reperes) : face en verre des fenêtres choisie d'après le fond derrière elle,
+      // champagne et chiffre encre sur fond clair, graphite et chiffre blanc cassé sur fond sombre.
+      const pin = await page.locator('.cm-pin').evaluate((el) => ({ fond: getComputedStyle(el).backgroundColor, chiffre: getComputedStyle(el).color, sombre: el.classList.contains('wm-sur-sombre') }));
+      expect(pin.fond).toBe(pin.sombre ? JETONS['client-sombre'].verre : JETONS['client-clair'].verre);
+      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].encre : JETONS['client-clair'].encre);
       const t = await page.getAttribute('body', 'data-wm-theme');
       expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();
