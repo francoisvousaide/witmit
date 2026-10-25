@@ -350,17 +350,24 @@ for (const P of PAGES) {
       expect(await H.stored(page, P.key)).toHaveLength(0);
     });
 
-    test('16. couleurs : la pastille est orange même sans variables CSS TellUs', async ({ page }) => {
+    test('16. couleurs : épingle, verre et encre aux jetons de witmit, que la page ait ses variables CSS ou non', async ({ page }) => {
+      // Jetons de la charte (design system, tokens.css) : le verre prend l'inverse du fond de la page.
+      const JETONS = {
+        'client-sombre': { verre: 'rgba(20, 19, 17, 0.66)', encre: 'rgb(246, 243, 238)' },
+        'client-clair': { verre: 'rgba(236, 232, 224, 0.6)', encre: 'rgb(20, 20, 18)' }
+      };
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
-      await page.waitForTimeout(1800); // laisse passer l'effet teal "vient d'être commenté"
+      await page.waitForTimeout(1800); // laisse passer l'effet « vient d'être commenté »
       const pinBg = await page.locator('.cm-pin').evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(pinBg).toBe('rgb(252, 128, 5)');
+      expect(pinBg).toBe('rgb(20, 20, 18)'); // encre des repères, la même sur toutes les pages
+      const t = await page.getAttribute('body', 'data-wm-theme');
+      expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();
       const popupBg = await page.locator('.cm-popup').evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(popupBg).toBe('rgb(255, 255, 255)');
+      expect(popupBg).toBe(JETONS[t].verre);
       const popupText = await page.locator('.cm-popup textarea').evaluate((el) => getComputedStyle(el).color);
-      expect(popupText).toBe('rgb(26, 25, 23)');
+      expect(popupText).toBe(JETONS[t].encre);
     });
   });
 }

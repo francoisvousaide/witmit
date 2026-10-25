@@ -44,8 +44,9 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
 
   test('encadré partiel sur l’en-tête → libellé lisible, mots séparés', async ({ page }) => {
     const brand = await H.visibleBox(page, '.topbar .brand');
+    const pill = await page.locator('#cmPill').boundingBox(); // le bandeau du mode, posé en haut : on s'arrête avant lui
     // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu
-    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, brand.x + brand.width + 120, brand.y + brand.height + 4);
+    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, Math.min(brand.x + brand.width + 120, pill.x - 8), brand.y + brand.height + 4);
     await expect(page.locator('.cm-popup .cm-zone')).toHaveText('🔲 Zone encadrée — dans : KIOSQUE · Ventes · Stocks · Réglages');
   });
 

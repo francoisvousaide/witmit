@@ -30,16 +30,17 @@ test.describe('Étapes et onglets masqués', () => {
   });
 });
 
-test('TellUs : le widget suit le thème sombre de la page hôte', async ({ page }) => {
+test('TellUs : le widget prend l’inverse du thème de la page hôte', async ({ page }) => {
   await page.goto(H.fileUrl('tellus-accueil.html'));
   await H.clearStorage(page); await page.reload();
   await page.locator('#themeBtn').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(() => page.getAttribute('body', 'data-wm-theme')).toBe('client-clair');
   await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'Sombre');
   await page.locator('.cm-pin').click();
   const bg = await page.locator('.cm-popup').evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe('rgb(21, 42, 49)'); // --surface sombre de TellUs
+  expect(bg).toBe('rgba(236, 232, 224, 0.6)'); // verre champagne (client-clair) sur un site sombre
 });
 
 test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non', async ({ page }) => {

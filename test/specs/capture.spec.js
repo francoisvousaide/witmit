@@ -46,11 +46,15 @@ test.describe('Capture (Kiosque)', () => {
   });
 
   test('la capture exclut nos calques, et est refaite si l’encadré est ajusté', async ({ page }) => {
+    // nos repères prennent d'abord une couleur témoin (magenta), absente de la page : on vérifie ensuite
+    // qu'elle n'apparaît pas dans la capture
+    await page.addStyleTag({ content: '.cm-box{border-color:#ff00ff !important;background:rgba(255,0,255,.35) !important} .cm-pin{background:#ff00ff !important} .cm-handle-se{background:#ff00ff !important}' });
     await drawBox(page, '.kpi-tile:nth-child(1)', 'tuile 1');
+    await expect.poll(() => page.locator('.cm-box').first().evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(255, 0, 255)');
     const first = await waitShot(page);
-    // image de la tuile : fond sombre (#313244), pas de trait orange de notre cadre
-    const dark = await page.evaluate((url) => new Promise((res) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, im.width, im.height).data; let orange = 0, n = 0; for (let i = 0; i < d.length; i += 16) { n++; if (d[i] > 200 && d[i + 1] > 90 && d[i + 1] < 170 && d[i + 2] < 60) orange++; } res({ orange, n }); }; im.src = url; }), first.dataUrl);
-    expect(dark.orange / dark.n).toBeLessThan(0.01);
+    // image de la tuile : fond sombre (#313244), sans le magenta de notre cadre
+    const dark = await page.evaluate((url) => new Promise((res) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, im.width, im.height).data; let temoin = 0, n = 0; for (let i = 0; i < d.length; i += 16) { n++; if (d[i] > 180 && d[i + 1] < 90 && d[i + 2] > 180) temoin++; } res({ temoin, n }); }; im.src = url; }), first.dataUrl);
+    expect(dark.temoin / dark.n).toBeLessThan(0.01);
     // ajuster l'encadré via sa pastille → nouvelle capture, plus large
     await page.locator('.cm-pin').click();
     const h = await page.locator('.cm-handle-e').boundingBox();

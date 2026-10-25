@@ -1,6 +1,7 @@
 /*!
- * witmit — widget d'annotation visuelle (V1, mode maquette / localStorage)
+ * witmit 0.2.0 — widget d'annotation visuelle (charte « Objet »)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
+ * Polices (dossier witmit-polices/ à côté de ce fichier) : Tektur, Martian Mono, Syne et Doto, SIL Open Font License 1.1.
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourci : Alt+A (Windows/Linux) · ⌥+A (Mac)
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Marine' }) · identify(null) — voir plus bas.
@@ -29,8 +30,59 @@
     // data-drawer="overlay" : le tiroir recouvre la page au lieu de la pousser (par défaut : "push")
     drawer: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-drawer')) === 'overlay' ? 'overlay' : 'push',
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
-    multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || ''))
+    multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || '')),
+    // data-host-theme="light" | "dark" : le site dit lui-même si son fond est clair ou sombre (défaut "auto" :
+    // witmit le lit sur la page). witmit prend toujours l'inverse : site clair → verre graphite.
+    hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme')),
+    // data-fonts="<adresse du dossier>" : autre emplacement des polices ; data-fonts="none" : polices du système
+    fonts: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-fonts')) || ''
   };
+  var VERSION = '0.2.0';
+
+  /* ---------- polices de la charte, servies à côté du script (jamais par un service tiers) ----------
+     Adresse : new URL('witmit-polices/', <adresse de witmit.js>), ou data-fonts. Les @font-face sont écrits
+     dans le CSS injecté : une police n'est téléchargée qu'au premier texte de witmit qui l'utilise. */
+  var FONTS_BASE = (function () {
+    if (/^none$/i.test(CONFIG.fonts)) return null;
+    try {
+      var href = CONFIG.fonts ? new URL(CONFIG.fonts, location.href).href : new URL('witmit-polices/', SCRIPT_EL && SCRIPT_EL.src).href;
+      return /\/$/.test(href) ? href : href + '/';
+    } catch (e) { return null; }
+  })();
+  var UNI_LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+  var UNI_LATIN_EXT = 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF';
+  // [famille affichée, fichier, graisses, latin-ext ?]
+  var POLICES = [
+    ['witmit Tektur', 'tektur', [500, 700], true],
+    ['witmit Martian Mono', 'martian-mono', [400, 500, 600], true],
+    ['witmit Syne', 'syne', [400, 500], true],
+    ['witmit Doto', 'doto', [900], false]
+  ];
+  function fontFacesCss() {
+    if (!FONTS_BASE) return '';
+    var base = FONTS_BASE.replace(/["\\\n\r]/g, encodeURIComponent);
+    var out = '';
+    POLICES.forEach(function (p) {
+      p[2].forEach(function (w) {
+        var sets = p[3] ? [['latin-ext', UNI_LATIN_EXT], ['latin', UNI_LATIN]] : [['latin', UNI_LATIN]];
+        sets.forEach(function (set) {
+          out += '@font-face{font-family:"' + p[0] + '";font-style:normal;font-weight:' + w + ';font-display:swap;' +
+            'src:url("' + base + p[1] + '-' + set[0] + '-' + w + '-normal.woff2") format("woff2");unicode-range:' + set[1] + ';}\n';
+        });
+      });
+    });
+    return out;
+  }
+  // Demande les polices à l'avance (révélation, premier survol d'un bouton, ouverture de la liste) : elles
+  // sont prêtes quand la fenêtre s'ouvre. Un visiteur qui n'ouvre jamais witmit ne télécharge rien.
+  var fontsRequested = false;
+  function prechargerPolices() {
+    if (fontsRequested || !FONTS_BASE || !document.fonts || !document.fonts.load) return;
+    fontsRequested = true;
+    POLICES.forEach(function (p) {
+      p[2].forEach(function (w) { try { document.fonts.load(w + ' 16px "' + p[0] + '"').catch(function () {}); } catch (e) {} });
+    });
+  }
 
   /* ---------- l'auteur, déclaré par le site hôte ----------
      Un site où l'on est connecté peut dire à witmit qui écrit : window.witmit.identify({ nom: 'Marine' }),
@@ -58,6 +110,7 @@
     if (Array.isArray(cmd) && cmd[0] === 'identify') window.witmit.identify(cmd[1]);
   }
   window.witmit = {
+    version: VERSION,
     identify: function (user) { AUTHOR = cleanAuthor(user); renderAuthor(); }
   };
   window.witmit.identify(SCRIPT_EL && SCRIPT_EL.getAttribute('data-user-name'));
@@ -66,35 +119,102 @@
   queuedCommands.forEach(runCommand);
 
   var CSS = `
-  /* Palette du widget : reprend les variables de la page hôte si elles existent (TellUs),
-     sinon des valeurs de repli neutres — le widget reste lisible sur n'importe quelle page. */
+  /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
+     Valeurs recopiées telles quelles, préfixées --wm-. Elles ne sont JAMAIS posées sur :root, html ni
+     body : rien ne fuit dans la page hôte, et aucune variable de l'hôte n'entre dans witmit.
+     Thème : data-wm-theme sur <body>, toujours l'inverse du fond de la page (site clair → verre
+     graphite « client-sombre » ; site sombre → verre champagne « client-clair »). */
   .cm-ui, mark.cm-highlight {
-    --cm-orange: var(--orange-500, #FC8005);
-    --cm-teal: var(--teal-500, #35838E);
-    --cm-teal-dark: var(--teal-700, #235259);
-    --cm-text: var(--text, #1A1917);
-    --cm-text2: var(--text2, #515151);
-    --cm-text-muted: var(--textm, #9E9B93);
-    --cm-border: var(--border, #E0DDD5);
-    --cm-border2: var(--border2, #ECEAE4);
-    --cm-surface: var(--surface, #FFFFFF);
-    --cm-bg: var(--bg, #F5F4F0);
-    --cm-shadow-md: var(--shadow-md, 0 4px 12px rgba(17,40,48,.10), 0 2px 4px rgba(17,40,48,.06));
-    --cm-shadow-lg: var(--shadow-lg, 0 12px 32px rgba(17,40,48,.14), 0 4px 8px rgba(17,40,48,.08));
-    --cm-transition: var(--transition, 170ms ease);
-    --cm-nav-h: var(--nav-h, 0px);
-    --cm-ease: var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1));
+    --wm-ground: rgba(236,232,224,0.60);
+    --wm-surface: rgba(236,232,224,0.60);
+    --wm-surface-raised: rgba(255,255,255,0.45);
+    --wm-face-touche: rgba(255,255,255,0.45);
+    --wm-ink: #141412;
+    --wm-ink-soft: #2e2b27;
+    --wm-ink-faint: #45423d;
+    --wm-line: rgba(0,0,0,0.16);
+    --wm-contour-fenetre: #6f685d;
+    --wm-line-strong: rgba(20,20,18,0.55);
+    --wm-accent: #fff200;
+    --wm-accent-ring: #0a0a0a;
+    --wm-signal: #b8291d;
+    --wm-metal-dark-hi: #5e584f;
+    --wm-metal-dark-lo: #191816;
+    --wm-metal-light-hi: #faf8f4;
+    --wm-metal-light-lo: #c3bbad;
+    --wm-ombre-fenetre: 0 16px 26px rgba(0,0,0,0.55);
+    --wm-ombre-epingle: inset 0 1.5px 0 rgba(255,255,255,0.75), inset 0 -3px 5px rgba(0,0,0,0.26), 0 3px 10px rgba(0,0,0,0.28);
+    --wm-ombre-bouton: inset 0 1px 1px rgba(255,240,220,0.45), 0 8px 18px rgba(0,0,0,0.30);
+    --wm-ombre-bouton-enfonce: inset 0 3px 6px rgba(90,70,50,0.45), inset 0 -1px 0 #ffffff, 0 1px 2px rgba(0,0,0,0.40);
+    --wm-ombre-bouton-enfonce-sombre: inset 0 3px 6px rgba(0,0,0,0.6),inset 0 -1px 0 rgba(255,240,220,0.2),0 1px 2px rgba(0,0,0,0.4);
+    --wm-space-1: 4px;
+    --wm-space-2: 8px;
+    --wm-space-3: 12px;
+    --wm-space-4: 16px;
+    --wm-space-5: 20px;
+    --wm-radius-repere: 4px;
+    --wm-radius-numero: 5px;
+    --wm-radius-rond: 999px;
+    --wm-coupe-fenetre: 11px;
+    --wm-coupe-touche: 6px;
+    --wm-verre-flou: 10px;
+    --wm-verre-opacite-clair: 0.60;
+    --wm-verre-opacite-sombre: 0.66;
+    --wm-cible-min: 44px;
+    --wm-texte-min: 12px;
+    --wm-font-titre: "witmit Tektur", system-ui, sans-serif;
+    --wm-font-outil: "witmit Martian Mono", ui-monospace, Menlo, Consolas, monospace;
+    --wm-font-voix: "witmit Syne", system-ui, sans-serif;
+    --wm-font-compteur: "witmit Doto", ui-monospace, Menlo, Consolas, monospace;
+    /* Encre des repères posés sur le site (épingles, cadres, liens) : fixe, elle ne suit pas le verre
+       mais le fond derrière chaque repère (fiche Reperes) — valeurs de --wm-ink clair et sombre. */
+    --wm-encre-repere: #141412;
+    --wm-encre-repere-claire: #f6f3ee;
+    /* Halo du mode annotation (fiche Bandeau) : mêmes valeurs sur tous les sites, sans variante de thème. */
+    --wm-halo-filet: rgba(10,10,10,.9);
+    --wm-halo-lueur-courte: rgba(255,242,0,.42);
+    --wm-halo-lueur: rgba(255,242,0,.40);
+    /* Mise en page seulement (pas d'identité) : la barre de navigation de l'hôte, si elle est déclarée. */
+    --wm-nav-h: var(--nav-h, 0px);
   }
+  body[data-wm-theme="client-sombre"] .cm-ui, body[data-wm-theme="client-sombre"] mark.cm-highlight {
+    --wm-ground: rgba(20,19,17,0.66);
+    --wm-surface: rgba(20,19,17,0.66);
+    --wm-surface-raised: rgba(0,0,0,0.30);
+    --wm-face-touche: rgba(255,255,255,0.07);
+    --wm-ink: #f6f3ee;
+    --wm-ink-soft: #e6e2d9;
+    --wm-ink-faint: #bdb9b0;
+    --wm-line: rgba(255,255,255,0.14);
+    --wm-contour-fenetre: #0a0a0a;
+    --wm-line-strong: rgba(246,243,238,0.55);
+    --wm-signal: #ff6b5b;
+    --wm-ombre-fenetre: 0 16px 24px rgba(0,0,0,0.32);
+  }
+  /* Sans flou d'arrière-plan, ou si la personne réduit la transparence : verre presque opaque (0,94). */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
+    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
+    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+  }
+
+  /* Réinitialisation limitée à nos couches : les règles de l'hôte (preflight de Tailwind, styles posés sur
+     button, mark, svg ou *) ne doivent pas déteindre sur witmit. Tout est écrit en toutes lettres. */
+  .cm-ui, .cm-ui *, .cm-ui::before, .cm-ui::after, .cm-ui *::before, .cm-ui *::after { box-sizing:border-box; }
+  .cm-ui { font-family:var(--wm-font-outil); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  mark.cm-highlight { background:none; color:inherit; }
 
   /* Boutons flottants, créés seulement si la page n'a pas déjà ses propres boutons #cmToggleBtn/#cmPanelBtn */
   .cm-fab { position:fixed; right:18px; bottom:18px; z-index:845; display:flex; gap:8px; } /* sous le panneau (850) : ne masque jamais ses boutons */
 
-  /* Boutons compacts, ronds, icône seule — pour ne jamais gêner la lecture (retour utilisateur) */
-  .cm-toggle-btn { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,.75); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--cm-border); border-radius:50%; font-size:16px; cursor:pointer; box-shadow:var(--cm-shadow-md); transition:all var(--cm-transition); position:relative; }
-  [data-theme="dark"] .cm-toggle-btn { background: rgba(21,42,49,.75); }
-  .cm-toggle-btn:hover { border-color:var(--cm-orange); transform:scale(1.06); }
-  .cm-toggle-btn.cm-on { background:var(--cm-orange); border-color:var(--cm-orange); }
-  .cm-toggle-btn .cm-count-badge { position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:9px; background:var(--cm-teal); color:#fff; font-family:'League Spartan',sans-serif; font-size:9.5px; font-weight:700; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px var(--cm-surface); }
+  /* Boutons compacts, ronds, icône seule — aspect intermédiaire aux jetons (habillés aux lots 2 et 3) */
+  .cm-toggle-btn { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--wm-face-touche); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-line-strong); border-radius:50%; font-size:16px; color:var(--wm-ink); cursor:pointer; box-shadow:var(--wm-ombre-bouton); transition:transform 170ms ease, box-shadow 170ms ease; position:relative; }
+  .cm-toggle-btn:hover { transform:scale(1.06); }
+  .cm-toggle-btn.cm-on { background:linear-gradient(180deg, var(--wm-metal-light-hi), var(--wm-metal-light-lo)); border-color:var(--wm-encre-repere); box-shadow:var(--wm-ombre-bouton-enfonce); }
+  .cm-toggle-btn .cm-count-badge { position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px; border-radius:var(--wm-radius-rond); background:var(--wm-accent); color:var(--wm-accent-ring); border:1px solid var(--wm-accent-ring); font-family:var(--wm-font-outil); font-size:9.5px; font-weight:600; line-height:1; display:flex; align-items:center; justify-content:center; }
   .cm-toggle-btn .cm-count-badge:empty, .cm-toggle-btn .cm-count-badge[data-zero="1"] { display:none; }
 
   /* Mode live, widget caché : aucune couche visible (toutes portent cm-ui) tant qu'il n'est pas révélé */
@@ -109,88 +229,63 @@
   body .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
   body .cm-pill.cm-dragging, body .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
-  /* Cadre "vignette" — fort sur le bord, dégradé vers l'intérieur sur une distance fixe (même esprit que
-     l'indicateur de contrôle de Claude in Chrome). Zéro impact sur la mise en page : position:fixed +
-     pointer-events:none, ne recouvre jamais la navbar ni rien d'autre. */
-  .cm-frame { position:fixed; inset:0; z-index:895; pointer-events:none; display:none; }
-  .cm-frame.show { display:block; }
-  .cm-frame::before {
-    content:''; position:absolute; inset:0;
-    animation: cmFrameWave 3.4s ease-in-out infinite;
-  }
-  /* "vague" douce : le halo respire (s'étend puis se resserre) plutôt qu'un simple fondu d'opacité —
-     bord toujours net et marqué, intérieur qui pulse pour rester bien visible même en fond sombre. */
-  @keyframes cmFrameWave {
-    0%, 100% {
-      box-shadow:
-        inset 0 0 0 4px rgba(252,128,5,.90),
-        inset 0 0 70px 0 rgba(252,128,5,.30),
-        inset 0 0 30px 0 rgba(252,128,5,.24);
-    }
-    50% {
-      box-shadow:
-        inset 0 0 0 4px rgba(252,128,5,1),
-        inset 0 0 120px 0 rgba(252,128,5,.55),
-        inset 0 0 56px 0 rgba(252,128,5,.42);
-    }
-  }
-  [data-theme="dark"] .cm-frame::before { animation: cmFrameWaveDark 3.4s ease-in-out infinite; }
-  @keyframes cmFrameWaveDark {
-    0%, 100% {
-      box-shadow:
-        inset 0 0 0 4px rgba(255,158,61,.95),
-        inset 0 0 85px 0 rgba(255,140,20,.45),
-        inset 0 0 38px 0 rgba(255,140,20,.34);
-    }
-    50% {
-      box-shadow:
-        inset 0 0 0 4px rgba(255,181,107,1),
-        inset 0 0 140px 0 rgba(255,140,20,.72),
-        inset 0 0 64px 0 rgba(255,140,20,.55);
-    }
-  }
+  /* Halo du mode annotation (fiche Bandeau) : trait jaune de 3 px au bord de l'écran, filet sombre de 1 px
+     juste à l'intérieur (il cerne le jaune sur le clair et disparaît de lui-même sur le sombre), lueur
+     courte. Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
+     ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. */
+  .cm-frame { position:fixed; inset:0; z-index:895; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; }
+  .cm-frame.show { visibility:visible; opacity:1; }
+  .cm-frame::before, .cm-frame::after { content:''; position:absolute; inset:0; pointer-events:none; border:0 solid transparent; }
+  .cm-frame::before { box-shadow: inset 0 0 0 3px var(--wm-accent), inset 0 0 0 4px var(--wm-halo-filet), inset 0 0 10px 2px var(--wm-halo-lueur-courte); }
+  .cm-frame::after { box-shadow: inset 0 0 26px 6px var(--wm-halo-lueur); opacity:0; animation: wmHaloSouffle 4s ease-in-out infinite; }
+  @keyframes wmHaloSouffle { 0%, 100% { opacity:0; } 50% { opacity:1; } }
   @media (prefers-reduced-motion:reduce) {
-    .cm-frame::before, [data-theme="dark"] .cm-frame::before { animation:none; box-shadow: inset 0 0 0 4px rgba(252,128,5,.97), inset 0 0 95px 0 rgba(252,128,5,.42), inset 0 0 42px 0 rgba(252,128,5,.32); }
+    .cm-frame::after { animation:none; opacity:.5; }
+  }
+  @media (forced-colors:active) {
+    .cm-frame::before { border:3px solid Highlight; }
+    .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
   }
 
   /* Pastille d'état — flotte sous la navbar par défaut, ne la recouvre jamais, et peut être
-     déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture. */
-  .cm-pill { position:fixed; top:calc(var(--cm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--cm-orange); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--cm-shadow-lg); white-space:nowrap; cursor:default; touch-action:none; }
+     déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture.
+     Aspect intermédiaire : verre aux jetons, sans aplat (bandeau habillé au lot 7). */
+  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:500; font-size:12px; text-align:center; padding:8px 10px 8px 12px; border-radius:50px; display:none; align-items:center; gap:12px; box-shadow:var(--wm-ombre-fenetre); white-space:nowrap; cursor:default; touch-action:none; }
   .cm-pill.show { display:flex; }
-  .cm-pill.cm-dragging { box-shadow:var(--cm-shadow-lg), 0 0 0 2px rgba(255,255,255,.5); }
-  .cm-pill .cm-drag-handle { font-size:14px; opacity:.65; line-height:1; }
-  .cm-pill button { font-family:'League Spartan',sans-serif; font-weight:700; font-size:11.5px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.55); color:#fff; border-radius:50px; padding:5px 12px; cursor:pointer; }
-  .cm-pill button:hover { background:rgba(255,255,255,.34); }
+  .cm-pill.cm-dragging .cm-drag-handle { opacity:1; }
+  .cm-pill .cm-drag-handle { font-size:14px; opacity:.65; line-height:1; color:var(--wm-ink-soft); }
+  .cm-pill button { font-family:var(--wm-font-outil); font-weight:500; font-size:12px; background:var(--wm-face-touche); border:1px solid var(--wm-line-strong); color:var(--wm-ink); border-radius:50px; padding:5px 12px; cursor:pointer; }
+  .cm-pill button:hover { border-color:var(--wm-ink); }
 
-  .cm-pin { position:absolute; width:24px; height:24px; border-radius:50% 50% 50% 4px; background:var(--cm-orange); color:#fff; font-family:'League Spartan',sans-serif; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-100%) rotate(-45deg); box-shadow:var(--cm-shadow-md); z-index:840; cursor:pointer; }
+  /* Repères sur le site : encre des repères (aspect intermédiaire ; fiche Reperes au lot 6). */
+  .cm-pin { position:absolute; width:24px; height:24px; border-radius:50% 50% 50% 4px; background:var(--wm-encre-repere); color:var(--wm-encre-repere-claire); font-family:var(--wm-font-outil); font-weight:600; font-size:11px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-100%) rotate(-45deg); box-shadow:0 0 0 1px var(--wm-encre-repere-claire), 0 3px 10px rgba(0,0,0,0.28); z-index:840; cursor:pointer; }
   .cm-pin span { transform:rotate(45deg); }
-  .cm-pin:hover { filter:brightness(1.08); }
+  .cm-pin:hover { filter:brightness(1.25); }
   /* Pastilles réduites des autres éléments d'une sélection multiple (même numéro) */
   .cm-pin { transition:background-color 600ms ease; }
   .cm-pin.cm-pin-secondary { width:18px; height:18px; font-size:9px; opacity:.85; }
   /* Survol d'une pastille : les cadres du même commentaire s'allument */
-  /* Ticket traité : repères grisés et discrets */
-  .cm-box-saved.cm-done { border-color:#A8A6A0; background:rgba(160,160,160,.05); opacity:.7; }
-  .cm-pin.cm-done { background:#A8A6A0; opacity:.8; }
-  #cmLinks line.cm-done { stroke:#A8A6A0; }
-  /* Commentaire actif (bulle ouverte) : couleur teal, plus marqué — teal clair sur fond sombre */
-  .cm-box-saved.cm-focus { border-color:var(--cm-teal); border-width:2.5px; background:rgba(53,131,142,.12); }
-  .cm-pin.cm-focus { background:var(--cm-teal); }
-  #cmLinks line.cm-focus { stroke:var(--cm-teal); stroke-width:1.5; opacity:.95; }
-  .cm-box-saved.cm-focus.cm-focus-light { border-color:#7BD0DB; background:rgba(123,208,219,.14); }
-  .cm-pin.cm-focus.cm-focus-light { background:#5FBFCB; }
-  #cmLinks line.cm-focus.cm-focus-light { stroke:#7BD0DB; }
-  .cm-box-saved.cm-glow { box-shadow:0 0 0 3px rgba(252,128,5,.35); }
-  .cm-box-saved.cm-glow.cm-glow-light { box-shadow:0 0 0 3px rgba(255,255,255,.45); }
-  .cm-pin.cm-glow { filter:brightness(1.12); }
+  /* Ticket traité : repères en pointillés et discrets */
+  .cm-box-saved.cm-done { border-style:dashed; opacity:.6; }
+  .cm-pin.cm-done { opacity:.55; }
+  #cmLinks line.cm-done { opacity:.35; }
+  /* Commentaire actif (bulle ouverte) : métal clair, plus marqué ; encre claire sur fond sombre */
+  .cm-box-saved.cm-focus { border-width:2.5px; }
+  .cm-pin.cm-focus { background:linear-gradient(180deg, var(--wm-metal-light-hi), var(--wm-metal-light-lo)); color:var(--wm-encre-repere); box-shadow:0 0 0 1px var(--wm-encre-repere), 0 3px 10px rgba(0,0,0,0.28); }
+  #cmLinks line.cm-focus { stroke-width:1.5; opacity:.95; }
+  .cm-box-saved.cm-focus.cm-focus-light { border-color:var(--wm-encre-repere-claire); }
+  #cmLinks line.cm-focus.cm-focus-light { stroke:var(--wm-encre-repere-claire); }
+  .cm-box-saved.cm-glow { outline:3px solid var(--wm-encre-repere); outline-offset:1px; }
+  .cm-box-saved.cm-glow.cm-glow-light { outline-color:var(--wm-encre-repere-claire); }
+  .cm-pin.cm-glow { filter:brightness(1.3); }
   #cmLinks { position:absolute; left:0; top:0; pointer-events:none; z-index:835; overflow:visible; }
-  #cmLinks line { stroke:var(--cm-orange, #FC8005); stroke-width:1; stroke-dasharray:3 3; opacity:.7; }
+  #cmLinks line { stroke:var(--wm-encre-repere); stroke-width:1; stroke-dasharray:3 3; opacity:.55; }
   body:not(.cm-active) #cmLinks { display:none; }
 
   /* Contour d'un encadré sélectionné par glisser-déposer (pendant le drag, puis conservé comme repère si le commentaire est enregistré) */
-  .cm-box { position:absolute; border:2px dashed var(--cm-orange); background:rgba(252,128,5,.10); border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
-  .cm-box.cm-box-saved { border-style:solid; background:rgba(252,128,5,.06); transition:border-color 600ms ease, background-color 600ms ease; }
-  .cm-box-saved.cm-focus, .cm-pin.cm-focus { transition:none; } /* entrée en teal immédiate, sortie fondue */
+  .cm-box { position:absolute; border:2px dashed var(--wm-encre-repere); background:transparent; border-radius:6px; z-index:820; pointer-events:none; box-sizing:border-box; }
+  .cm-box.cm-box-saved { border-style:solid; transition:border-color 600ms ease; }
+  .cm-box-saved.cm-focus, .cm-pin.cm-focus { transition:none; } /* entrée immédiate, sortie fondue */
   .cm-box.cm-box-outline { border-width:1.5px; background:transparent; border-radius:4px; }
   /* Encadré ajustable tant que sa bulle est ouverte : déplaçable au centre, 8 poignées pour redimensionner */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
@@ -198,10 +293,12 @@
   .cm-handle { position:absolute; box-sizing:border-box; }
   /* Seul repère visible : le petit grip à deux traits de l'angle bas-droit (comme celui d'une zone de texte) */
   .cm-handle-se { width:14px; height:14px; right:1px; bottom:1px;
-    background: linear-gradient(135deg, transparent 0 55%, var(--cm-orange) 55% 62%, transparent 62% 76%, var(--cm-orange) 76% 83%, transparent 83%); opacity:.9; }
+    background: linear-gradient(135deg, transparent 0 55%, var(--wm-encre-repere) 55% 62%, transparent 62% 76%, var(--wm-encre-repere) 76% 83%, transparent 83%); opacity:.9; }
+  .cm-focus-light .cm-handle-se { background: linear-gradient(135deg, transparent 0 55%, var(--wm-encre-repere-claire) 55% 62%, transparent 62% 76%, var(--wm-encre-repere-claire) 76% 83%, transparent 83%); }
   /* Autres coins : invisibles, saisissables ; de petits points apparaissent au survol de l'encadré */
   .cm-handle-nw, .cm-handle-ne, .cm-handle-sw { width:10px; height:10px; }
-  .cm-handle-nw::after, .cm-handle-ne::after, .cm-handle-sw::after { content:''; position:absolute; inset:2px; border-radius:50%; background:var(--cm-orange); opacity:0; transition:opacity 150ms; }
+  .cm-handle-nw::after, .cm-handle-ne::after, .cm-handle-sw::after { content:''; position:absolute; inset:2px; border-radius:50%; background:var(--wm-encre-repere); opacity:0; transition:opacity 150ms; }
+  .cm-focus-light .cm-handle-nw::after, .cm-focus-light .cm-handle-ne::after, .cm-focus-light .cm-handle-sw::after { background:var(--wm-encre-repere-claire); }
   .cm-box-editable:hover .cm-handle-nw::after, .cm-box-editable:hover .cm-handle-ne::after, .cm-box-editable:hover .cm-handle-sw::after { opacity:.7; }
   /* côtés : zones de saisie invisibles (le curseur change) */
   .cm-handle-n, .cm-handle-s { left:8px; right:8px; height:8px; }
@@ -212,124 +309,129 @@
   body .cm-ui .cm-handle-w { left:-4px; cursor:ew-resize; } body .cm-ui .cm-handle-e { right:-4px; cursor:ew-resize; }
   /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
   body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved { display:none; }
-  body:not(.cm-active) mark.cm-highlight { background:transparent; }
-  /* Onde douce autour du cadre quand on cherche un commentaire depuis la liste */
+  body:not(.cm-active) mark.cm-highlight { text-decoration:none; }
+  /* Onde douce autour du cadre quand on cherche un commentaire depuis la liste (encre des repères ;
+     claire sur fond sombre) — aspect intermédiaire, l'onde de la fiche Reperes vient au lot 6. */
   .cm-ola { animation: cmOla 1s ease-out 2; }
-  @keyframes cmOla { 0% { box-shadow:0 0 0 0 rgba(252,128,5,.55); } 100% { box-shadow:0 0 0 18px rgba(252,128,5,0); } }
-  .cm-ola-light { animation: cmOlaLight 1s ease-out 2; } /* sur fond sombre : onde blanche */
-  @keyframes cmOlaLight { 0% { box-shadow:0 0 0 0 rgba(255,255,255,.7); } 100% { box-shadow:0 0 0 18px rgba(255,255,255,0); } }
+  @keyframes cmOla { 0% { outline:2px solid var(--wm-encre-repere); outline-offset:0; } 100% { outline:2px solid transparent; outline-offset:16px; } }
+  .cm-ola-light { animation: cmOlaLight 1s ease-out 2; }
+  @keyframes cmOlaLight { 0% { outline:2px solid var(--wm-encre-repere-claire); outline-offset:0; } 100% { outline:2px solid transparent; outline-offset:16px; } }
+  @media (prefers-reduced-motion:reduce) { .cm-ola, .cm-ola-light { animation:none; } }
   /* Contour "en cours d'édition" — reste affiché tant que le popup lié est ouvert (Enregistrer,
      Annuler ou un clic ailleurs le referment), pour qu'on sache toujours à quel objet le commentaire
      en cours de saisie est rattaché. */
-  .cm-box.cm-box-editing { border-style:solid; border-width:2.5px; border-color:var(--cm-teal); background:rgba(53,131,142,.14); }
-  .cm-box.cm-box-editing.cm-focus-light { border-color:#7BD0DB; background:rgba(123,208,219,.16); }
+  .cm-box.cm-box-editing { border-style:solid; border-width:2.5px; border-color:var(--wm-encre-repere); }
+  .cm-box.cm-box-editing.cm-focus-light { border-color:var(--wm-encre-repere-claire); }
 
-  /* Surlignage du texte sélectionné */
-  mark.cm-highlight { background:rgba(252,128,5,.32); color:inherit; border-radius:2px; padding:0 1px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
-  [data-theme="dark"] mark.cm-highlight { background:rgba(252,128,5,.42); }
+  /* Passage de texte : souligné à la couleur du texte lui-même (lisible sur tout fond), sans aplat. */
+  mark.cm-highlight { text-decoration:underline 2px currentColor; text-underline-offset:4px; text-decoration-skip-ink:none; border-radius:0; padding:0; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 
-  .cm-popup { position:absolute; z-index:950; width:260px; background:var(--cm-surface); border:1px solid var(--cm-border); border-radius:12px; box-shadow:var(--cm-shadow-lg); padding:12px; }
-  .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:'League Spartan',sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-teal); margin-bottom:6px; max-height:48px; overflow-y:auto; }
-  .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--cm-border); border-radius:8px; padding:8px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--cm-text); background:var(--cm-bg); margin-bottom:8px; box-sizing:border-box; }
+  /* Fenêtre de saisie : verre aux jetons (aspect intermédiaire ; fiche Fenetre au lot 4). */
+  .cm-popup { position:absolute; z-index:950; width:260px; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); border-radius:12px; box-shadow:var(--wm-ombre-fenetre); padding:12px; color:var(--wm-ink); }
+  .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:var(--wm-font-titre); font-size:12px; font-weight:700; color:var(--wm-ink); margin-bottom:6px; max-height:48px; overflow-y:auto; }
+  .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:8px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; color:var(--wm-ink); background:var(--wm-surface-raised); margin-bottom:8px; box-sizing:border-box; }
   .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 8px; }
-  .cm-popup .cm-cat { flex:1; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--cm-text); background:var(--cm-bg); border:1px solid var(--cm-border); border-radius:7px; padding:5px 6px; }
-  .cm-popup .cm-cat-auto { font-family:'League Spartan',sans-serif; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--cm-text-muted); border:1px solid var(--cm-border); border-radius:10px; padding:2px 6px; }
+  .cm-popup .cm-cat { flex:1; font-family:var(--wm-font-outil); font-size:12px; color:var(--wm-ink); background:var(--wm-face-touche); border:1px solid var(--wm-line); border-radius:7px; padding:5px 6px; }
+  .cm-popup .cm-cat-auto { font-family:var(--wm-font-outil); font-size:12px; font-weight:500; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); padding:1px 6px; }
   .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
-  .cm-popup button { font-family:'League Spartan',sans-serif; font-size:12px; font-weight:700; border-radius:7px; padding:6px 12px; border:none; cursor:pointer; }
-  .cm-popup .cm-cancel { background:transparent; color:var(--cm-text-muted); }
-  .cm-popup .cm-cancel:hover { color:var(--cm-text2); }
-  .cm-popup .cm-save { background:var(--cm-teal); color:#fff; }
-  .cm-popup .cm-save:hover { background:var(--cm-teal-dark); }
-  .cm-popup .cm-delete { background:transparent; color:var(--cm-text-muted); margin-right:auto; padding:6px 8px; }
-  .cm-popup .cm-delete:hover { color:#e5484d; }
+  .cm-popup button { font-family:var(--wm-font-outil); font-size:12px; font-weight:500; border-radius:7px; padding:6px 12px; border:1px solid transparent; cursor:pointer; background:transparent; color:var(--wm-ink); }
+  .cm-popup .cm-cancel { background:transparent; color:var(--wm-ink-soft); }
+  .cm-popup .cm-cancel:hover { color:var(--wm-ink); }
+  .cm-popup .cm-save { background:var(--wm-face-touche); border-color:var(--wm-line-strong); color:var(--wm-ink); font-weight:600; }
+  .cm-popup .cm-save:hover { border-color:var(--wm-ink); }
+  .cm-popup .cm-delete { background:transparent; color:var(--wm-ink-soft); margin-right:auto; padding:6px 8px; }
+  .cm-popup .cm-delete:hover { color:var(--wm-ink); text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
 
-  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; background:var(--cm-surface); border-left:1px solid var(--cm-border); box-shadow:var(--cm-shadow-lg); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms var(--cm-ease); }
+  /* Liste des retours : verre aux jetons (aspect intermédiaire ; fiche Tiroir au lot 5). */
+  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border-left:1px solid var(--wm-contour-fenetre); box-shadow:var(--wm-ombre-fenetre); color:var(--wm-ink); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   .cm-panel.show { transform:translateX(0); }
-  .cm-panel-head { padding:16px 16px 12px; border-bottom:1px solid var(--cm-border2); }
-  .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:'League Spartan',sans-serif; font-weight:700; font-size:13.5px; color:var(--cm-text); }
-  .cm-panel-head-row button { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:16px; line-height:1; }
-  .cm-panel-head-row button:hover { color:var(--cm-text); }
+  .cm-panel-head { padding:16px 16px 12px; border-bottom:1px solid var(--wm-line); }
+  .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:var(--wm-font-titre); font-weight:700; font-size:15px; color:var(--wm-ink); }
+  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-weight:900; }
+  .cm-panel-head-row button { background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:16px; line-height:1; }
+  .cm-panel-head-row button:hover { color:var(--wm-ink); }
   .cm-panel-head-btns { display:flex; align-items:center; gap:10px; }
-  .cm-panel-head-row .cm-hide-widget { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; padding:3px 9px; color:var(--cm-text2); }
-  .cm-panel-head-row .cm-hide-widget:hover { border-color:var(--cm-orange); color:var(--cm-orange); }
-  .cm-panel-sub { font-size:11px; color:var(--cm-text-muted); margin-top:3px; }
-  .cm-panel-author { font-size:11px; color:var(--cm-text2); margin-top:4px; }
+  .cm-panel-head-row .cm-hide-widget { font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border:1px solid var(--wm-line); border-radius:10px; padding:3px 9px; color:var(--wm-ink-soft); }
+  .cm-panel-head-row .cm-hide-widget:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
+  .cm-panel-sub { font-size:11px; color:var(--wm-ink-soft); margin-top:3px; }
+  .cm-panel-author { font-size:11px; color:var(--wm-ink-soft); margin-top:4px; }
   .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
-  .cm-panel-item:hover { background:var(--cm-bg); }
-  .cm-panel-item.cm-current { background:rgba(53,131,142,.10); box-shadow:inset 3px 0 0 var(--cm-teal); }
-  .cm-panel-item.cm-current .num { background:var(--cm-teal); }
-  .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--cm-orange); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'League Spartan',sans-serif; margin-top:1px; }
+  .cm-panel-item:hover { background:var(--wm-surface-raised); }
+  .cm-panel-item.cm-current { background:var(--wm-surface-raised); box-shadow:inset 3px 0 0 var(--wm-ink); }
+  .cm-panel-item.cm-current .num { background:var(--wm-ink); color:var(--wm-surface-raised); border-color:var(--wm-ink); }
+  .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:var(--wm-radius-numero); background:transparent; border:1px solid var(--wm-line-strong); color:var(--wm-ink); font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; font-family:var(--wm-font-outil); margin-top:1px; }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
-  .cm-panel-item .zone { font-size:10.5px; color:var(--cm-teal); font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
-  .cm-panel-item textarea.cm-inline-edit { width:100%; box-sizing:border-box; resize:none; border:1px solid var(--cm-teal); border-radius:6px; padding:5px 6px; font-family:'DM Sans',sans-serif; font-size:12.5px; line-height:1.4; color:var(--cm-text); background:var(--cm-bg); }
+  .cm-panel-item .zone { font-size:10.5px; color:var(--wm-ink-soft); font-weight:600; margin-bottom:2px; }
+  .cm-panel-item textarea.cm-inline-edit { width:100%; box-sizing:border-box; resize:none; border:1px solid var(--wm-line-strong); border-radius:6px; padding:5px 6px; font-family:var(--wm-font-voix); font-size:13px; font-weight:500; line-height:1.4; color:var(--wm-ink); background:var(--wm-surface-raised); }
   .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:5px; }
-  .cm-panel-item .cm-cat-chip { font-size:10.5px; color:var(--cm-text2); background:var(--cm-bg); border:1px solid var(--cm-border2); border-radius:10px; padding:1px 7px; white-space:nowrap; }
-  .cm-panel-item details.cm-tech { font-size:10.5px; color:var(--cm-text-muted); }
+  .cm-panel-item .cm-cat-chip { font-size:10.5px; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border:1px solid var(--wm-line); border-radius:10px; padding:1px 7px; white-space:nowrap; }
+  .cm-panel-item details.cm-tech { font-size:10.5px; color:var(--wm-ink-soft); }
   .cm-panel-item details.cm-tech summary { cursor:pointer; list-style:none; }
   .cm-panel-item details.cm-tech summary::before { content:'▸ '; }
   .cm-panel-item details.cm-tech[open] summary::before { content:'▾ '; }
-  .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--cm-bg); border-radius:6px; color:var(--cm-text2); max-height:160px; overflow:auto; }
-  .cm-panel-item .txt { font-size:12.5px; color:var(--cm-text2); line-height:1.4; word-wrap:break-word; }
-  .cm-panel-item .cm-sync-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid var(--cm-border2); color:var(--cm-text-muted); background:var(--cm-bg); }
-  .cm-panel-item .cm-sync-chip.cm-sync-sent { color:var(--cm-teal); border-color:var(--cm-teal); background:transparent; }
-  .cm-panel-item .cm-sync-chip.cm-sync-error { color:#B4231A; border-color:#B4231A; background:transparent; cursor:pointer; }
+  .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-family:var(--wm-font-outil); font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--wm-surface-raised); border-radius:6px; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
+  .cm-panel-item .txt { font-family:var(--wm-font-voix); font-size:13px; font-weight:500; color:var(--wm-ink); line-height:1.4; word-wrap:break-word; }
+  .cm-panel-item .cm-sync-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid var(--wm-line); color:var(--wm-ink-soft); background:var(--wm-surface-raised); }
+  .cm-panel-item .cm-sync-chip.cm-sync-sent { color:var(--wm-ink); border-color:var(--wm-line-strong); background:transparent; }
+  .cm-panel-item .cm-sync-chip.cm-sync-error { color:var(--wm-ink); border-color:var(--wm-signal); background:transparent; cursor:pointer; }
   .cm-panel-item .cm-status-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid transparent; }
-  .cm-panel-item .cm-st-signale { color:var(--cm-text2); background:var(--cm-bg); border-color:var(--cm-border2); }
-  .cm-panel-item .cm-st-pris_en_compte { color:var(--cm-teal); background:rgba(53,131,142,.10); }
-  .cm-panel-item .cm-st-complement { color:#8a5a00; background:rgba(245,166,35,.16); }
-  .cm-panel-item .cm-st-resolu { color:var(--cm-text-muted); background:var(--cm-bg); }
-  .cm-panel-item .cm-feedback { margin-top:5px; font-size:11.5px; line-height:1.4; color:var(--cm-text2); background:rgba(53,131,142,.08); border-left:2px solid var(--cm-teal); padding:4px 8px; border-radius:0 6px 6px 0; }
-  .cm-panel-item .cm-feedback-q { background:rgba(245,166,35,.12); border-left-color:#E6A023; }
-  .cm-panel-item img.cm-shot { display:block; max-width:100%; max-height:110px; margin-top:6px; border:1px solid var(--cm-border2); border-radius:6px; cursor:zoom-in; background:#fff; }
+  .cm-panel-item .cm-st-signale { color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-color:var(--wm-line); }
+  .cm-panel-item .cm-st-pris_en_compte { color:var(--wm-ink); background:transparent; border-color:var(--wm-line-strong); }
+  .cm-panel-item .cm-st-complement { color:var(--wm-ink); background:var(--wm-surface-raised); border-color:var(--wm-line-strong); }
+  .cm-panel-item .cm-st-resolu { color:var(--wm-ink-soft); background:var(--wm-surface-raised); }
+  .cm-panel-item .cm-feedback { margin-top:5px; font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-left:2px solid var(--wm-line-strong); padding:4px 8px; border-radius:0 6px 6px 0; }
+  .cm-panel-item .cm-feedback-q { border-left-color:var(--wm-ink); }
+  .cm-panel-item img.cm-shot { display:block; max-width:100%; max-height:110px; margin-top:6px; border:1px solid var(--wm-line); border-radius:6px; cursor:zoom-in; background:#fff; }
   .cm-lightbox { position:fixed; inset:0; z-index:990; background:rgba(0,0,0,.72); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; cursor:zoom-out; }
   .cm-lightbox img { max-width:92vw; max-height:86vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.5); background:#fff; }
-  .cm-lightbox .cm-lightbox-hint { color:#fff; font-family:'League Spartan',sans-serif; font-size:12px; opacity:.8; }
-  .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--cm-text2); padding-left:6px; }
-  .cm-panel-item .cm-when { color:var(--cm-text-muted); font-size:10.5px; }
+  .cm-lightbox .cm-lightbox-hint { color:var(--wm-encre-repere-claire); font-family:var(--wm-font-outil); font-size:12px; opacity:.8; }
+  .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--wm-ink-soft); padding-left:6px; }
+  .cm-panel-item .cm-when { color:var(--wm-ink-soft); font-size:10.5px; }
   .cm-panel-item .cm-thread { margin-top:5px; display:flex; flex-direction:column; gap:4px; }
-  .cm-panel-item .cm-msg { font-size:11.5px; line-height:1.4; color:var(--cm-text2); padding:4px 8px; border-radius:0 6px 6px 0; white-space:pre-wrap; word-break:break-word; }
-  .cm-panel-item .cm-msg-equipe { background:rgba(53,131,142,.08); border-left:2px solid var(--cm-teal); }
-  .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--cm-border2); margin-left:12px; }
-  .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--cm-text-muted); white-space:normal; }
-  .cm-panel-item .cm-msg-drop { background:none; border:none; padding:0 2px; color:var(--cm-text-muted); cursor:pointer; font-size:11px; }
+  .cm-panel-item .cm-msg { font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); padding:4px 8px; border-radius:0 6px 6px 0; white-space:pre-wrap; word-break:break-word; }
+  .cm-panel-item .cm-msg-equipe { background:var(--wm-surface-raised); border-left:2px solid var(--wm-line-strong); }
+  .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--wm-line); margin-left:12px; }
+  .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--wm-ink-soft); white-space:normal; }
+  .cm-panel-item .cm-msg-drop { background:none; border:none; padding:0 2px; color:var(--wm-ink-soft); cursor:pointer; font-size:11px; }
   .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
-  .cm-panel-item .cm-thread-actions button { font-size:11px; border-radius:8px; padding:2px 8px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
-  .cm-panel-item .cm-thread-actions button:hover { color:var(--cm-teal); border-color:var(--cm-teal); }
-  .cm-panel-item .reopen { background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
-  .cm-panel-item .reopen:hover { color:var(--cm-teal); }
-  .cm-panel-item .st.cm-st-locked { display:inline-flex; align-items:center; justify-content:center; background:var(--cm-text-muted); border-color:var(--cm-text-muted); color:#fff; cursor:default; }
-  .cm-popup .cm-lock-line { font-size:11px; color:var(--cm-text-muted); margin:-2px 0 6px; }
-  .cm-popup.cm-locked textarea { background:transparent; color:var(--cm-text2); }
-  .cm-popup .cm-feedback { font-size:11.5px; line-height:1.4; color:var(--cm-text2); background:rgba(245,166,35,.12); border-left:2px solid #E6A023; padding:4px 8px; border-radius:0 6px 6px 0; margin-bottom:6px; }
+  .cm-panel-item .cm-thread-actions button { font-family:var(--wm-font-outil); font-size:11px; border-radius:8px; padding:2px 8px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-panel-item .cm-thread-actions button:hover { color:var(--wm-ink); border-color:var(--wm-line-strong); }
+  .cm-panel-item .reopen { background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:13px; }
+  .cm-panel-item .reopen:hover { color:var(--wm-ink); }
+  .cm-panel-item .st.cm-st-locked { display:inline-flex; align-items:center; justify-content:center; background:var(--wm-surface-raised); border-color:var(--wm-line-strong); color:var(--wm-ink); cursor:default; }
+  .cm-popup .cm-lock-line { font-size:11px; color:var(--wm-ink-soft); margin:-2px 0 6px; }
+  .cm-popup.cm-locked textarea { background:transparent; color:var(--wm-ink-soft); }
+  .cm-popup .cm-feedback { font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-left:2px solid var(--wm-ink); padding:4px 8px; border-radius:0 6px 6px 0; margin-bottom:6px; }
   .cm-popup .cm-reply-ta { min-height:50px; }
   .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .cm-panel-item .st { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--cm-border); background:transparent; color:transparent; cursor:pointer; font-size:11px; line-height:1; padding:0; }
-  .cm-panel-item .st:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
-    .cm-panel-item.cm-done .num { background:var(--cm-text-muted); }
+  .cm-panel-item .st { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--wm-line-strong); background:transparent; color:transparent; cursor:pointer; font-size:11px; line-height:1; padding:0; }
+  .cm-panel-item .st:hover { border-color:var(--wm-ink); color:var(--wm-ink); }
+  .cm-panel-item.cm-done .num { opacity:.55; }
   .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
-  .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:'League Spartan',sans-serif; font-size:10px; font-weight:700; border:1px solid var(--cm-border); border-radius:10px; background:transparent; color:var(--cm-text-muted); padding:1px 7px; cursor:pointer; }
-  .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
-  .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--cm-text-muted); cursor:pointer; font-size:13px; }
-  .cm-panel-item .del:hover { color:var(--cm-orange); }
-  .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--cm-text-muted); font-size:12.5px; line-height:1.5; }
-  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--cm-border2); display:flex; gap:6px; flex-wrap:wrap; }
-  .cm-panel-report .cm-scope { flex-basis:100%; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--cm-text-muted); cursor:pointer; }
+  .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:var(--wm-font-outil); font-size:10px; font-weight:500; border:1px solid var(--wm-line); border-radius:10px; background:transparent; color:var(--wm-ink-soft); padding:1px 7px; cursor:pointer; }
+  .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
+  .cm-panel-item .del { flex-shrink:0; background:none; border:none; color:var(--wm-ink-soft); cursor:pointer; font-size:13px; }
+  .cm-panel-item .del:hover { color:var(--wm-ink); }
+  .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--wm-ink-soft); font-size:12.5px; line-height:1.5; }
+  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--wm-line); display:flex; gap:6px; flex-wrap:wrap; }
+  .cm-panel-report .cm-scope { flex-basis:100%; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--wm-ink-soft); cursor:pointer; }
   .cm-panel-report .cm-scope input { margin:0; }
-  .cm-feedback-box { border-top:1px solid var(--cm-border2); padding:10px; background:var(--cm-bg); }
-  .cm-feedback-box .cm-feedback-title { font-family:'League Spartan',sans-serif; font-weight:700; font-size:12px; color:var(--cm-text); margin-bottom:6px; }
-  .cm-feedback-box textarea { width:100%; box-sizing:border-box; min-height:84px; resize:vertical; border:1px solid var(--cm-border); border-radius:8px; padding:6px 8px; font-family:ui-monospace, Menlo, monospace; font-size:11px; line-height:1.4; color:var(--cm-text); background:var(--cm-surface); }
+  .cm-feedback-box { border-top:1px solid var(--wm-line); padding:10px; background:var(--wm-surface-raised); }
+  .cm-feedback-box .cm-feedback-title { font-family:var(--wm-font-titre); font-weight:700; font-size:12px; color:var(--wm-ink); margin-bottom:6px; }
+  .cm-feedback-box textarea { width:100%; box-sizing:border-box; min-height:84px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:6px 8px; font-family:var(--wm-font-outil); font-size:11px; line-height:1.4; color:var(--wm-ink); background:var(--wm-surface-raised); }
   .cm-feedback-box .cm-feedback-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:6px; }
-  .cm-feedback-box .cm-feedback-actions button { font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:6px 10px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
-  .cm-feedback-box .cm-feedback-actions button.primary { background:var(--cm-teal); color:#fff; border-color:var(--cm-teal); }
+  .cm-feedback-box .cm-feedback-actions button { font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border-radius:8px; padding:6px 10px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-feedback-box .cm-feedback-actions button.primary { background:var(--wm-face-touche); color:var(--wm-ink); border-color:var(--wm-line-strong); font-weight:600; }
   .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden] { display:none; }
-  .cm-panel-foot button { flex:1; font-family:'League Spartan',sans-serif; font-size:11px; font-weight:700; border-radius:8px; padding:8px 4px; border:1px solid var(--cm-border); background:transparent; color:var(--cm-text2); cursor:pointer; }
-  .cm-panel-foot button:hover { border-color:var(--cm-teal); color:var(--cm-teal); }
-  .cm-panel-foot button.primary { background:var(--cm-teal); color:#fff; border-color:var(--cm-teal); }
-  .cm-panel-foot button.primary:hover { background:var(--cm-teal-dark); }
+  .cm-panel-foot button { flex:1; font-family:var(--wm-font-outil); font-size:11px; font-weight:500; border-radius:8px; padding:8px 4px; border:1px solid var(--wm-line); background:transparent; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-panel-foot button:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
+  .cm-panel-foot button.primary { background:var(--wm-face-touche); color:var(--wm-ink); border-color:var(--wm-line-strong); font-weight:600; }
+  .cm-panel-foot button.primary:hover { border-color:var(--wm-ink); }
 
-  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; background:var(--cm-text); color:#fff; font-family:'DM Sans',sans-serif; font-size:12.5px; padding:8px 16px; border-radius:20px; box-shadow:var(--cm-shadow-lg); opacity:0; pointer-events:none; transition:opacity 200ms ease; white-space:nowrap; max-width:90vw; }
+  /* Message d'état (toast) : verre aux jetons (aspect intermédiaire ; fiche Etats au lot 7). */
+  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); border:1px solid var(--wm-contour-fenetre); color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12.5px; padding:8px 16px; border-radius:20px; box-shadow:var(--wm-ombre-fenetre); opacity:0; pointer-events:none; transition:opacity 200ms ease; white-space:nowrap; max-width:90vw; }
   .cm-status.show { opacity:1; }
   @media (max-width:700px) {
     .cm-panel { width:86vw; }
@@ -388,7 +490,7 @@
   function injectUI() {
     var style = document.createElement('style');
     style.id = 'cmStyles';
-    style.textContent = CSS;
+    style.textContent = fontFacesCss() + CSS;
     document.head.appendChild(style);
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
@@ -466,8 +568,50 @@
   })();
 
   function boot() {
+  // Live : caché d'office pendant l'installation (le vrai état est posé à la fin de boot) — aucune couche
+  // ne s'affiche un instant, et aucune police n'est téléchargée avant la révélation.
+  if (CONFIG.mode === 'live') document.body.classList.add('cm-concealed');
   injectUI();
   renderAuthor();
+  initTheme();
+
+  /* ---------- thème : le verre prend l'inverse du fond de la page ----------
+     On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → verre
+     champagne (« client-clair ») ; sinon verre graphite (« client-sombre »). Sans fond opaque, on suit
+     prefers-color-scheme. data-host-theme sur la balise <script> impose la réponse. Le résultat est posé
+     en data-wm-theme sur <body> (jamais de variable sur :root) : toutes nos couches suivent d'un coup. */
+  function hostIsDark() {
+    if (CONFIG.hostTheme !== 'auto') return CONFIG.hostTheme === 'dark';
+    var cands = [document.body, document.documentElement];
+    for (var i = 0; i < cands.length; i++) {
+      var m = (getComputedStyle(cands[i]).backgroundColor || '').match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?/);
+      if (!m) continue;
+      var a = m[4] === undefined ? 1 : (/%$/.test(m[4]) ? parseFloat(m[4]) / 100 : parseFloat(m[4]));
+      if (a > 0.5) return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) < 128;
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function applyTheme() {
+    var t = hostIsDark() ? 'client-clair' : 'client-sombre';
+    if (document.body.getAttribute('data-wm-theme') !== t) document.body.setAttribute('data-wm-theme', t);
+  }
+  // Recalcul : au chargement ; quand le site change son thème (class, style ou data-theme de <html> ou de
+  // <body>, puis une seconde fois 300 ms plus tard, le temps d'une transition de fond) ; au changement de
+  // prefers-color-scheme ; à chaque ouverture d'une fenêtre. Notre propre attribut n'est pas observé.
+  function initTheme() {
+    applyTheme();
+    var later = null;
+    var onChange = function () { applyTheme(); clearTimeout(later); later = setTimeout(applyTheme, 300); };
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(onChange);
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
+      mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
+    }
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq.addEventListener) mq.addEventListener('change', onChange); else if (mq.addListener) mq.addListener(onChange);
+    }
+  }
 
   /* ---------- bloc technique d'un ticket : tout est calculé localement, rien de personnel ---------- */
   function browserInfo() {
@@ -549,6 +693,7 @@
   }
   function applyReveal(on) {
     document.body.classList.toggle('cm-concealed', !on);
+    if (on && LIVE) prechargerPolices();
     var hideBtn = document.getElementById('cmHideBtn');
     if (hideBtn) hideBtn.hidden = !LIVE;
   }
@@ -1946,6 +2091,7 @@
 
   function openPopup(x, y, zone, meta) {
     closePopup(true); // (efface aussi la couleur "actif" de la bulle précédente)
+    applyTheme();     // le fond du site a pu changer sans que rien ne le signale
     var isEdit = !!(meta && meta.existing);
     var locked = isEdit && !isEditable(meta.existing);           // signalé / pris en compte / complément / résolu : lecture seule
     var askReply = isEdit && meta.existing.status === 'complement'; // … sauf qu'on peut répondre à un complément
@@ -2325,6 +2471,7 @@
     var panel = document.getElementById('cmPanel');
     var show = (typeof force === 'boolean') ? force : !panel.classList.contains('show');
     if (show) {
+      applyTheme(); prechargerPolices();
       // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
       clearTimeout(clickTimer); clickTimer = null;
       closePopup(true);
@@ -2475,6 +2622,13 @@
   });
   var cmToggleBtnEl = document.getElementById('cmToggleBtn');
   if (cmToggleBtnEl) cmToggleBtnEl.title = 'Mode commentaire (' + SHORTCUT_LABEL + ')';
+  // Premier survol (ou focus clavier) d'un des deux boutons : les polices partent, prêtes pour la fenêtre.
+  ['cmToggleBtn', 'cmPanelBtn'].forEach(function (id) {
+    var b = document.getElementById(id);
+    if (!b) return;
+    b.addEventListener('pointerenter', prechargerPolices, { once: true });
+    b.addEventListener('focus', prechargerPolices, { once: true });
+  });
 
   var statusTimer = null;
   function cmStatus(msg) {
