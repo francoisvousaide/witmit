@@ -575,10 +575,45 @@ test('20. icônes Phosphor : SVG intégrés, viewBox 256, couleur du texte, muet
   const src = fs.readFileSync(path.join(SRC_DIR, 'witmit.js'), 'utf8');
   expect(src).toContain('Copyright (c) 2023 Phosphor Icons');
   expect(src).toContain('Permission is hereby granted, free of charge');
-  for (const nom of ['CrosshairSimple', 'Info', 'PenNib', 'CursorClick', 'BoundingBox', 'TextT', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
+  for (const nom of ['CrosshairSimple', 'Info', 'CursorClick', 'BoundingBox', 'TextT', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
     'CircleNotch', 'Trash', 'Broom', 'X', 'ArrowElbowDownLeft', 'Command', 'Option', 'DotsSixVertical', 'EyeSlash']) {
     expect(src, nom).toMatch(new RegExp('\\n    ' + nom + ": '<path d=\"M"));
   }
+});
+
+// Signe du bouton witmit : le logo B1 calé à 28 px (fiche BoutonWitmit, décision de François du 25/10/2026), à la place
+// de la plume PenNib (22 px, décalée de 2 px), qui ne sert plus nulle part.
+test('20b. bouton witmit : logo B1 calé à 28 px, centré, couleur du métal ; voyant à 10 px du haut et 9 px de la droite', async ({ page }) => {
+  for (const [nom, fond, encre] of [['b1-site-clair', '#ffffff', 'rgb(244, 244, 244)'], ['b1-site-sombre', '#101010', 'rgb(20, 20, 18)']]) {
+    await page.goto(pageEssai(nom, { fond }));
+    await page.goto(pageEssai(nom, { fond }) + '?witmit=on');
+    const btn = page.locator('#cmPanelBtn');
+    await expect(btn).toBeVisible();
+    const mesure = () => btn.evaluate((b) => {
+      const svg = b.querySelector('svg.wm-logo'), r = b.getBoundingClientRect(), s = svg.getBoundingClientRect();
+      return { nb: b.querySelectorAll('svg').length, logo: svg.dataset.logo, vb: svg.getAttribute('viewBox'), fill: svg.getAttribute('fill'),
+        net: svg.getAttribute('shape-rendering'), muet: svg.getAttribute('aria-hidden'), w: s.width, h: s.height,
+        dx: (s.left + s.width / 2) - (r.left + r.width / 2), dy: (s.top + s.height / 2) - (r.top + r.height / 2), couleur: getComputedStyle(svg).color,
+        d: svg.querySelector('path').getAttribute('d') };
+    });
+    for (const etat of ['fermé', 'ouvert']) {
+      const m = await mesure();
+      expect(m, nom + ' ' + etat).toMatchObject({ nb: 1, logo: 'B1', vb: '0 0 28 28', fill: 'currentColor', net: 'crispEdges', muet: 'true', w: 28, h: 28, couleur: encre });
+      expect(Math.abs(m.dx), nom + ' ' + etat + ' : centré en largeur').toBeLessThanOrEqual(1);
+      expect(Math.abs(m.dy), nom + ' ' + etat + ' : centré en hauteur').toBeLessThanOrEqual(1);
+      expect(m.d).toBe('M0,1 L9,1 L9,4 L3,4 L3,10 L0,10 Z M5,6 L9,6 L9,18 L12,18 L12,11 L16,11 L16,18 L19,18 L19,6 L20,6 L23,9 L23,22 L8,22 L5,19 Z M28,27 L19,27 L19,24 L25,24 L25,18 L28,18 Z');
+      if (etat === 'fermé') { await btn.click(); await expect(btn).toHaveAttribute('aria-expanded', 'true'); }
+    }
+    // Voyant allumé de force (rendu seul, sans retour) : 7 px, 10 px du haut et 9 px de la droite du rond.
+    const v = await btn.evaluate((b) => {
+      const c = b.querySelector('#cmCount'); c.setAttribute('data-zero', '0'); c.textContent = '1';
+      const r = b.getBoundingClientRect(), k = c.getBoundingClientRect();
+      return { w: k.width, h: k.height, haut: k.top - r.top, droite: r.right - k.right };
+    });
+    expect(v, nom).toEqual({ w: 7, h: 7, haut: 10, droite: 9 });
+  }
+  const src = fs.readFileSync(path.join(SRC_DIR, 'witmit.js'), 'utf8');
+  expect(src).not.toContain('PenNib');
 });
 
 // Émojis et symboles dessinés par witmit (I3). Le texte courant garde ⌘ et ⌥ (glyphes de la police système).

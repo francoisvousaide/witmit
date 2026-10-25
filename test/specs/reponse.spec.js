@@ -262,18 +262,42 @@ test('10. « masquer les terminés » coché : un retour résolu par l’équipe
   await expect(voyant).toBeHidden();
 });
 
-test('11. les touches sous le fil tiennent dans leur face à 380 px (« ça ne convient pas ? rouvrir »)', async ({ page }) => {
+// Relecture de Paula (lot 5) : à 380 px (tiroir sur ordinateur) et à 375 px (écran étroit, tiroir pleine largeur),
+// chaque touche sous le fil garde ses marges intérieures (12 px à gauche, 8 px à droite du contenu) ; la rangée passe
+// sous la colonne des cercles sans rien chevaucher.
+test('11. les touches sous le fil gardent leurs marges à 380 et 375 px (« ça ne convient pas ? rouvrir »), sans chevauchement', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
   await expect(page.locator('.cm-reopen-btn')).toBeVisible({ timeout: 15000 });
-  for (const sel of ['.cm-reopen-btn', '.cm-reply-btn']) {
-    const r = await page.locator(sel).evaluate((b) => {
-      const face = b.getBoundingClientRect();
-      const kids = Array.from(b.querySelectorAll('svg, *')).concat([b]).map((k) => k.getBoundingClientRect());
-      const range = document.createRange(); range.selectNodeContents(b);
-      const txt = range.getBoundingClientRect();
-      return { taille: getComputedStyle(b).fontSize, gauche: Math.min(txt.left, ...kids.map((k) => k.left)) >= face.left - 0.5, droite: txt.right <= face.right + 0.5, deborde: b.scrollWidth > b.clientWidth };
+  for (const [largeur, vue] of [[380, null], [375, { width: 375, height: 812 }]]) {
+    if (vue) { await page.setViewportSize(vue); await page.waitForTimeout(400); }
+    const tiroir = await page.locator('#cmPanel').boundingBox();
+    expect(Math.round(tiroir.width), 'largeur du tiroir').toBe(largeur);
+    for (const sel of ['.cm-reopen-btn', '.cm-reply-btn']) {
+      const r = await page.locator(sel).evaluate((b) => {
+        const face = b.getBoundingClientRect();
+        const range = document.createRange(); range.selectNodeContents(b);
+        const txt = range.getBoundingClientRect();
+        const icone = b.querySelector('svg').getBoundingClientRect();
+        const gauche = Math.min(txt.left, icone.left), droite = Math.max(txt.right, icone.right);
+        const panneau = document.getElementById('cmPanel').getBoundingClientRect();
+        return { taille: getComputedStyle(b).fontSize, libreGauche: gauche - face.left, libreDroite: face.right - droite,
+          deborde: b.scrollWidth > b.clientWidth, dansLeTiroir: face.left >= panneau.left && face.right <= panneau.right };
+      });
+      const quoi = sel + ' à ' + largeur + ' px';
+      expect(r.taille, quoi).toBe('12px');
+      expect(r.libreGauche, quoi + ' : libre à gauche').toBeGreaterThanOrEqual(12 - 0.5);
+      expect(r.libreDroite, quoi + ' : libre à droite').toBeGreaterThanOrEqual(8 - 0.5);
+      expect(r.deborde, quoi + ' : débordement').toBe(false);
+      expect(r.dansLeTiroir, quoi + ' : dans le tiroir').toBe(true);
+    }
+    // Aucun chevauchement entre la rangée sous le fil et les cercles d'action de la ligne.
+    const chevauche = await page.locator('.cm-panel-item').first().evaluate((it) => {
+      const touches = Array.from(it.querySelectorAll('.cm-thread-actions .wm-touche')).map((e) => e.getBoundingClientRect());
+      const cercles = Array.from(it.querySelectorAll('.cm-item-actions > *')).filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
+      const inter = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return { touches: touches.length, cercles: cercles.length, chevauche: touches.some((t) => cercles.some((c) => inter(t, c))) };
     });
-    expect(r, sel).toEqual({ taille: '12px', gauche: true, droite: true, deborde: false });
+    expect(chevauche, 'à ' + largeur + ' px').toEqual({ touches: 2, cercles: 1, chevauche: false });
   }
 });
 

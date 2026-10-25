@@ -114,7 +114,6 @@
      (viewBox 0 0 256 256, couleur du texte). Aucun fichier ni aucune requête en plus. Une icône n'a qu'un
      sens dans tout le widget (fiche Icones du design system) ; le nom accessible est porté par le bouton. */
   var ICONES = {
-    PenNib: '<path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/>',
     CrosshairSimple: '<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V184a8,8,0,0,0-16,0v31.63A88.13,88.13,0,0,1,40.37,136H72a8,8,0,0,0,0-16H40.37A88.13,88.13,0,0,1,120,40.37V72a8,8,0,0,0,16,0V40.37A88.13,88.13,0,0,1,215.63,120H184a8,8,0,0,0,0,16h31.63A88.13,88.13,0,0,1,136,215.63Z"/>',
     CursorClick: '<path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/>',
     BoundingBox: '<path d="M208,96a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96V48A16,16,0,0,0,80,32H48A16,16,0,0,0,32,48V80A16,16,0,0,0,48,96h8v64H48a16,16,0,0,0-16,16v32a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16v-8h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V176a16,16,0,0,0-16-16h-8V96ZM176,48h32V80H176ZM48,48H80V63.9a.51.51,0,0,0,0,.2V80H48ZM80,208H48V176H80v15.9a.51.51,0,0,0,0,.2V208Zm128,0H176V176h32Zm-24-48h-8a16,16,0,0,0-16,16v8H96v-8a16,16,0,0,0-16-16H72V96h8A16,16,0,0,0,96,80V72h64v8a16,16,0,0,0,16,16h8Z"/>',
@@ -461,8 +460,9 @@
   .cm-ui .wm-bouton-witmit { width:52px; height:52px; }
   .cm-ui .wm-bouton-mode { width:40px; height:40px; }
   .cm-ui .wm-bouton-mode::before { content:''; position:absolute; inset:-3px; border-radius:50%; }   /* zone cliquable de 44 px : 40 px moins le trait (le ::before part du bord intérieur), + 2 × 3 */
-  /* Le signe du bouton witmit (L1) : décalé de 2 px vers le bas et la gauche, pour laisser de l'air au voyant. */
-  .cm-ui .wm-bouton-witmit .wm-signe { display:flex; margin:2px 2px 0 0; color:inherit; }
+  /* Le signe du bouton witmit : le logo B1 calé à 28 px, centré sans décalage (fiche BoutonWitmit). Jamais agrandi ni réduit. */
+  .cm-ui .wm-bouton-witmit .wm-signe { display:flex; margin:0; color:inherit; }
+  .cm-ui .wm-bouton-witmit .wm-logo { display:block; flex:none; width:28px; height:28px; }
   /* Voyant du bouton witmit : 7 px, logé à 10 px du haut et 9 px de la droite du rond (coordonnées entières). */
   .cm-ui .wm-bouton-witmit .cm-count-badge { position:absolute; left:35px; top:9px; }
   .cm-ui .wm-bouton.wm-metal-clair .cm-count-badge { border:1.5px solid var(--wm-accent-ring); }
@@ -861,7 +861,10 @@
   .cm-panel-item .cm-msg-who .cm-msg-drop { vertical-align:middle; }
   .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-panel-item .cm-msg-drop { margin-left:2px; }
-  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; margin-right:-42px; }
+  /* -42 px : la rangée sous le fil passe sous la colonne des cercles (30 px + 12 px d'écart), pour que « ça ne convient pas ?
+     rouvrir » garde ses marges intérieures à 380 et 375 px. En live, un retour envoyé n'a plus que son cercle du haut de ligne :
+     rien ne se chevauche (relecture de Paula, lot 5). */
   .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:12px; }   /* 12 px, comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 380 px */
   /* Champ de réponse : libellé, champ, puis « annuler » à gauche et la touche secondaire à droite. */
   .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
@@ -995,9 +998,11 @@
 
 <div class="cm-status cm-ui" id="cmStatus" role="status" aria-live="polite" aria-atomic="true"></div>
 `;
-  /* Signe du bouton witmit (décision L1) : la plume PenNib, provisoire tant que le logo B1 n'est pas
-     publiable. Le remplacer = changer cette seule ligne. */
-  var SIGNE_WITMIT = icone('PenNib', 22);
+  /* Signe du bouton witmit : le logo B1 calé à 28 px (fiche Identity, décision de François du 25/10/2026),
+     tracé au pixel entier, repris tel quel de la fiche BoutonWitmit. Couleur du bouton (currentColor) : blanc cassé
+     sur métal sombre, encre sur métal clair. Jamais agrandi ni réduit : il perdrait son calage. */
+  var SIGNE_WITMIT = '<svg class="wm-logo" data-logo="B1" viewBox="0 0 28 28" width="28" height="28" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false">' +
+    '<path d="M0,1 L9,1 L9,4 L3,4 L3,10 L0,10 Z M5,6 L9,6 L9,18 L12,18 L12,11 L16,11 L16,18 L19,18 L19,6 L20,6 L23,9 L23,22 L8,22 L5,19 Z M28,27 L19,27 L19,24 L25,24 L25,18 L28,18 Z"/></svg>';
   var BUTTONS_HTML = `
 <button type="button" class="wm-bouton wm-bouton-mode cm-ui" onclick="cmToggle()" id="cmToggleBtn" aria-pressed="false" aria-label="mode annotation" aria-keyshortcuts="Alt+A">${icone('CrosshairSimple', 20)}</button>
 <button type="button" class="wm-bouton wm-bouton-witmit cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" aria-expanded="false" aria-controls="cmPanel" aria-label="witmit"><span class="wm-signe">${SIGNE_WITMIT}</span><span class="cm-count-badge" id="cmCount" data-zero="1" aria-hidden="true"></span></button>
