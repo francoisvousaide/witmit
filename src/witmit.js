@@ -4,7 +4,7 @@
  * Polices (dossier witmit-polices/ à côté de ce fichier) : Tektur, Martian Mono, Syne et Doto, SIL Open Font License 1.1.
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourcis : ⌥ deux fois / alt deux fois montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
- * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Marine' }) · identify(null) — voir plus bas.
+ * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Camille' }) · identify(null) — voir plus bas.
  *
  * Icônes : tracés de Phosphor Icons, graisse Regular (@phosphor-icons/core 2.1.1), recopiés dans l'objet ICONES.
  * Leur licence, qui doit voyager avec ce fichier :
@@ -170,10 +170,10 @@
   }
 
   /* ---------- l'auteur, déclaré par le site hôte ----------
-     Un site où l'on est connecté peut dire à witmit qui écrit : window.witmit.identify({ nom: 'Marine' }),
-     identify(null) pour oublier (déconnexion), ou data-user-name="Marine" sur la balise. Si le site parle
+     Un site où l'on est connecté peut dire à witmit qui écrit : window.witmit.identify({ nom: 'Camille' }),
+     identify(null) pour oublier (déconnexion), ou data-user-name="Camille" sur la balise. Si le site parle
      avant que ce script soit chargé, il met l'appel en file :
-       (window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Marine' }]);
+       (window.witmitQueue = window.witmitQueue || []).push(['identify', { nom: 'Camille' }]);
      Le nom reste en mémoire le temps de la page, jamais dans le navigateur : le site le redonne à chaque
      chargement, et il ne peut pas rester collé après une déconnexion. Il est inscrit sur chaque ticket au
      moment où celui-ci est écrit (un ticket en attente d'envoi garde son auteur), puis envoyé avec lui
@@ -219,8 +219,9 @@
   // Gestes du bandeau (Léa 3.2 ; fiche Bandeau) : ⌘ en icône Command (« ctrl » hors Mac) et « maj » en mot, chacun
   // dans le petit carré ; chaque « geste : effet » ne se coupe jamais. Aucun geste tactile.
   var REPERE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>';
-  var GESTES_HTML = '<span class="wm-geste"><b>clic</b> : élément</span> · <span class="wm-geste">' + REPERE_MULTI + '+<b>clic</b> : plusieurs</span> · ' +
-    '<span class="wm-geste"><b>glisser</b> : zone</span> · <span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
+  // « · » collé au geste qui suit (espace insécable) : sur deux lignes, une ligne ne finit jamais par « · ».
+  var GESTES_HTML = '<span class="wm-geste"><b>clic</b> : élément</span> ·\u00a0<span class="wm-geste">' + REPERE_MULTI + '+<b>clic</b> : plusieurs</span> ·\u00a0' +
+    '<span class="wm-geste"><b>glisser</b> : zone</span> ·\u00a0<span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
 
   var CSS = `
   /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
@@ -544,7 +545,7 @@
   /* Deux lignes : ligne 1 poignée, voyant, « annotation », « terminer » ; ligne 2 les gestes, à la ligne entre
      deux gestes seulement. */
   .cm-pill.wm-deux-lignes { white-space:normal; }
-  .cm-pill.wm-deux-lignes .wm-bandeau-corps { display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:"poignee mode . terminer" "gestes gestes gestes gestes"; column-gap:8px; height:auto; padding:0 22px 14px 14px; }
+  .cm-pill.wm-deux-lignes .wm-bandeau-corps { display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:"poignee mode . terminer" "gestes gestes gestes gestes"; column-gap:8px; height:auto; padding:0 22px 16px 14px; }
   .cm-pill.wm-deux-lignes .wm-poignee { grid-area:poignee; }
   .cm-pill.wm-deux-lignes .wm-bandeau-mode { grid-area:mode; }
   .cm-pill.wm-deux-lignes .wm-filet { display:none; }
@@ -1412,7 +1413,7 @@
     if (st === 502 && message) return r("l'équipe ne peut pas recevoir de message pour l'instant", 'ton message est gardé ici et repartira tout seul.', true);
     if (st === 409 && /pris en charge/.test(brut)) return r("l'équipe l'a déjà pris en compte", "ta modification ne partira pas ; dis-la à l'équipe avec « répondre » quand elle t'aura écrit.", false);
     if (st === 413 && /capture/.test(brut)) return r('la capture de la zone est trop lourde', 'il ne repartira pas tel quel : ouvre le retour et réduis le cadre, il repartira avec une capture plus légère.', false);
-    if (st === 413 && message) return r('ton message dépasse 2\u00a0000 caractères', 'il ne repartira pas : abandonne-le (×) et écris-en un plus court.', false);
+    if (st === 413 && message && /message trop long/.test(brut)) return r('ton message dépasse 2\u00a0000 caractères', 'il ne repartira pas : abandonne-le (×) et écris-en un plus court.', false);
     if (st === 413 && /texte trop long/.test(brut)) return r('ton retour dépasse 5\u00a0000 caractères', "il ne repartira pas tel quel : raccourcis-le, il repartira dès que tu l'auras modifié.", false);
     if (st === 409 && message && /rouvert/.test(brut)) return r("ce retour n'est pas terminé", 'ton message ne repartira pas : abandonne-le (×) et écris-le avec « répondre ».', false);
     if (st === 409 && message && /suivi/.test(brut)) return r("ce retour n'a pas de suivi par l'équipe", "impossible d'y répondre ici : abandonne ce message (×).", false);
@@ -1421,8 +1422,10 @@
       return { raison: arrive.replace(/\.$/, ''), suite: '', renvoi: false, toast: arrive, arrive: true };
     }
     if (st === 500 && message) return r('witmit ne sait pas si ton message est parti', "il ne sera pas renvoyé, pour éviter un doublon : × le retire d'ici ; réécris-le plus tard si l'équipe ne t'a pas répondu.", false);
-    // Autre 409 ou 413 (identifiant déjà pris, bloc technique trop gros…) : pas de renvoi (E1), donc pas de « repartira ».
-    if (st === 409 || st === 413) return r('le service witmit ne répond pas', '', false);
+    // Autre 409 ou 413 (identifiant déjà pris, bloc technique trop gros…) : refusé, pas de renvoi (E1 ; Léa 3.11 complétée).
+    if (st === 409 || st === 413) return message
+      ? r('witmit a refusé ce message', 'il ne repartira pas : abandonne-le (×).', false)
+      : r('witmit a refusé ce retour', 'il ne repartira pas : efface-le et écris-en un nouveau.', false);
     return r('le service witmit ne répond pas', ton + ' est gardé ici et repartira tout seul.', true);
   }
   // Ce que garde un retour ou un message refusé : la raison brute (console et diagnostic), le code, le renvoi permis.
@@ -1433,6 +1436,11 @@
   }
   function renvoiPermis(sync) { return !(sync && sync.state === 'error' && sync.renvoi === false); }
   // Info-bulle de « à renvoyer » (Léa 3.5) : la raison en clair ; « clique pour réessayer » seulement si le renvoi est permis.
+  // Marque sans renvoi : ce n'est pas un bouton, son info-bulle n'est atteinte ni au clavier ni par un lecteur d'écran ;
+  // la raison y est donc aussi écrite pour eux seuls (décision 22 de Léa).
+  function raisonLue(sync, message) {
+    return '<span class="wm-lu"> : ' + cmEsc(raisonEchec({ status: sync.status, message: sync.error }, message).raison) + '.</span>';
+  }
   function titreARenvoyer(sync, message) {
     var e = raisonEchec({ status: sync.status, message: sync.error }, message);
     return e.raison + (e.renvoi ? '. clique pour réessayer.' : '.');
@@ -1577,7 +1585,7 @@
     if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">' + icone('CloudCheck', 14) + '<b>envoyé</b></span>';
     if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + '<b>envoi en cours…</b></span>';
     // Refus définitif (E1) : la marque reste, mais ce n'est plus un bouton ; le retour repart quand on le modifie.
-    if (!renvoiPermis(c.sync)) return '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></span>';
+    if (!renvoiPermis(c.sync)) return '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b>' + raisonLue(c.sync, false) + '</span>';
     return '<button type="button" class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
   }
   window.cmRetrySync = function (id) { var c = findComment(id); if (c && renvoiPermis(c.sync)) { c.sync = null; scheduleSync(c); } };
@@ -2238,7 +2246,7 @@
       var marque = err
         ? (renvoiPermis(r.sync)
             ? '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>'
-            : '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></span>') +
+            : '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b>' + raisonLue(r.sync, true) + '</span>') +
           '<button type="button" class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="abandonner ce message" aria-label="abandonner ce message">' + icone('X', 12) + '</button>'
         : '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + 'envoi en cours…</span>';
       var qui = r.rouvrir ? icone('ArrowCounterClockwise', 14) + '<b>tu rouvres ce retour</b>' : icone('ArrowBendDownRight', 14) + '<b>toi</b>';

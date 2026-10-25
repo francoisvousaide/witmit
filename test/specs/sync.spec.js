@@ -234,7 +234,7 @@ test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture
   state.failNext = { status: 409, erreur: 'identifiant déjà pris' };
   await H.addPin(page, CIBLES[1], 'Un identifiant déjà pris');
   await expect.poll(() => etatEnvoi(page, 1), { timeout: 15000 }).toBe('error');
-  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : le service witmit ne répond pas.');   // pas de « repartira » : il ne repart pas
+  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : witmit a refusé ce retour. il ne repartira pas : efface-le et écris-en un nouveau.');
   expect(state.posts).toHaveLength(2);
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();                       // ouvrir la liste : aucun nouvel essai
@@ -242,9 +242,16 @@ test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture
   expect(state.posts).toHaveLength(2);
   // « à renvoyer » n'est plus un bouton : son info-bulle donne la raison, sans « clique pour réessayer »
   const marque = page.locator('.cm-panel-item').nth(0).locator('.cm-sync-error');
-  await expect(marque).toHaveText('à renvoyer');
+  await expect(marque.locator('b')).toHaveText('à renvoyer');
   expect(await marque.evaluate((el) => el.tagName)).toBe('SPAN');
   await expect(marque).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
+  // la raison est aussi lue au clavier et par un lecteur d'écran (le span n'est pas focalisable : son title ne suffit pas)
+  await expect(marque).toHaveText('à renvoyer : ton retour dépasse 5 000 caractères.');      // contenu lu en parcourant la ligne
+  await expect(marque.locator('.wm-lu')).toHaveText(' : ton retour dépasse 5 000 caractères.');
+  const refuse = page.locator('.cm-panel-item').nth(1);
+  await expect(refuse.locator('.cm-sync-error')).toHaveAttribute('title', 'witmit a refusé ce retour.');
+  await expect(refuse.locator('.cm-sync-error .wm-lu')).toHaveText(' : witmit a refusé ce retour.');
+  await expect(refuse.locator('.del')).toHaveCount(1);              // jamais reçu par witmit : la corbeille reste (C9), « efface-le »
   await page.reload();                                              // au chargement non plus
   await page.waitForTimeout(2500);
   expect(state.posts).toHaveLength(2);

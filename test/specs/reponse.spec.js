@@ -327,6 +327,7 @@ test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien n
   await expect.poll(() => etatReponse(page), { timeout: 15000 }).toBe('error');
   await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : ton message dépasse 2 000 caractères. il ne repartira pas : abandonne-le (×) et écris-en un plus court.');
   await expect(page.locator('.cm-msg-pending .cm-sync-error')).toHaveAttribute('title', 'ton message dépasse 2 000 caractères.');
+  await expect(page.locator('.cm-msg-pending .cm-sync-error .wm-lu')).toHaveText(' : ton message dépasse 2 000 caractères.');   // lu par un lecteur d'écran
   await rouvrirTiroir(page);
   await page.waitForTimeout(2000);
   expect(state.replies).toHaveLength(1);
@@ -341,4 +342,16 @@ test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien n
   await page.reload();                                               // ni au chargement
   await page.waitForTimeout(2500);
   expect(state.replies).toHaveLength(2);
+  // un autre 413 (refus que la table ne nomme pas) : « witmit a refusé ce message », rien ne repart
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('.cm-reply-btn')).toBeVisible();
+  state.failReply = { status: 413, erreur: 'corps trop gros' };
+  await repondre(page, 'Encore un');
+  await expect.poll(() => etatReponse(page, 2), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : witmit a refusé ce message. il ne repartira pas : abandonne-le (×).');
+  await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(2)).toHaveAttribute('title', 'witmit a refusé ce message.');
+  await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(2).locator('.wm-lu')).toHaveText(' : witmit a refusé ce message.');
+  await rouvrirTiroir(page);
+  await page.waitForTimeout(2000);
+  expect(state.replies).toHaveLength(3);
 });
