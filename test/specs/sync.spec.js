@@ -92,7 +92,7 @@ test('5. le statut est relu depuis le serveur : résolu + message de retour', as
   state.rows = [{ id_local: t.id, statut: 'resolu', message_retour: 'Corrigé dans la version 1.2', mis_a_jour_le: '2026-09-22T10:00:00Z' }];
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('.cm-status-chip')).toContainText('Résolu');
+  await expect(page.locator('.cm-status-chip')).toContainText('résolu');
   await expect(page.locator('.cm-feedback')).toContainText('Corrigé dans la version 1.2');
   expect((await ticket(page)).status).toBe('resolu');
   // en_cours → pris en compte
@@ -102,7 +102,7 @@ test('5. le statut est relu depuis le serveur : résolu + message de retour', as
   const t2 = await ticket(page, 1);
   state.rows.push({ id_local: t2.id, statut: 'en_cours', message_retour: null, mis_a_jour_le: '2026-09-22T11:00:00Z' });
   await H.deactivate(page); await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-status-chip')).toContainText('Pris en compte');
+  await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-status-chip')).toContainText('pris en compte');
 });
 
 test('6. un ticket modifié avant prise en charge est renvoyé (mise à jour)', async ({ page }) => {
@@ -128,33 +128,39 @@ test('7. mode mock : rien ne part, aucune puce d’envoi', async ({ page }) => {
   await expect(page.locator('.cm-sync-chip')).toHaveCount(0);
 });
 
-test('8. mode live : rapport et « Coller un retour » cachés, réapparaissent si un ticket est coincé', async ({ page }) => {
+test('8. mode live : rapport, « coller un retour » et « effacer (page) » cachés, réapparaissent si un retour est coincé (C9)', async ({ page }) => {
   const report = page.locator('#cmReportFoot');
   const paste = page.locator('#cmPasteBtn');
+  const effacer = page.locator('#cmClearPageBtn');
   await page.locator('#cmPanelBtn').click();
-  await expect(report).toBeHidden();               // aucun ticket : rien à sortir
+  await expect(report).toBeHidden();               // aucun retour : rien à sortir
   await expect(paste).toBeHidden();
-  await expect(page.locator('#cmClearAllBtn, .cm-panel-tools button').first()).toBeVisible();  // Effacer reste
+  await expect(effacer).toBeHidden();              // rien de supprimable : « effacer (page) » absent
 
   await page.locator('#cmPanelBtn').click();
   await H.activate(page);
-  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Ticket envoyé');
+  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Retour envoyé');
   await waitSent(page);
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
   await expect(report).toBeHidden();               // tout est parti : toujours cachés
   await expect(paste).toBeHidden();
+  await expect(effacer).toBeHidden();              // un retour reçu par witmit ne s'efface plus
 
-  // un ticket qui ne part pas → le filet de secours réapparaît
+  // un retour qui ne part pas (faux serveur en 429) → le filet de secours réapparaît, « effacer (page) » aussi
   await page.locator('#cmPanelBtn').click();
   await H.activate(page);
-  state.failNext = { status: 500, erreur: 'serveur indisponible' };
-  await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Ticket coincé');
+  state.failNext = { status: 429, erreur: 'trop de tickets, réessaie plus tard' };
+  await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Retour coincé');
   await expect.poll(async () => ((await ticket(page, 1)).sync || {}).state, { timeout: 15000 }).toBe('error');
   await H.deactivate(page);
+  state.failNext = { status: 429, erreur: 'trop de tickets, réessaie plus tard' };   // l'ouverture de la liste renvoie : refusé encore
   await page.locator('#cmPanelBtn').click();
+  await expect.poll(() => state.posts.length, { timeout: 15000 }).toBe(3);
+  await expect.poll(async () => ((await ticket(page, 1)).sync || {}).state, { timeout: 15000 }).toBe('error');
   await expect(report).toBeVisible();
   await expect(paste).toBeVisible();
+  await expect(effacer).toBeVisible();
 });
 
 test('9. mode mock : rapport et « Coller un retour » toujours là', async ({ page }) => {
@@ -163,4 +169,15 @@ test('9. mode mock : rapport et « Coller un retour » toujours là', async ({ p
   await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmReportFoot')).toBeVisible();
   await expect(page.locator('#cmPasteBtn')).toBeVisible();
+});
+
+test('10. un 409 « déjà pris en charge » prouve que le retour est chez le guichet : recuLe posé (C9)', async ({ page }) => {
+  state.failNext = { status: 409, erreur: 'ticket déjà pris en charge, plus modifiable' };
+  await H.activate(page);
+  await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Déjà chez l’équipe');
+  await expect.poll(async () => ((await ticket(page)).sync || {}).state, { timeout: 15000 }).toBe('error');
+  expect((await ticket(page)).recuLe).toBeTruthy();
+  await H.deactivate(page);
+  await page.evaluate(() => document.getElementById('cmPanel').classList.add('show'));   // la liste, sans relancer l'envoi
+  await expect(page.locator('.cm-panel-item .del')).toHaveCount(0);
 });

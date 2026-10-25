@@ -85,6 +85,19 @@ async function drag(page, x1, y1, x2, y2, { shift = false } = {}) {
   if (shift) await page.keyboard.up('Shift');
 }
 
+// Mode maquette : l'équipe répond par un « retour collé » (lignes « <id> <statut> | message »), liste ouverte.
+// C'est l'activité de l'équipe qui allume le voyant (C5) dans une maquette.
+async function retourColle(page, lignes) {
+  if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await page.locator('#cmPanelBtn').click();
+  await page.locator('#cmPasteBtn').click();
+  await page.locator('#cmFeedbackBox textarea').fill(lignes.join('\n'));
+  await page.locator('#cmFeedbackBox').getByRole('button', { name: 'appliquer' }).click();
+}
+// Accepte la prochaine confirmation du navigateur (Playwright les refuse d'office) et renvoie son texte.
+function accepterConfirmation(page) {
+  return new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.accept(); resolve(m); }));
+}
+
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Faux Supabase : identité anonyme, défi, dépôt, réponse / réouverture, relecture des statuts (et du fil). `state` pilote les réponses.
 function mockSupabase(page, state) {
@@ -118,4 +131,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, MONTRER, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag };
+module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, MONTRER, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation };

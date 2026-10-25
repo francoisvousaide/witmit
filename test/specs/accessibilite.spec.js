@@ -1,7 +1,7 @@
 // Accessibilité de ce que witmit dessine (WCAG 4.1.2, 2.5.8 ; textes de Léa 3.1 à 3.3, décisions 46 et 47).
 // Lot 3 : les deux boutons, le voyant, les zones cliquables, Échap, la touche « nouveau retour ».
-// Lot 4 : test 11 (largeur de la fenêtre de saisie). Les tests 4 et 7 à 10 (focus, taille de texte, émojis, contraste,
-// toasts) et la partie « tiroir » du test 11 viennent aux lots suivants.
+// Lot 4 : test 11 (largeur de la fenêtre de saisie). Lot 5 : tests 1 et 2 sur la règle du voyant (C5), 5b (visionneuse),
+// partie « tiroir » du test 11. Les tests 4 et 7 à 10 (focus, taille de texte, émojis, contraste, toasts) viennent aux lots suivants.
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
 
@@ -22,17 +22,21 @@ test('1. boutons : nom, état et raccourci ; le bouton du mode suit le mode quel
   await expect(witmit).toHaveAttribute('aria-expanded', 'false');
   await expect(witmit).toHaveAttribute('aria-controls', 'cmPanel');
   await expect(witmit).not.toHaveAttribute('aria-pressed', /.*/);
-  // (déclencheur provisoire du voyant jusqu'au lot 5 : les retours encore à suivre sur la page)
+  // Voyant (C5) : des retours tout juste écrits n'ont rien de nouveau ; l'équipe qui change leur statut, si.
   await H.activate(page);
   await H.addPin(page, CIBLE, 'Premier');
-  await expect(witmit).toHaveAccessibleName('witmit, 1 nouveau retour');
   await H.addPin(page, CIBLE2, 'Second');
-  await expect(witmit).toHaveAccessibleName('witmit, 2 nouveaux retours');
+  await expect(witmit).toHaveAccessibleName('witmit');
   await H.deactivate(page);
-  await witmit.click();
+  const [a, b] = await H.stored(page, 'witmit_kiosque_v1');
+  await H.retourColle(page, [a.id + ' pris_en_compte']);
+  await expect(witmit).toHaveAccessibleName('witmit, 1 nouveau retour');
+  await H.retourColle(page, [b.id + ' complement | Laquelle ?']);
+  await expect(witmit).toHaveAccessibleName('witmit, 2 nouveaux retours');
   await expect(witmit).toHaveAttribute('aria-expanded', 'true');
-  await witmit.click();
+  await witmit.click();                                                // fermer la liste après l'avoir vue : plus rien de nouveau
   await expect(witmit).toHaveAttribute('aria-expanded', 'false');
+  await expect(witmit).toHaveAccessibleName('witmit');
   await expect(witmit).not.toHaveAttribute('aria-pressed', /.*/);
   // Bouton du mode : nom fixe, état en aria-pressed, raccourci annoncé.
   await expect(mode).toHaveAccessibleName('mode annotation');
@@ -50,15 +54,27 @@ test('1. boutons : nom, état et raccourci ; le bouton du mode suit le mode quel
   await page.locator('.cm-panel-item .body').first().click(); await etat('true');   // clic sur une ligne de la liste
 });
 
-test('2. voyant : visible seulement s’il y a du nouveau', async ({ page }) => {
+test('2. voyant : visible seulement s’il y a du nouveau ; un retour tout juste écrit ne l’allume pas ; éteint après lecture', async ({ page }) => {
   const voyant = page.locator('#cmPanelBtn #cmCount');
   await expect(voyant).toBeHidden();
-  // (déclencheur provisoire jusqu'au lot 5 : les retours encore à suivre sur la page)
   await H.activate(page);
-  await H.addPin(page, CIBLE, 'Du nouveau');
+  await H.addPin(page, CIBLE, 'Écrit à l’instant');                   // condition de Léa : ce que la personne écrit n'allume rien
+  await expect(voyant).toBeHidden();
+  await H.deactivate(page);
+  const [c] = await H.stored(page, 'witmit_kiosque_v1');
+  await H.retourColle(page, [c.id + ' pris_en_compte | Vu, on regarde.']);
   await expect(voyant).toBeVisible();
   const b = await voyant.boundingBox();
   expect([b.width, b.height]).toEqual([7, 7]);
+  // Sur la ligne : voyant et mot « nouveau » après le statut.
+  await expect(page.locator('.cm-panel-item .cm-meta').first()).toContainText('pris en compte');
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveText('nouveau');
+  await page.locator('#cmPanelBtn').click();                           // la liste se ferme : vu
+  await expect(voyant).toBeHidden();
+  await page.reload();
+  await expect(voyant).toBeHidden();                                   // et ça reste vu
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);
 });
 
 test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix et icônes seules', async ({ page }) => {
@@ -112,6 +128,44 @@ test('5. Échap : la fenêtre, puis la liste, puis le mode ; à la fin, les deux
   await expect(page.locator('#cmPanelBtn')).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('5b. visionneuse : Échap, croix et clic à côté la ferment (le clic à côté ne fait rien d’autre), le focus revient à la vignette', async ({ page }) => {
+  // Un retour avec une capture (image fabriquée : la capture réelle est testée dans capture.spec).
+  await page.evaluate(() => {
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 200;
+    const g = cv.getContext('2d'); g.fillStyle = '#2e6f9e'; g.fillRect(0, 0, 400, 200);
+    const now = new Date().toISOString();
+    localStorage.setItem('witmit_kiosque_v1', JSON.stringify([{ id: 'v1', type: 'box', status: 'nouveau', page: 'generic-dashboard.html', zone: 'zone encadrée dans : Tableau', text: 'Capture', date: now, vuLe: now,
+      anchor: { path: null, relX: 0.1, relY: 0.1, relW: 0.2, relH: 0.1 }, fallback: { x: 100, y: 100, w: 200, h: 80 }, category: 'a-classer', shot: { dataUrl: cv.toDataURL('image/jpeg', 0.8), width: 400, height: 200, at: now } }]));
+  });
+  await page.reload();
+  await page.locator('#cmPanelBtn').click();
+  const vignette = page.locator('.cm-panel-item .cm-vignette');
+  await expect(vignette).toHaveAccessibleName('agrandir la capture');
+  const ouvrir = async () => { await vignette.click(); await expect(page.locator('.cm-lightbox')).toHaveCount(1); };
+  // Échap : la visionneuse seule ; le focus revient à la vignette, la liste reste ouverte.
+  await ouvrir();
+  await expect(page.locator('.cm-lightbox .cm-lb-fermer')).toBeFocused();
+  await expect(page.locator('.cm-lightbox')).toContainText('Capture de la zone');
+  await expect(page.locator('.cm-lightbox .cm-lb-meta')).toHaveText(/^retour 1 · zone · zone encadrée dans : Tableau · \d\d\/\d\d$/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cm-lightbox')).toHaveCount(0);
+  await expect(vignette).toBeFocused();
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  // Croix.
+  await ouvrir();
+  await page.locator('.cm-lightbox .cm-lb-fermer').click();
+  await expect(page.locator('.cm-lightbox')).toHaveCount(0);
+  await expect(vignette).toBeFocused();
+  // Le clic sur l'image ne ferme plus ; le clic à côté ferme, et la liste reste ouverte (il ne fait rien d'autre).
+  await ouvrir();
+  await page.locator('.cm-lightbox img').click();
+  await expect(page.locator('.cm-lightbox')).toHaveCount(1);
+  await page.mouse.click(20, 400);
+  await expect(page.locator('.cm-lightbox')).toHaveCount(0);
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await expect(vignette).toBeFocused();
+});
+
 test('6. touche « nouveau retour » : raccourci N annoncé ; elle ferme la liste et lance le mode', async ({ page }) => {
   await page.locator('#cmPanelBtn').click();
   const nouveau = page.locator('#cmNewBtn');
@@ -148,11 +202,27 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
     expect(r.dedans, `${nom} ${cible}`).toBe(true);
     await page.keyboard.press('Escape');
   }
-  // Sur ordinateur, la fenêtre fait 380 px.
+  // Tiroir (M1) : pleine largeur, en surimpression, sans pousser la page.
+  await page.goto(H.fileUrl(MAQUETTE));
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await page.waitForTimeout(400);
+  const t = await page.evaluate(() => {
+    const p = document.getElementById('cmPanel').getBoundingClientRect();
+    return { vw: document.documentElement.clientWidth, left: p.left, right: p.right, marge: document.documentElement.style.marginRight };
+  });
+  expect(t.left).toBeLessThanOrEqual(0.5);
+  expect(t.right).toBeGreaterThanOrEqual(t.vw - 0.5);
+  expect(t.marge).toBe('');                                            // la page n'est pas poussée
+  // Sur ordinateur, la fenêtre fait 380 px, le tiroir aussi.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));
   await H.activate(page);
   const b = await H.visibleBox(page, CIBLE);
   await page.mouse.click(b.x + 4, b.y + 4);
   expect((await page.locator('.cm-popup').boundingBox()).width).toBe(380);
+  await page.keyboard.press('Escape');
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  expect((await page.locator('#cmPanel').boundingBox()).width).toBe(380);
 });

@@ -12,7 +12,8 @@ test.describe('Étapes et onglets masqués', () => {
     await page.locator('.pdot[data-step="2"]').click();
     await expect(page.locator('#stepPanel2')).toBeVisible();
     await expect(page.locator('.cm-pin')).toHaveCount(0);
-    await expect(page.locator('#cmCount')).toHaveText('1'); // toujours enregistré
+    await expect(page.locator('#cmPanelSub')).toContainText('1 à suivre'); // toujours enregistré (nombre « à suivre », Léa 2.1)
+    await expect(page.locator('#cmCount')).toHaveAttribute('data-zero', '1');  // voyant éteint : l'équipe n'a rien écrit (C5)
     await page.locator('.pdot[data-step="1"]').click();
     await expect(page.locator('.cm-pin')).toHaveCount(1);
   });
@@ -54,7 +55,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   await H.addPin(page, '#stepPanel1 .fcard-title', 'Depuis proposer');
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('#cmPanelSub')).toContainText('2 au total sur 2 page(s) du site');
+  await expect(page.locator('#cmPanelSub')).toHaveText('1 à suivre — 2 retours sur 2 pages du site');
   await expect(page.locator('.cm-panel-item')).toHaveCount(1); // la liste ne montre que la page courante
   page.once('dialog', (d) => d.dismiss());
   await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
@@ -64,7 +65,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   expect(txt).toContain('### #2 · '); // numérotation continue sur tout le site
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('#cmPanelSub')).toContainText('0 au total sur 0 page(s) du site');
+  await expect(page.locator('#cmPanelSub')).toBeHidden();             // aucun retour sur ce site : pas de ligne de compte
 });
 
 test('Charger le script deux fois n’installe le widget qu’une fois', async ({ page }) => {
@@ -81,6 +82,6 @@ test('Sans data-email, « Envoyer » explique quoi faire au lieu d’ouvrir un m
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'x');
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await page.locator('.cm-panel-foot button', { hasText: 'Envoyer' }).click();
-  await expect(page.locator('#cmStatus')).toContainText('data-email');
+  await page.locator('.cm-panel-foot button', { hasText: 'envoyer par email' }).click();
+  await expect(page.locator('#cmStatus')).toContainText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
 });

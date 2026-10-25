@@ -188,7 +188,8 @@
   function renderAuthor() {
     var el = document.getElementById('cmAuthor');
     if (!el) return;
-    el.textContent = AUTHOR ? 'Tes retours sont signés : ' + AUTHOR : '';
+    el.innerHTML = AUTHOR ? icone('Signature', 14) + '<span>tes retours sont signés : <b></b></span>' : '';
+    if (AUTHOR) el.querySelector('b').textContent = AUTHOR;
     el.hidden = !AUTHOR;
   }
   function runCommand(cmd) {
@@ -209,6 +210,8 @@
   );
   var RACC_MONTRER = IS_MAC ? '⌥+W' : 'alt+W';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
+  // Repère « ⌥+W » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono ne l'a pas).
+  var REPERE_MONTRER = '<span class="wm-repere" aria-hidden="true">' + (IS_MAC ? icone('Option', 12) + '+W' : 'alt+W') + '</span>';
 
   var CSS = `
   /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
@@ -278,6 +281,8 @@
     --wm-halo-filet: rgba(10,10,10,.9);
     --wm-halo-lueur-courte: rgba(255,242,0,.42);
     --wm-halo-lueur: rgba(255,242,0,.40);
+    /* Rond de la loupe posé sur une capture (fiche Tiroir) : sur l'image, jamais sur le verre. */
+    --wm-loupe-fond: rgba(20,19,17,.66);
     /* Mise en page seulement (pas d'identité) : la barre de navigation de l'hôte, si elle est déclarée. */
     --wm-nav-h: var(--nav-h, 0px);
   }
@@ -630,84 +635,184 @@
   .cm-popup .cm-popup-actions .wm-texte { padding:0 6px; }
   .cm-popup .cm-popup-actions .wm-touche { padding:0 8px 0 12px; }
 
-  /* Liste des retours : verre aux jetons (aspect intermédiaire ; fiche Tiroir au lot 5). */
-  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:300px; max-width:86vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .cm-panel.show { transform:translateX(0); }
-  .cm-panel-head { padding:16px 16px 12px 24px; border-bottom:1px solid var(--wm-line); }
-  .cm-panel-head-row { display:flex; align-items:center; justify-content:space-between; font-family:var(--wm-font-titre); font-weight:700; font-size:15px; color:var(--wm-ink); }
-  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-weight:900; }
-  .cm-panel-head-btns { display:flex; align-items:center; gap:10px; }
-  .cm-panel-sub { font-size:11px; color:var(--wm-ink-soft); margin-top:3px; }
-  .cm-panel-author { font-size:11px; color:var(--wm-ink-soft); margin-top:4px; }
-  .cm-panel-list { overflow-y:auto; padding:8px; flex:1; }
-  .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
-  .cm-panel-item:hover { background:var(--wm-surface-raised); }
-  .cm-panel-item.cm-current { background:var(--wm-surface-raised); box-shadow:inset 3px 0 0 var(--wm-ink); }
-  .cm-panel-item.cm-current .num { background:var(--wm-ink); color:var(--wm-encre-repere-claire); border-color:var(--wm-ink); }
-  body[data-wm-theme="client-sombre"] .cm-panel-item.cm-current .num { color:var(--wm-encre-repere); } /* chiffre dans l'encre de l'autre thème */
-  .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:var(--wm-radius-numero); background:transparent; border:1px solid var(--wm-line-strong); color:var(--wm-ink); font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; font-family:var(--wm-font-outil); margin-top:1px; }
+  /* ---------- Liste des retours (fiches Tiroir, FilDeMessages, Rapport ; C7, M1) ----------
+     Fenêtre witmit de 380 px sur toute la hauteur, collée à droite (pleine largeur, en surimpression, sous
+     480 px). Matière par habiller(). Tête, liste qui défile, encart « coller un retour », pied collé en bas. */
+  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:380px; max-width:100vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column;
+    font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; transform:translateX(100%); visibility:hidden;
+    transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 240ms; }
+  .cm-panel.show { transform:translateX(0); visibility:visible; transition-delay:0s; }
+  @media (max-width:480px) { .cm-panel { width:100vw; } }
+  @media (prefers-reduced-motion:reduce) { .cm-panel { transition:none; } }
+  /* Tête : marges 14 / 14 / 12 / 22, filet dessous. */
+  .cm-panel-head { flex:none; padding:14px 14px 12px 22px; border-bottom:1px solid var(--wm-line); }
+  .cm-panel-head-row { display:flex; align-items:center; gap:10px; margin:0 0 6px; }
+  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
+  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-size:22px; font-weight:900; line-height:1; color:var(--wm-ink); }
+  .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-author[hidden], .cm-panel-ailleurs[hidden] { display:none; }
+  .cm-panel-author b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-filtres { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12px; min-height:28px; margin-top:2px; }
+  .cm-panel-filtres:not(:has(> :not([hidden]))) { display:none; }   /* maquette, page vide : aucune ligne de filtres */
+  /* « masquer les terminés » (case de 16 px) et « masquer witmit » : textes seuls, zone de 44 px de haut. */
+  .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
+    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+  .cm-ui .cm-filtre::before { content:''; position:absolute; left:0; right:0; top:-8px; bottom:-8px; }
+  .cm-ui .cm-filtre:hover { color:var(--wm-ink); }
+  .cm-ui .cm-filtre:focus { outline:none; }
+  .cm-ui .cm-filtre:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  .cm-ui .cm-filtre .wm-repere { margin-left:2px; }
+  .cm-ui .wm-case { position:relative; flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-repere); color:var(--wm-ink); background:transparent; }
+  .cm-ui .wm-case .wm-icone { display:none; }
+  .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
+  /* La liste : 12 px des bords ; une ligne = numéro, corps, actions (12 px d'écart). */
+  .cm-panel-list { flex:1; min-height:0; overflow-y:auto; padding:4px 12px; }
+  .cm-panel-item { position:relative; isolation:isolate; display:flex; gap:12px; padding:12px 8px; border-bottom:1px solid var(--wm-line); }
+  .cm-panel-item:last-child { border-bottom:0; }
+  .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:transparent; pointer-events:none; }
+  .cm-panel-item:hover::before, .cm-panel-item.cm-current::before { background:var(--wm-surface-raised); }
+  .cm-panel-item .num { flex:none; display:flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 5px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-numero);
+    background:transparent; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1; color:var(--wm-ink); }
+  /* Ligne sélectionnée : même face + numéro plein, chiffre dans l'encre de l'autre thème (pas de barre à gauche). */
+  .cm-panel-item.cm-current .num { background:var(--wm-ink); border-color:var(--wm-ink); color:var(--wm-encre-repere-claire); }
+  body[data-wm-theme="client-sombre"] .cm-panel-item.cm-current .num { color:var(--wm-encre-repere); }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
-  .cm-panel-item .zone { font-size:10.5px; color:var(--wm-ink-soft); font-weight:600; margin-bottom:2px; }
-  .cm-panel-item textarea.cm-inline-edit { width:100%; box-sizing:border-box; resize:none; border:1px solid var(--wm-line-strong); border-radius:6px; padding:5px 6px; font-family:var(--wm-font-voix); font-size:13px; font-weight:500; line-height:1.4; color:var(--wm-ink); background:var(--wm-surface-raised); }
-  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:5px; }
-  .cm-panel-item .cm-cat-chip { font-size:10.5px; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border:1px solid var(--wm-line); border-radius:10px; padding:1px 7px; white-space:nowrap; }
-  .cm-panel-item details.cm-tech { font-size:10.5px; color:var(--wm-ink-soft); }
-  .cm-panel-item details.cm-tech summary { cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:4px; }
+  .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-panel-item .zone .wm-icone { margin:0; }
+  .cm-panel-item .zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  /* Texte de la personne : Syne 14 px, entre « » (posés par le style : le texte du retour reste intact). */
+  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
+  .cm-panel-item .txt::before, .cm-voix::before { content:'« '; }
+  .cm-panel-item .txt::after, .cm-voix::after { content:' »'; }
+  /* Méta : ligne 1 = verrou, statut (ou marque d'envoi) en gras, voyant, prénom, date ; ligne 2 = catégorie. */
+  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-meta2 { gap:2px 14px; margin-top:0; }
+  .cm-panel-item .cm-meta b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-meta > span, .cm-panel-item .cm-mi { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .cm-panel-item .cm-meta .wm-icone { margin:0; }
+  .cm-panel-item .cm-status-chip, .cm-panel-item .cm-sync-chip, .cm-panel-item .cm-cat-chip { display:inline-flex; align-items:center; gap:5px; margin:0; padding:0; border:0; border-radius:0; background:none; box-shadow:none;
+    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; text-transform:none; }
+  .cm-panel-item .cm-status-chip b, .cm-panel-item .cm-sync-chip b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-verrou { display:inline-flex; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:600; gap:5px; }
+  .cm-panel-item .cm-nouveau .wm-voyant { display:inline-block; }
+  /* « à renvoyer » : un bouton ; icône et soulignement rouges, mot à l'encre ; zone de 44 px de haut. */
+  .cm-ui button.cm-sync-error { position:relative; cursor:pointer; }
+  .cm-ui button.cm-sync-error::before { content:''; position:absolute; left:0; right:0; top:-13px; bottom:-13px; }
+  .cm-ui .cm-sync-error b { text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
+  .cm-ui .cm-sync-error:focus { outline:none; }
+  .cm-ui .cm-sync-error:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  /* Détails techniques : repli en texte seul ; ouvert, zone en creux de 160 px au plus, 12 px. */
+  .cm-panel-item details.cm-tech { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item details.cm-tech[open] { flex-basis:100%; }
+  .cm-panel-item details.cm-tech summary { display:inline-flex; align-items:center; gap:5px; min-height:24px; cursor:pointer; list-style:none; }
   .cm-panel-item details.cm-tech summary::-webkit-details-marker { display:none; }
   .cm-panel-item details.cm-tech .wm-ouvert, .cm-panel-item details.cm-tech[open] .wm-ferme { display:none; }
   .cm-panel-item details.cm-tech[open] .wm-ouvert { display:inline-block; }
-  .cm-panel-item details.cm-tech pre { margin:4px 0 0; padding:6px 8px; font-family:var(--wm-font-outil); font-size:10px; line-height:1.45; white-space:pre-wrap; word-break:break-all; background:var(--wm-surface-raised); border-radius:6px; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
-  .cm-panel-item .txt { font-family:var(--wm-font-voix); font-size:13px; font-weight:500; color:var(--wm-ink); line-height:1.4; word-wrap:break-word; }
-  .cm-panel-item .cm-sync-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid var(--wm-line); color:var(--wm-ink-soft); background:var(--wm-surface-raised); }
-  .cm-panel-item .cm-sync-chip.cm-sync-sent { color:var(--wm-ink); border-color:var(--wm-line-strong); background:transparent; }
-  .cm-panel-item .cm-sync-chip.cm-sync-error { color:var(--wm-ink); border-color:var(--wm-signal); background:transparent; cursor:pointer; }
-  .cm-panel-item .cm-status-chip { font-size:10.5px; border-radius:10px; padding:1px 7px; white-space:nowrap; border:1px solid transparent; }
-  .cm-panel-item .cm-st-signale { color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-color:var(--wm-line); }
-  .cm-panel-item .cm-st-pris_en_compte { color:var(--wm-ink); background:transparent; border-color:var(--wm-line-strong); }
-  .cm-panel-item .cm-st-complement { color:var(--wm-ink); background:var(--wm-surface-raised); border-color:var(--wm-line-strong); }
-  .cm-panel-item .cm-st-resolu { color:var(--wm-ink-soft); background:var(--wm-surface-raised); }
-  .cm-panel-item .cm-feedback { margin-top:5px; font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); background:var(--wm-surface-raised); border-left:2px solid var(--wm-line-strong); padding:4px 8px; border-radius:0 6px 6px 0; }
-  .cm-panel-item .cm-feedback-q { border-left-color:var(--wm-ink); }
-  .cm-panel-item img.cm-shot { display:block; max-width:100%; max-height:110px; margin-top:6px; border:1px solid var(--wm-line); border-radius:6px; cursor:zoom-in; background:#fff; }
-  .cm-lightbox { position:fixed; inset:0; z-index:990; background:rgba(0,0,0,.72); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; cursor:zoom-out; }
-  .cm-lightbox .cm-lightbox-fenetre { position:relative; display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 24px 20px 20px; }
-  .cm-lightbox img { position:relative; display:block; max-width:88vw; max-height:80vh; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:#fff; }
-  .cm-lightbox .cm-lightbox-hint { position:relative; color:var(--wm-ink-soft); font-family:var(--wm-font-outil); font-size:12px; }
+  .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:0; border-radius:0;
+    font-family:var(--wm-font-outil); font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
+  /* Actions : cercles de 30 px empilés, 14 px d'écart (zones de 44 px sans chevauchement). */
+  .cm-panel-item .cm-item-actions { flex:none; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .cm-panel-item.cm-done .num { border-color:var(--wm-line); color:var(--wm-ink-soft); }
+  .cm-panel-item.cm-done .txt { color:var(--wm-ink-soft); }
+  /* Vignette de capture : 112 × 64 px, coupe de 6 px ; au survol, la loupe dans un rond posé sur l'image. */
+  .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
+  .cm-panel-item .cm-vignette { margin-top:8px; }
+  .cm-ui .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-ui .cm-vignette img { display:block; width:100%; height:100%; max-width:none; margin:0; border:0; border-radius:0; object-fit:cover; background:none; }
+  .cm-ui .cm-loupe { position:absolute; right:4px; bottom:4px; z-index:1; display:none; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--wm-loupe-fond); color:var(--wm-encre-repere-claire); pointer-events:none; }
+  .cm-ui .cm-vignette:hover .cm-loupe, .cm-ui .cm-vignette:focus-visible .cm-loupe { display:flex; }
+  .cm-ui .cm-vignette:focus { outline:none; }
+  .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  /* Capture en cours (fiche Etats) : zone en creux, CircleNotch centré, « capture… » à côté. */
+  .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
+  .cm-popup .cm-capture-boite { width:112px; height:64px; }
+  /* Modification en place : champ coupé (comme celui de la fenêtre), aide en dessous. */
+  .cm-panel-item .cm-edit-bloc { margin-top:4px; }
+  .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:0;
+    background:var(--wm-surface-raised); box-shadow:none; outline:none; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; }
+  .cm-ui .cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply) { border-color:var(--wm-line-strong); }
+  .cm-ui .cm-panel-item .wm-champ > textarea:focus, .cm-ui .cm-feedback-box .wm-champ > textarea:focus { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
+  .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-aide .wm-repere { margin:0; }
+  /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta en mono, messages en Syne entre « ». */
+  .cm-panel-item .cm-thread { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+  .cm-panel-item .cm-msg { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); }
+  .cm-panel-item .cm-msg-auteur, .cm-panel-item .cm-reply { margin-left:16px; }
+  .cm-panel-item .cm-msg-who { display:block; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
+  .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-msg-who .wm-icone { margin:0 5px 0 0; }
+  .cm-panel-item .cm-msg-who .cm-sync-chip { vertical-align:baseline; margin-left:4px; }
+  .cm-panel-item .cm-msg-who .cm-msg-drop { vertical-align:middle; }
+  .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-panel-item .cm-msg-drop { margin-left:2px; }
+  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:13px; }
+  /* Champ de réponse : libellé, champ, puis « annuler » à gauche et la touche secondaire à droite. */
+  .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
+  .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-reponse-libelle .wm-icone { margin:0; }
+  .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte { padding:0 6px 0 0; font-size:12px; }
+  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte .wm-repere { margin-left:6px; }
+  .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
+  .cm-panel-item .cm-refus[hidden] { display:none; }
+  /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : mono 12 px, ink-soft, centrées. */
+  .cm-panel-empty { padding:24px 16px; text-align:center; font-size:12px; line-height:1.5; color:var(--wm-ink-soft); }
+  /* Encart « coller un retour » (fiche Rapport) : entre la liste et le pied. */
+  .cm-feedback-box { flex:none; padding:12px 24px 14px 20px; border-top:1px solid var(--wm-line); border-bottom:1px solid var(--wm-line); }
+  .cm-feedback-box[hidden] { display:none; }
+  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1.4; color:var(--wm-ink); }
+  .cm-feedback-box .cm-feedback-title .wm-icone { margin:0; }
+  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; }
+  .cm-feedback-box .cm-feedback-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
+  /* Pied : outils de la page et rapport (mode maquette, ou retour pas encore parti en live), puis « nouveau retour ». */
+  .cm-panel-pied { flex:none; padding:12px 24px 22px 18px; border-top:1px solid var(--wm-line); }
+  .cm-panel-pied.wm-outils-visibles { padding:10px 24px 22px 20px; }
+  .cm-panel-foot { display:flex; flex-wrap:wrap; align-items:center; }
+  .cm-panel-foot[hidden], .cm-panel-foot button[hidden], .cm-panel-foot label[hidden] { display:none; }
+  .cm-panel-tools { gap:0 16px; }
+  .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
+    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+  .cm-ui .cm-panel-tools .cm-outil::before { content:''; position:absolute; left:0; right:0; top:-6px; bottom:-6px; }
+  .cm-ui .cm-panel-tools .cm-outil:hover { color:var(--wm-ink); }
+  .cm-ui .cm-panel-tools .cm-outil:focus { outline:none; }
+  .cm-ui .cm-panel-tools .cm-outil:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  .cm-panel-report { gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--wm-line); }
+  .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; gap:6px; min-height:28px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-panel-report .cm-scope input { position:absolute; left:0; top:50%; width:16px; height:16px; margin:-8px 0 0; padding:0; opacity:0; cursor:pointer; }
+  .cm-panel-report .cm-scope input:focus-visible + .wm-case { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  .cm-panel-report .cm-scope .wm-case { pointer-events:none; }   /* la case dessinée laisse le clic à la vraie case */
+  .cm-ui .cm-panel-report .wm-touche { font-size:12px; font-weight:400; }
+  .cm-panel-new { flex-direction:column; align-items:stretch; }
+  .cm-panel-pied.wm-outils-visibles .cm-panel-new { margin-top:14px; }
+  .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
+  .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-new .cm-new-aide[hidden] { display:none; }
+
+  /* Visionneuse (fiche Visionneuse) : fenêtre witmit centrée, sans voile ; le site reste visible autour.
+     .cm-lightbox ne prend aucun clic (le clic à côté atteint la page, où il ferme la visionneuse). */
+  .cm-lightbox { position:fixed; inset:0; z-index:990; display:flex; align-items:center; justify-content:center; padding:8px; pointer-events:none; background:none; }
+  .cm-lightbox .cm-lightbox-fenetre { position:relative; display:flex; flex-direction:column; min-width:min(360px, calc(100vw - 16px)); max-width:min(92vw, calc(100vw - 16px)); max-height:86vh;
+    pointer-events:auto; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
+  .cm-lightbox .cm-lb-tete { position:relative; flex:none; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); }
+  .cm-lightbox .cm-lb-l1 { display:flex; align-items:center; gap:8px; margin:0 0 4px; }
+  .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
+  .cm-lightbox .cm-lb-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-lightbox .cm-lb-corps { position:relative; display:flex; flex-direction:column; min-height:0; padding:14px 24px 20px 20px; }
+  .cm-lightbox .cm-lb-image { position:relative; isolation:isolate; display:flex; justify-content:center; min-height:0; }
+  .cm-lightbox .cm-lb-face { position:relative; display:block; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-lightbox img { display:block; max-width:100%; max-height:calc(86vh - 150px); width:auto; height:auto; margin:0; border:0; border-radius:0; object-fit:contain; }
+  .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-lightbox .cm-lightbox-hint .wm-repere { margin:0; }
   /* Apparition en 160 ms portée par chaque couche de la fenêtre, jamais par un parent du verre (F9). */
   .cm-lightbox .cm-lightbox-fenetre > * { animation:wmApparait 160ms ease-out; }
   @keyframes wmApparait { from { opacity:0; } to { opacity:1; } }
   @media (prefers-reduced-motion:reduce) { .cm-lightbox .cm-lightbox-fenetre > *, .wm-tourne { animation:none; } }
-  .cm-panel-item .cm-reply { margin-top:4px; font-size:12px; color:var(--wm-ink-soft); padding-left:6px; }
-  .cm-panel-item .cm-when { color:var(--wm-ink-soft); font-size:10.5px; }
-  .cm-panel-item .cm-thread { margin-top:5px; display:flex; flex-direction:column; gap:4px; }
-  .cm-panel-item .cm-msg { font-size:11.5px; line-height:1.4; color:var(--wm-ink-soft); padding:4px 8px; border-radius:0 6px 6px 0; white-space:pre-wrap; word-break:break-word; }
-  .cm-panel-item .cm-msg-equipe { background:var(--wm-surface-raised); border-left:2px solid var(--wm-line-strong); }
-  .cm-panel-item .cm-msg-auteur { border-left:2px solid var(--wm-line); margin-left:12px; }
-  .cm-panel-item .cm-msg-who { display:block; font-size:10.5px; color:var(--wm-ink-soft); white-space:normal; }
-  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
-  .cm-panel-item .cm-item-actions { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .cm-panel-item.cm-done .num { opacity:.55; }
-  .cm-panel-item.cm-done .zone, .cm-panel-item.cm-done .txt, .cm-panel-item.cm-done .cm-meta { opacity:.55; }
-  .cm-panel-sub .cm-hide-done { margin-left:6px; font-family:var(--wm-font-outil); font-size:10px; font-weight:500; border:1px solid var(--wm-line); border-radius:10px; background:transparent; color:var(--wm-ink-soft); padding:1px 7px; cursor:pointer; }
-  .cm-panel-sub .cm-hide-done.cm-on, .cm-panel-sub .cm-hide-done:hover { border-color:var(--wm-line-strong); color:var(--wm-ink); }
-  .cm-panel-empty { padding:24px 16px; text-align:center; color:var(--wm-ink-soft); font-size:12.5px; line-height:1.5; }
-  .cm-panel-foot { padding:8px 10px; border-top:1px solid var(--wm-line); display:flex; gap:6px; flex-wrap:wrap; }
-  .cm-panel-foot:last-child { padding:12px 24px 22px 18px; } /* le coin witmit du bas droit reste libre */
-  .cm-panel-report .cm-scope { flex-basis:100%; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--wm-ink-soft); cursor:pointer; }
-  .cm-panel-report .cm-scope input { margin:0; }
-  .cm-feedback-box { border-top:1px solid var(--wm-line); padding:10px; background:var(--wm-surface-raised); }
-  .cm-feedback-box .cm-feedback-title { font-family:var(--wm-font-titre); font-weight:700; font-size:12px; color:var(--wm-ink); margin-bottom:6px; }
-  .cm-feedback-box textarea { width:100%; box-sizing:border-box; min-height:84px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:6px 8px; font-family:var(--wm-font-outil); font-size:11px; line-height:1.4; color:var(--wm-ink); background:var(--wm-surface-raised); }
-  .cm-feedback-box .cm-feedback-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:6px; }
-  .cm-panel-foot + .cm-panel-foot { border-top:none; padding-top:0; }
-  .cm-panel-foot[hidden], .cm-panel-foot button[hidden] { display:none; }
-  .cm-panel-foot .wm-touche { flex:1 1 auto; }
-  .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
-  .cm-feedback-box .cm-feedback-actions { align-items:center; }
-  .cm-panel-item .cm-item-actions .wm-cercle { width:30px; height:30px; }
-  .cm-panel-item .cm-thread-actions { align-items:center; }
-  .cm-panel-item .cm-msg-who { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
-
   /* Message d'état (toast) : verre aux jetons (aspect intermédiaire ; fiche Etats au lot 7). */
   /* Message passager : petite fenêtre de verre sans coins witmit (fiche Etats). Le fondu de 200 ms porte
      sur chaque couche enfant, jamais sur .cm-status, qui contient le verre (F4, F9) ; visibility suit. */
@@ -718,7 +823,6 @@
   .cm-status > .wm-contenu { position:relative; display:block; }
   @media (prefers-reduced-motion:reduce) { .cm-status, .cm-status > * { transition:none; } }
   @media (max-width:700px) {
-    .cm-panel { width:86vw; }
     .cm-pill { max-width:92vw; white-space:normal; text-align:left; }
   }
 `;
@@ -731,37 +835,43 @@
   <button class="wm-touche wm-petite" onclick="cmTerminer()">Terminer</button>
 </div>
 
-<div class="cm-panel cm-ui" id="cmPanel">
+<div class="cm-panel cm-ui" id="cmPanel" role="region" aria-label="witmit : tes retours sur cette page">
   <div class="cm-panel-head">
     <div class="cm-panel-head-row">
-      <span>Commentaires — <span id="cmPanelCount">0</span></span>
-      <span class="cm-panel-head-btns">
-        <button class="cm-hide-widget wm-texte" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_MONTRER}, ou ?witmit=on dans l'adresse" aria-keyshortcuts="Alt+W" hidden>${icone('EyeSlash', 14)}Masquer witmit</button>
-        <button class="wm-cercle" onclick="cmTogglePanel(false)" aria-label="Fermer" title="Fermer">${icone('X', 14)}</button>
-      </span>
+      <span class="cm-panel-titre">En marge de cette page</span>
+      <span id="cmPanelCount" aria-label="0 retour sur cette page">0</span>
+      <button type="button" class="wm-cercle cm-panel-fermer" onclick="cmTogglePanel(false)" aria-label="fermer" title="fermer">${icone('X', 14)}</button>
     </div>
-    <div class="cm-panel-sub" id="cmPanelSub"></div>
     <div class="cm-panel-author" id="cmAuthor" hidden></div>
+    <div class="cm-panel-sub" id="cmPanelSub"></div>
+    <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
+    <div class="cm-panel-filtres">
+      <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
+      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_MONTRER}, ou ?witmit=on dans l'adresse" aria-keyshortcuts="Alt+W" hidden>${icone('EyeSlash', 14)}masquer witmit${REPERE_MONTRER}</button>
+    </div>
   </div>
   <div class="cm-panel-list" id="cmList"></div>
-  <div class="cm-panel-foot cm-panel-new">
-    <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour<span class="wm-repere" aria-hidden="true">N</span></button>
-  </div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
-    <div class="cm-feedback-title">Coller un retour</div>
-    <textarea placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea>
-    <div class="cm-feedback-actions"><button class="wm-texte" onclick="cmPasteFeedback(false)">Annuler</button><button class="primary wm-touche wm-principale" onclick="cmApplyFeedback()">Appliquer</button></div>
+    <div class="cm-feedback-title">${icone('ClipboardText', 14)}coller un retour</div>
+    <span class="wm-champ"><textarea aria-label="coller un retour" placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea></span>
+    <div class="cm-feedback-actions"><button type="button" class="wm-texte" onclick="cmPasteFeedback(false)">annuler</button><button type="button" class="wm-touche wm-petite" onclick="cmApplyFeedback()">appliquer</button></div>
   </div>
-  <div class="cm-panel-foot cm-panel-tools">
-    <button class="wm-touche wm-petite" onclick="cmClearAll()">${icone('Trash', 16)}Effacer (page)</button>
-    <button class="wm-touche wm-petite" onclick="cmClearSite()">${icone('Broom', 16)}Vider tout (site)</button>
-    <button class="wm-touche wm-petite" onclick="cmPasteFeedback()" id="cmPasteBtn">${icone('ClipboardText', 16)}Coller un retour</button>
-  </div>
-  <div class="cm-panel-foot cm-panel-report" id="cmReportFoot">
-    <label class="cm-scope" title="Par défaut : seulement les nouveautés (tickets nouveaux + réponses aux compléments)"><input type="checkbox" id="cmFullReport"> Rapport complet</label>
-    <button class="wm-touche wm-petite" onclick="cmExport()">${icone('DownloadSimple', 16)}Télécharger</button>
-    <button class="wm-touche wm-petite" onclick="cmCopy()">${icone('Copy', 16)}Copier</button>
-    <button class="primary wm-touche wm-petite wm-principale" onclick="cmSendMail()">${icone('EnvelopeSimple', 16)}Envoyer</button>
+  <div class="cm-panel-pied" id="cmPanelPied">
+    <div class="cm-panel-foot cm-panel-tools" id="cmPanelTools">
+      <button type="button" class="cm-outil" onclick="cmClearAll()" id="cmClearPageBtn">${icone('Trash', 14)}effacer (page)</button>
+      <button type="button" class="cm-outil" onclick="cmClearSite()" id="cmClearSiteBtn">${icone('Broom', 14)}vider tout (site)</button>
+      <button type="button" class="cm-outil" onclick="cmPasteFeedback()" id="cmPasteBtn">${icone('ClipboardText', 14)}coller un retour</button>
+    </div>
+    <div class="cm-panel-foot cm-panel-report" id="cmReportFoot">
+      <label class="cm-scope" title="sans cette case : seulement les nouveautés (nouveaux retours et réponses aux compléments)"><input type="checkbox" id="cmFullReport"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>rapport complet</label>
+      <button type="button" class="wm-touche wm-petite" onclick="cmExport()">${icone('DownloadSimple', 14)}télécharger</button>
+      <button type="button" class="wm-touche wm-petite" onclick="cmCopy()">${icone('Copy', 14)}copier</button>
+      <button type="button" class="wm-touche wm-petite" onclick="cmSendMail()">${icone('EnvelopeSimple', 14)}envoyer par email</button>
+    </div>
+    <div class="cm-panel-foot cm-panel-new">
+      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour<span class="wm-repere" aria-hidden="true">N</span></button>
+      <div class="cm-new-aide" id="cmNewAide" hidden>ou ${RACC_ANNOTER}, de n'importe où sur la page.</div>
+    </div>
   </div>
 </div>
 
@@ -1167,7 +1277,7 @@
         return fetch(FN_URL + route, { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify(body) });
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (data) {
-          if (!r.ok) throw new Error(data.erreur || ('erreur ' + r.status));
+          if (!r.ok) { var err = new Error(data.erreur || ('erreur ' + r.status)); err.status = r.status; throw err; }
           return data;
         });
       });
@@ -1184,9 +1294,11 @@
       if (!live) return;
       return sendComment(live).then(function (data) {
         live.sync = { state: 'sent', id: data.id, statut: data.statut, at: new Date().toISOString() };
+        poserRecu(live);                                       // C9 : reçu par witmit, une fois pour toutes
         cmStatus('Ticket envoyé');
       }).catch(function (err) {
         live.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
+        if (err && err.status === 409) poserRecu(live);        // « déjà pris en charge » : le retour est chez le guichet (C9)
         cmStatus('Envoi impossible (' + live.sync.error + ') — le ticket est gardé en local, nouvel essai plus tard');
       }).then(function () { persist(); renderList(); });
     });
@@ -1220,10 +1332,10 @@
   window.cmRetryReply = function (id, rid) { var c = findComment(id), r = c && findReply(c, rid); if (r) { r.sync = null; scheduleReply(c, r); } };
   window.cmDropReply = function (id, rid) {
     var c = findComment(id), r = c && findReply(c, rid);
-    if (!r || (r.sync && r.sync.state === 'pending') || !confirm('Abandonner ce message non envoyé ?')) return;
+    if (!r || (r.sync && r.sync.state === 'pending') || !confirm("abandonner ce message ? il n'est pas parti et sera effacé.")) return;
     c.replies = c.replies.filter(function (x) { return x !== r; });
     persist(); renderList();
-    cmStatus('Message abandonné');
+    cmStatus('message abandonné.');
   };
   // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir et au chargement.
   function flushPending() {
@@ -1242,6 +1354,7 @@
   // fermée « non prévue ») → terminé aussi, affiché « répondu » (c.repondu) ; avec le fil des messages (équipe / toi).
   // Un ticket terminé par le serveur puis rouvert (depuis witmit ou GitHub) redevient « pris en compte ».
   function refreshStatuses() {
+    var premiere = vusAuChargement; vusAuChargement = false;   // C5 : la première relecture de la 0.2.0 n'allume rien
     if (!SYNC || !readSession()) return Promise.resolve();
     var ids = allComments.filter(function (c) { return c.sync && c.sync.state === 'sent'; }).map(function (c) { return c.id; });
     if (!ids.length) return Promise.resolve();
@@ -1253,6 +1366,11 @@
       rows.forEach(function (row) {
         var c = findComment(row.id_local); if (!c || !c.sync) return;
         var thread = Array.isArray(row.messages) ? row.messages : null;
+        poserRecu(c);                                          // le serveur le connaît : reçu (C9)
+        // Voyant (C5) : l'équipe a changé le statut, écrit un message de retour ou un nouveau message du fil.
+        var nbEquipe = function (fil) { return (fil || []).filter(function (m) { return m.de === 'equipe'; }).length; };
+        var equipe = c.sync.statut !== row.statut || (row.message_retour || '') !== (c.feedbackMessage || '') || (thread && nbEquipe(thread) > nbEquipe(c.thread));
+        if (equipe && !premiere) equipeAAgi(c);
         if (c.sync.statut !== row.statut || (row.message_retour || '') !== (c.feedbackMessage || '')) changed = true;
         // La page enregistrée au serveur fait foi (elle vient de l'URL réelle au moment de l'envoi) :
         // corrige les tickets rangés sous une mauvaise page par les versions précédentes du widget.
@@ -1283,13 +1401,23 @@
     if (foot) foot.hidden = cacher;
     if (paste) paste.hidden = cacher;
     if (cacher) { var box = document.getElementById('cmFeedbackBox'); if (box) box.hidden = true; }
+    // En live (C9) : « effacer (page) » et « vider tout (site) » seulement s'il reste un retour supprimable.
+    var effacer = document.getElementById('cmClearPageBtn'), vider = document.getElementById('cmClearSiteBtn');
+    if (effacer) effacer.hidden = !pageComments().length || (LIVE && !pageComments().some(supprimable));   // rien sur la page : rien à effacer
+    if (vider) vider.hidden = LIVE && !allComments.some(supprimable);
+    var outils = document.getElementById('cmPanelTools');
+    var outilsVus = outils && [effacer, vider, paste].some(function (b) { return b && !b.hidden; });
+    if (outils) outils.hidden = !outilsVus;
+    var pied = document.getElementById('cmPanelPied');
+    if (pied) pied.classList.toggle('wm-outils-visibles', !!(outilsVus || (foot && !foot.hidden)));
   }
 
+  // Marques d'envoi (Léa 2.3 et 3.5) : une icône et un mot en gras ; « à renvoyer » est le bouton du nouvel essai.
   function syncChip(c) {
-    if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="Pas encore envoyé">' + icone('CloudArrowUp', 14, 'wm-devant') + 'à envoyer</span>' : '';
-    if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="Reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">' + icone('CloudCheck', 14, 'wm-devant') + 'envoyé</span>';
-    if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="Envoi en cours">' + icone('CircleNotch', 14, 'wm-devant wm-tourne') + 'envoi…</span>';
-    return '<span class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + ' — cliquer pour réessayer">' + icone('WarningCircle', 14, 'wm-devant wm-signal') + 'à renvoyer</span>';
+    if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="pas encore parti : il partira tout seul">' + icone('CloudArrowUp', 14) + '<b>à envoyer</b></span>' : '';
+    if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">' + icone('CloudCheck', 14) + '<b>envoyé</b></span>';
+    if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + '<b>envoi en cours…</b></span>';
+    return '<button type="button" class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + '. clique pour réessayer.">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
   }
   window.cmRetrySync = function (id) { var c = findComment(id); if (c) { c.sync = null; scheduleSync(c); } };
 
@@ -1297,6 +1425,7 @@
   var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
 
   var allComments = [];    // TOUTES les pages
+  var vusAuChargement = false;   // premier chargement de la 0.2.0 : la première relecture des statuts n'allume rien (C5)
   var active = false;
   var pendingPopup = null;
   var sessionMarks = {};   // id -> [<mark>] surlignages de texte (vivent seulement le temps de la session)
@@ -1311,7 +1440,7 @@
   function cmEsc(s) {
     var d = document.createElement('div');
     d.textContent = s || '';
-    return d.innerHTML;
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');   // sûr aussi dans un attribut
   }
   function pageComments() {
     // Anciens tickets d'un site (avant la V2.4) : rangés sous le dernier segment de l'URL (« dons »).
@@ -1332,6 +1461,18 @@
         }
       });
     } catch (e) { allComments = []; }
+    // Premier chargement de la 0.2.0 (C5) : tout l'existant compte comme vu, y compris ce que la première relecture
+    // des statuts va rapporter de l'équipe ; ensuite, seul ce qui arrive après allume le voyant.
+    var VU_KEY = 'witmit_' + CONFIG.project + '_vu_0_2', aEcrire = false;
+    try {
+      if (!localStorage.getItem(VU_KEY)) {
+        var maintenant = new Date().toISOString();
+        allComments.forEach(function (c) { if (!c.vuLe) c.vuLe = maintenant; });
+        vusAuChargement = aEcrire = allComments.length > 0;
+        localStorage.setItem(VU_KEY, '1');
+      }
+    } catch (e) {}
+    if (marquerRecusConnus() || aEcrire) persist();          // C9 : retours qui portent une trace du guichet
   }
   function persist() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allComments)); } catch (e) {}
@@ -1679,40 +1820,100 @@
   });
   domObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true, subtree: true });
 
-  /* ---------- cycle de vie d'un ticket ----------
+  /* ---------- cycle de vie d'un retour ----------
        nouveau ──(rapport)──▶ signalé ──(retour)──▶ pris en compte ──▶ résolu
                                  │                        │
                                  └──(retour)──▶ complément demandé ──(réponse + rapport)──▶ signalé
-       Un ticket qui a quitté « nouveau » n'est plus modifiable (texte, cibles, catégorie) ; seul un
+       Un retour qui a quitté « nouveau » n'est plus modifiable (texte, cibles, catégorie) ; seul un
        « complément demandé » accepte une réponse, ajoutée au texte d'origine. Un « signalé » pas encore
        pris en compte peut être rouvert (il redevient nouveau et remplacera l'ancien au prochain rapport).
-       Le ✓ manuel = « résolu par moi ». */
+       Le ✓ manuel = « résolu par moi ».
+     Statuts (C2, table de Léa 2.2) : seuls les LIBELLÉS changent ; les valeurs internes (nouveau, signale,
+     pris_en_compte, complement, resolu), la clé de stockage et la forme des données ne bougent pas. */
   var STATUS = {
-    nouveau:        { icon: '',             label: 'Nouveau' },
-    signale:        { icon: 'LockSimple',   label: 'Signalé' },
-    pris_en_compte: { icon: 'Eye',          label: 'Pris en compte' },
-    complement:     { icon: 'Question',     label: 'Complément demandé' },
-    resolu:         { icon: 'CheckCircle',  label: 'Résolu' }   // même icône pour résolu et répondu (décision du 29/09)
+    nouveau:        { icon: '',             label: 'nouveau' },
+    signale:        { icon: 'LockSimple',   label: 'signalé' },
+    pris_en_compte: { icon: 'Eye',          label: 'pris en compte' },
+    complement:     { icon: 'Question',     label: 'complément demandé' },
+    resolu:         { icon: 'CheckCircle',  label: 'résolu' }   // même icône pour résolu, répondu et résolu par moi (décision du 29/09)
   };
   function isDone(c) { return c.status === 'resolu'; }
   function isEditable(c) { return !c.status || c.status === 'nouveau'; }
   function frDate(iso) { try { return new Date(iso).toLocaleDateString('fr-FR'); } catch (e) { return ''; } }
-  function statusLabel(c) {
-    if (c.status === 'signale') return 'Signalé le ' + frDate(c.signaledAt);
-    if (c.status === 'resolu') return (c.repondu ? 'Répondu le ' : 'Résolu le ') + frDate(c.resolvedAt) + (c.resolvedBy === 'moi' ? ' (par moi)' : '');
-    if (c.status === 'pris_en_compte') return 'Pris en compte' + (c.ackAt ? ' le ' + frDate(c.ackAt) : '');
-    if (c.status === 'complement') return 'Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '');
-    return '';
+  function deuxChiffres(n) { return (n < 10 ? '0' : '') + n; }
+  function dateCourte(iso) { var d = new Date(iso); return isNaN(d) ? '' : deuxChiffres(d.getDate()) + '/' + deuxChiffres(d.getMonth() + 1); }
+  // Date du retour dans la liste (Léa 3.4) : « à l'instant », « 12 min », « 2 h », « hier », « 24/10 », « 24/10/2025 ».
+  function dateRelative(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    var now = new Date(), min = Math.floor((now - d) / 60000);
+    if (min < 1) return "à l'instant";
+    if (min < 60) return min + ' min';
+    var jour = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var ecart = Math.round((jour(now) - jour(d)) / 86400000);
+    if (ecart <= 0) return Math.floor(min / 60) + ' h';
+    if (ecart === 1) return 'hier';
+    return dateCourte(iso) + (d.getFullYear() === now.getFullYear() ? '' : '/' + d.getFullYear());
   }
-  // Le libellé du statut précédé de son icône (HTML), pour la liste et la fenêtre.
+  // Nom du statut (Léa 2.1 et 2.2), en minuscules, sans date ; rien pour « nouveau » (la marque d'envoi en tient lieu).
+  function statusLabel(c) {
+    if (c.status === 'resolu') return c.resolvedBy === 'moi' ? 'résolu par moi' : c.repondu ? 'répondu' : 'résolu';
+    return c.status && c.status !== 'nouveau' && STATUS[c.status] ? STATUS[c.status].label : '';
+  }
+  // La date du statut passe en info-bulle : « résolu le 24/10/2026 ».
+  function dateStatut(c) {
+    return c.status === 'signale' ? c.signaledAt : c.status === 'resolu' ? c.resolvedAt : c.status === 'pris_en_compte' ? c.ackAt : c.status === 'complement' ? c.complementAt : null;
+  }
+  function titreStatut(c) { var d = dateStatut(c); return statusLabel(c) + (d ? ' le ' + frDate(d) : ''); }
+  // Le statut précédé de son icône, le mot en gras (méta de la liste).
   function statusHtml(c) {
     var st = STATUS[c.status] || STATUS.nouveau;
-    return (st.icon ? icone(st.icon, 14, 'wm-devant') : '') + cmEsc(statusLabel(c));
+    return (st.icon ? icone(st.icon, 14) : '') + '<b>' + cmEsc(statusLabel(c)) + '</b>';
   }
   function pushHistory(c, entry) { (c.history = c.history || []).push(entry); }
   var HIDE_DONE_KEY = 'witmit_hide_done';
   function hideDone() { try { return localStorage.getItem(HIDE_DONE_KEY) === '1'; } catch (e) { return false; } }
   function findComment(id) { return allComments.filter(function (x) { return x.id === id; })[0]; }
+
+  /* ---------- voyant « l'équipe a écrit » (décision B du 25/10, option 1 ; C5) ----------
+     Deux champs facultatifs sur chaque retour, dans le même objet du navigateur : equipeLe, le moment où witmit
+     a vu l'équipe agir (un message, un statut changé par le serveur, un retour collé en maquette), et vuLe, la
+     dernière fois que la personne l'a vu dans la liste. Du nouveau = equipeLe après vuLe. Ce que la personne
+     fait elle-même (écrire, modifier, répondre, rouvrir) ne le pose jamais. Le voyant s'éteint quand elle
+     ferme la liste après l'avoir vu. Au premier chargement de la 0.2.0, tout l'existant compte comme vu.
+     Rien ne part au serveur. */
+  function aDuNouveau(c) { return !!(c.equipeLe && (!c.vuLe || c.equipeLe > c.vuLe)); }
+  function equipeAAgi(c) { c.equipeLe = new Date().toISOString(); }
+  function marquerVus() {
+    var now = new Date().toISOString(), n = 0;
+    pageComments().forEach(function (c) {
+      if (hideDone() && isDone(c)) return;            // caché par le filtre : pas vu
+      if (aDuNouveau(c)) { c.vuLe = now; n++; }
+    });
+    if (n) { persist(); renderList(); }
+  }
+
+  /* ---------- « reçu par witmit » et suppressions en live (décision C du 25/10, option 1 ; C9, Léa 50) ----------
+     recuLe : date de la première réponse 201 du guichet (ou d'un 409 « déjà pris en charge », qui prouve que le
+     retour est chez lui), posée une fois et jamais effacée : une modification ou un renvoi remettent c.sync à
+     zéro, c.sync ne peut donc pas le dire. En live avec guichet, un retour se supprime seulement s'il n'a jamais
+     été reçu et n'est pas « envoi en cours ». Live sans guichet : rien n'est jamais reçu, tout se supprime.
+     Maquette : inchangée, tout se supprime. */
+  function supprimable(c) {
+    if (!SYNC) return true;
+    return !c.recuLe && !(c.sync && c.sync.state === 'pending');
+  }
+  function poserRecu(c) { if (c && !c.recuLe) c.recuLe = new Date().toISOString(); }
+  // Retours qui portent une trace du guichet (identifiant, fil, statut venu du serveur) : reçus, même sans recuLe
+  // (retours écrits avant la 0.2.0). Appliqué à chaque chargement : ne pose que ce qui manque.
+  function marquerRecusConnus() {
+    var n = 0;
+    allComments.forEach(function (c) {
+      if (c.recuLe) return;
+      if ((c.sync && c.sync.id) || (c.thread && c.thread.length) || c.resolvedBy === 'serveur' || (SYNC && c.status === 'pris_en_compte')) { poserRecu(c); n++; }
+    });
+    return n;
+  }
 
   /* ✓ manuel : résolu par moi (depuis n'importe quel statut sauf résolu) */
   window.cmResolve = function (id) {
@@ -1722,9 +1923,9 @@
     c.status = 'resolu'; c.resolvedAt = new Date().toISOString(); c.resolvedBy = 'moi';
     pushHistory(c, { date: c.resolvedAt, status: 'resolu', source: 'moi' });
     persist(); renderList(); renderMarkers();
-    cmStatus('Marqué résolu (par toi) — verrouillé');
+    cmStatus('marqué résolu par toi.' + (LIVE ? " l'équipe n'est pas prévenue." : ''));
   };
-  /* Rouvrir un ticket signalé pas encore pris en compte : redevient nouveau, modifiable ; le prochain
+  /* Rouvrir un retour signalé pas encore pris en compte : redevient nouveau, modifiable ; le prochain
      rapport le renverra avec la mention « remplace la version du … » */
   window.cmReopen = function (id) {
     var c = findComment(id);
@@ -1733,38 +1934,55 @@
     c.status = 'nouveau'; delete c.signaledAt;
     pushHistory(c, { date: new Date().toISOString(), status: 'nouveau', source: 'moi', message: 'rouvert' });
     persist(); renderList(); renderMarkers();
-    cmStatus('Rouvert — modifiable, sera renvoyé au prochain rapport');
+    cmStatus('rouvert : tu peux le modifier, il repartira dans le prochain rapport.');
   };
   window.cmToggleHideDone = function () {
     try { localStorage.setItem(HIDE_DONE_KEY, hideDone() ? '0' : '1'); } catch (e) {}
     renderList(); renderMarkers();
   };
 
-  /* Le fil d'un ticket (mode live) : messages de l'équipe et les tiens, puis ceux pas encore partis ;
-     sous le fil, « Répondre » (s'il y a au moins un message de l'équipe) et « Ça ne convient pas ? Rouvrir »
-     (ticket résolu ou répondu par l'équipe). */
+  /* ---------- le fil d'un retour (fiche FilDeMessages ; Léa 3.4 et 3.6) ----------
+     Messages de l'équipe en creux, les tiens en retrait ; méta en mono, texte de la personne en Syne entre « ».
+     Live : le fil du serveur, puis tes messages pas encore partis ; dessous, « répondre » (si l'équipe a écrit
+     au moins une fois) et « ça ne convient pas ? rouvrir » (retour résolu ou répondu par l'équipe).
+     Maquette : complément demandé, message de l'équipe collé, tes réponses en attente du prochain rapport. */
   function canReply(c) { return !!(SYNC && c.sync && c.sync.id && (c.thread || []).some(function (m) { return m.de === 'equipe'; })); }
   function canReopen(c) {
     return !!(SYNC && c.sync && c.sync.id && (c.sync.statut === 'resolu' || c.sync.statut === 'repondu') && c.status === 'resolu' && c.resolvedBy === 'serveur' &&
       !(c.replies || []).some(function (r) { return r.rouvrir; }));
   }
-  function threadHtml(c) {
-    var msgs = (c.thread || []).map(function (m) {
+  function messageHtml(cls, qui, texte) {
+    return '<div class="cm-msg ' + cls + '"><span class="cm-msg-who">' + qui + '</span>' +
+      (texte ? '<span class="cm-msg-texte cm-voix">' + cmEsc(texte) + '</span>' : '') + '</div>';
+  }
+  function filHtml(c) {
+    var msgs = [];
+    if (!SYNC) {
+      if (c.status === 'complement' && c.complementMessage) msgs.push(messageHtml('cm-feedback cm-feedback-q', icone('Question', 14) + '<b>complément demandé</b>' + (c.complementAt ? ' · ' + cmEsc(dateCourte(c.complementAt)) : ''), c.complementMessage));
+      else if (c.feedbackMessage) msgs.push(messageHtml('cm-feedback', icone('ChatCircleText', 14) + '<b>équipe</b>', c.feedbackMessage));
+      (c.replies || []).forEach(function (r) {
+        msgs.push(messageHtml('cm-msg-auteur cm-reply', icone('ArrowBendDownRight', 14) + '<b>toi</b> · ' + cmEsc(dateCourte(r.date)) + (r.sentIn ? '' : ' · pour le prochain rapport'), r.text));
+      });
+      return msgs.length ? '<div class="cm-thread">' + msgs.join('') + '</div>' : '';
+    }
+    if (c.feedbackMessage && !(c.thread && c.thread.length)) msgs.push(messageHtml('cm-msg-equipe cm-feedback', icone('ChatCircleText', 14) + '<b>équipe</b>', c.feedbackMessage));
+    (c.thread || []).forEach(function (m) {
       var equipe = m.de === 'equipe';
-      var who = equipe ? icone('ChatCircleText', 14) + 'Équipe' : (m.rouvre ? icone('ArrowCounterClockwise', 14) + 'Tu as rouvert le ticket' : icone('ArrowBendDownRight', 14) + 'Toi');
-      return '<div class="cm-msg cm-msg-' + (equipe ? 'equipe' : 'auteur') + '"><span class="cm-msg-who">' + who + ' · ' + cmEsc(frDate(m.cree_le)) + '</span>' + cmEsc(m.texte) + '</div>';
+      var qui = equipe ? icone('ChatCircleText', 14) + '<b>équipe</b>' : (m.rouvre ? icone('ArrowCounterClockwise', 14) + '<b>tu as rouvert ce retour</b>' : icone('ArrowBendDownRight', 14) + '<b>toi</b>');
+      msgs.push(messageHtml(equipe ? 'cm-msg-equipe' : 'cm-msg-auteur', qui + ' · ' + cmEsc(frDate(m.cree_le)), m.texte));
     });
     (c.replies || []).forEach(function (r) {
       var err = r.sync && r.sync.state === 'error';
-      var chip = err
-        ? '<span class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + ' — cliquer pour réessayer">' + icone('WarningCircle', 14, 'wm-devant wm-signal') + 'à renvoyer</span>' +
-          '<button class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="Abandonner ce message" aria-label="Abandonner ce message">' + icone('X', 12) + '</button>'
-        : '<span class="cm-sync-chip" title="Envoi en cours">' + icone('CircleNotch', 14, 'wm-devant wm-tourne') + 'envoi…</span>';
-      msgs.push('<div class="cm-msg cm-msg-auteur cm-msg-pending"><span class="cm-msg-who">' + (r.rouvrir ? icone('ArrowCounterClockwise', 14) + 'Tu rouvres le ticket' : icone('ArrowBendDownRight', 14) + 'Toi') + ' · ' + cmEsc(frDate(r.date)) + ' ' + chip + '</span>' + cmEsc(r.text) + '</div>');
+      var marque = err
+        ? '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + '. clique pour réessayer.">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>' +
+          '<button type="button" class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="abandonner ce message" aria-label="abandonner ce message">' + icone('X', 12) + '</button>'
+        : '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + 'envoi en cours…</span>';
+      var qui = r.rouvrir ? icone('ArrowCounterClockwise', 14) + '<b>tu rouvres ce retour</b>' : icone('ArrowBendDownRight', 14) + '<b>toi</b>';
+      msgs.push(messageHtml('cm-msg-auteur cm-msg-pending', qui + ' · ' + cmEsc(frDate(r.date)) + ' ' + marque, r.text));
     });
     var acts = [];
-    if (canReply(c)) acts.push('<button class="cm-reply-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', false)">' + icone('ArrowBendUpLeft', 16) + 'Répondre</button>');
-    if (canReopen(c)) acts.push('<button class="cm-reopen-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', true)">Ça ne convient pas ? Rouvrir</button>');
+    if (canReply(c)) acts.push('<button type="button" class="cm-reply-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', false)">' + icone('ArrowBendUpLeft', 14) + 'répondre</button>');
+    if (canReopen(c)) acts.push('<button type="button" class="cm-reopen-btn wm-touche wm-petite" onclick="cmReplyLive(\'' + c.id + '\', true)">' + icone('ArrowCounterClockwise', 14) + 'ça ne convient pas ? rouvrir</button>');
     return (msgs.length ? '<div class="cm-thread" onmousedown="event.stopPropagation()">' + msgs.join('') + '</div>' : '') +
       (acts.length ? '<div class="cm-thread-actions" onmousedown="event.stopPropagation()">' + acts.join('') + '</div>' : '');
   }
@@ -1774,8 +1992,10 @@
     var item = document.querySelector('.cm-panel-item[data-id="' + id + '"]');
     if (!c || !item || item.querySelector('textarea') || (rouvrir ? !canReopen(c) : !canReply(c))) return;
     replyInList(item, c, {
-      placeholder: rouvrir ? 'Qu’est-ce qui ne va pas ? (obligatoire — Entrée = rouvrir, Échap = annuler)' : 'Ta réponse à l’équipe… (Entrée = envoyer, Échap = annuler)',
-      required: rouvrir ? 'Dis ce qui ne va pas pour rouvrir le ticket' : '',
+      libelle: rouvrir ? icone('ArrowCounterClockwise', 14) + 'rouvrir ce retour' : icone('ArrowBendUpLeft', 14) + 'répondre',
+      placeholder: rouvrir ? "qu'est-ce qui ne va pas ? (obligatoire)" : "ta réponse à l'équipe…",
+      touche: rouvrir ? 'rouvrir' : 'envoyer',
+      required: rouvrir ? 'dis ce qui ne va pas pour rouvrir ce retour.' : '',
       keepOnBlur: true,
       onSave: function (text) {
         var r = { id: uid(), date: new Date().toISOString(), text: text, rouvrir: !!rouvrir, sync: null };
@@ -1787,58 +2007,112 @@
     });
   };
 
+  /* ---------- une ligne de la liste (fiche Tiroir) ----------
+     Numéro dans son carré ; corps : élément visé, texte entre « », vignette, méta (verrou, statut ou marque
+     d'envoi en gras, voyant « nouveau », prénom, date), catégorie et détails techniques, puis le fil ;
+     actions : ✓ résolu par moi, ↩ rouvrir (maquette), corbeille (live : retour jamais reçu, C9). */
+  var capturesEnCours = {};   // id → vrai pendant la capture d'une zone (fiche Etats : « capture… »)
+  function captureEnCoursHtml() {
+    return '<div class="cm-capture-en-cours"><span class="cm-capture-boite">' + icone('CircleNotch', 16, 'wm-tourne') + '</span><span>capture…</span></div>';
+  }
+  function ligneHtml(c, i) {
+    var cat = categoryOf(c.category), modifiable = isEditable(c);
+    var etat = '';
+    if (SYNC && c.status === 'nouveau') etat = syncChip(c);               // la marque d'envoi tient lieu de statut
+    else if (c.status && c.status !== 'nouveau') {
+      var verrou = !modifiable && c.status !== 'signale' ? '<span class="cm-verrou" title="non modifiable">' + icone('LockSimple', 14) + '</span>' : '';
+      etat = verrou + '<span class="cm-status-chip cm-st-' + c.status + '" title="' + cmEsc(titreStatut(c) + (c.status === 'signale' ? ' · non modifiable' : '')) + '">' + statusHtml(c) + '</span>';
+    }
+    var meta = [];
+    if (etat) meta.push('<span class="cm-mi">' + etat + '</span>');
+    if (aDuNouveau(c)) meta.push('<span class="cm-nouveau"><span class="wm-voyant" aria-hidden="true"></span>nouveau</span>');
+    var suite = [];
+    if (c.author) suite.push(cmEsc(c.author));
+    suite.push(cmEsc(dateRelative(c.date)));
+    suite.forEach(function (s) { meta.push('<span>' + (meta.length ? '· ' : '') + s + '</span>'); });
+    var vignette = c.shot && c.shot.dataUrl
+      ? '<button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture" onmousedown="event.stopPropagation()" onclick="event.stopPropagation(); cmShowShot(\'' + c.id + '\', this)">' +
+          '<span class="cm-vignette-face"><img class="cm-shot" alt="capture de la zone" src="' + c.shot.dataUrl + '"></span><span class="cm-loupe" aria-hidden="true">' + icone('MagnifyingGlassPlus', 14) + '</span></button>'
+      : capturesEnCours[c.id] ? captureEnCoursHtml() : '';
+    var multi = c.targets && c.targets.length > 1;
+    return '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + (isDone(c) ? ' cm-done' : '') + (aDuNouveau(c) ? ' cm-a-du-nouveau' : '') + '" data-id="' + c.id + '">' +
+      '<div class="num">' + (i + 1) + '</div>' +
+      '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="' + (modifiable ? 'voir sur la page et modifier' : 'voir sur la page') + '">' +
+        '<div class="zone" title="' + cmEsc(c.zone) + '">' + icone(multi ? 'SelectionPlus' : c.type === 'box' ? 'BoundingBox' : c.type === 'text' ? 'TextT' : 'CursorClick', 14) + '<span class="zone-txt">' + cmEsc(c.zone) + '</span></div>' +
+        '<div class="txt">' + cmEsc(c.text) + '</div>' +
+        vignette +
+        '<div class="cm-meta">' + meta.join('') + '</div>' +
+        '<div class="cm-meta cm-meta2"><span class="cm-cat-chip" title="catégorie">' + icone(cat.icon, 14) + cmEsc(nomCategorie(c.category)) + '</span>' +
+          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>' + icone('CaretRight', 14, 'wm-ferme') + icone('CaretDown', 14, 'wm-ouvert') + 'détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
+        '</div>' +
+        filHtml(c) +
+      '</div>' +
+      '<div class="cm-item-actions">' +
+        (!isDone(c)
+          ? '<button type="button" class="st wm-cercle" onclick="cmResolve(\'' + c.id + '\')" title="' + cmEsc('marquer résolu par moi : rangé dans tes terminés, non modifiable' + (LIVE ? " · l'équipe n'est pas prévenue" : '')) + '" aria-label="marquer résolu par moi">' + icone('Check', 15) + '</button>'
+          : '<span class="st cm-st-locked wm-cercle wm-inactif" title="terminé, non modifiable">' + icone('CheckCircle', 15) + '</span>') +
+        (c.status === 'signale' ? '<button type="button" class="reopen wm-cercle" onclick="cmReopen(\'' + c.id + '\')" title="rouvrir pour corriger : il repartira dans le prochain rapport" aria-label="rouvrir pour corriger">' + icone('ArrowCounterClockwise', 15) + '</button>' : '') +
+        (supprimable(c) ? '<button type="button" class="del wm-cercle" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="supprimer ce retour" title="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
+      '</div></div>';
+  }
+
   function renderList() {
     var pc = pageComments();
     var remaining = pc.filter(function (c) { return !isDone(c); });
     var done = pc.length - remaining.length;
     var list = document.getElementById('cmList');
+    // Voyant du bouton witmit et son nom accessible (C5) : les retours de cette page où l'équipe a écrit ou changé
+    // le statut depuis ta dernière visite.
+    var surLaPage = {};
+    pc.forEach(function (c) { surLaPage[c.id] = true; });
+    nbNouveaux = pc.filter(aDuNouveau).length;
     var cmCountEl = document.getElementById('cmCount');
-    // Voyant du bouton witmit et son nom accessible. Déclencheur provisoire (lot 3) : les retours encore à
-    // suivre sur cette page ; le lot 5 le remplace par « l'équipe a écrit » (C5), sans toucher au reste.
-    nbNouveaux = remaining.length;
     if (cmCountEl) { cmCountEl.textContent = nbNouveaux || ''; cmCountEl.dataset.zero = nbNouveaux ? '0' : '1'; }
     majBoutons();
     var panelCountEl = document.getElementById('cmPanelCount');
-    if (panelCountEl) panelCountEl.textContent = pc.length;
+    if (panelCountEl) {
+      panelCountEl.textContent = pc.length;
+      panelCountEl.setAttribute('aria-label', pc.length + (pc.length > 1 ? ' retours' : ' retour') + ' sur cette page');
+    }
+    // Ligne de compte (Léa 3.3) : « 2 à suivre · 1 terminé — 12 retours sur 5 pages du site, dont 9 à suivre ».
     var subEl = document.getElementById('cmPanelSub');
     if (subEl) {
       var nPages = {};
       allComments.forEach(function (c) { nPages[c.page] = true; });
-      var nPagesCount = Object.keys(nPages).length;
+      var nP = Object.keys(nPages).length, total = allComments.length;
       var siteRemaining = allComments.filter(function (c) { return !isDone(c); }).length;
-      subEl.innerHTML = cmEsc(remaining.length + ' restant(s)' + (done ? ' · ' + done + ' résolu(s)' : '') + ' — ' + allComments.length + ' au total sur ' + nPagesCount + ' page(s) du site' + (siteRemaining !== allComments.length ? ' (' + siteRemaining + ' restants)' : '')) +
-        (done ? ' <button class="cm-hide-done' + (hideDone() ? ' cm-on' : '') + '" onclick="cmToggleHideDone()">' + (hideDone() ? 'Afficher les résolus' : 'Masquer les résolus') + '</button>' : '');
+      subEl.textContent = total ? remaining.length + ' à suivre' + (done ? ' · ' + done + (done > 1 ? ' terminés' : ' terminé') : '') +
+        ' — ' + total + (total > 1 ? ' retours' : ' retour') + ' sur ' + nP + (nP > 1 ? ' pages' : ' page') + ' du site' +
+        (nP > 1 && siteRemaining !== total ? ', dont ' + siteRemaining + ' à suivre' : '') : '';   // « dont » : seulement s'il y a d'autres pages
+      subEl.hidden = !total;
     }
+    // Du nouveau sur d'autres pages du site (décision B) : leurs titres.
+    var ailleursEl = document.getElementById('cmPanelAilleurs');
+    if (ailleursEl) {
+      var titres = [];
+      allComments.forEach(function (c) {
+        if (surLaPage[c.id] || !aDuNouveau(c)) return;
+        var t = c.pageTitle || c.page;
+        if (titres.indexOf(t) < 0) titres.push(t);
+      });
+      ailleursEl.textContent = titres.length ? 'du nouveau aussi sur : ' + titres.join(', ') : '';
+      ailleursEl.hidden = !titres.length;
+    }
+    var caseEl = document.querySelector('#cmPanel .cm-hide-done');
+    if (caseEl) { caseEl.hidden = !pc.length; caseEl.setAttribute('aria-checked', hideDone() ? 'true' : 'false'); }
+    var aide = document.getElementById('cmNewAide');
+    if (aide) aide.hidden = !!pc.length;
     if (!pc.length) {
-      list.innerHTML = '<div class="cm-panel-empty">Aucun commentaire sur cette page pour l’instant.<br>Active le mode commentaire (bouton ' + icone('CrosshairSimple', 14) + ' ou ' + RACC_ANNOTER + ') puis clique, encadre une zone ou Maj+glisse sur du texte.</div>';
+      list.innerHTML = "<div class=\"cm-panel-empty\">aucun retour sur cette page pour l'instant.</div>";
       majPiedsTiroir();
       return;
     }
     var html = '';
     pc.forEach(function (c, i) {
       if (hideDone() && isDone(c)) return;
-      html += '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + (isDone(c) ? ' cm-done' : '') + '" data-id="' + c.id + '">' +
-        '<div class="num">' + (i + 1) + '</div>' +
-        '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="Voir sur la page et modifier ici">' +
-          '<div class="zone">' + typeIcon(c.type, c.targets && c.targets.length > 1) + cmEsc(c.zone) + '</div>' +
-          '<div class="txt">' + cmEsc(c.text) + '</div>' +
-          (c.shot && c.shot.dataUrl ? '<img class="cm-shot" src="' + c.shot.dataUrl + '" alt="Capture" title="Voir la capture" onmousedown="event.stopPropagation()" onclick="cmShowShot(\'' + c.id + '\')">' : '') +
-          (SYNC ? '' : c.replies && c.replies.length ? c.replies.map(function (r) { return '<div class="cm-reply">' + icone('ArrowBendDownRight', 14, 'wm-devant') + cmEsc(r.text) + ' <span class="cm-when">(' + frDate(r.date) + (r.sentIn ? '' : ', à envoyer') + ')</span></div>'; }).join('') : '') +
-          (c.status === 'complement' && c.complementMessage ? '<div class="cm-feedback cm-feedback-q">' + icone('Question', 14, 'wm-devant') + cmEsc(c.complementMessage) + '</div>' : '') +
-          (c.feedbackMessage && c.status !== 'complement' && !(SYNC && c.thread && c.thread.length) ? '<div class="cm-feedback">' + icone('ChatCircleText', 14, 'wm-devant') + cmEsc(c.feedbackMessage) + '</div>' : '') +
-          (SYNC ? threadHtml(c) : '') +
-          '<div class="cm-meta"><span class="cm-cat-chip" title="Catégorie">' + icone(categoryOf(c.category).icon, 14, 'wm-devant') + categoryOf(c.category).label + '</span>' +
-          syncChip(c) +
-          (c.status !== 'nouveau' ? '<span class="cm-status-chip cm-st-' + c.status + '">' + statusHtml(c) + '</span>' : '') +
-          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>' + icone('CaretRight', 14, 'wm-ferme') + icone('CaretDown', 14, 'wm-ouvert') + 'détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
-          '</div></div>' +
-        '<div class="cm-item-actions">' +
-          (!isDone(c) ? '<button class="st wm-cercle" onclick="cmResolve(\'' + c.id + '\')" title="Marquer résolu (par moi) — verrouille le ticket" aria-label="Résoudre">' + icone('Check', 15) + '</button>' : '<span class="st cm-st-locked wm-cercle wm-inactif" title="Résolu — verrouillé">' + icone('CheckCircle', 15) + '</span>') +
-          (c.status === 'signale' ? '<button class="reopen wm-cercle" onclick="cmReopen(\'' + c.id + '\')" title="Rouvrir pour corriger (sera renvoyé au prochain rapport)" aria-label="Rouvrir">' + icone('ArrowCounterClockwise', 15) + '</button>' : '') +
-          '<button class="del wm-cercle" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="Supprimer" title="Supprimer">' + icone('Trash', 15) + '</button>' +
-        '</div></div>';
+      html += ligneHtml(c, i);
     });
-    if (!html) html = '<div class="cm-panel-empty">Tout est résolu sur cette page.</div>';
+    if (!html) html = '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';
     list.innerHTML = html;
     majPiedsTiroir();
   }
@@ -1873,7 +2147,7 @@
         setTimeout(function () { el.classList.remove(olaClass); }, 2100);
       });
     } else {
-      cmStatus('Repère non visible sur cette vue (étape ou onglet masqué ?)');
+      cmStatus("repère introuvable ici : ouvre l'onglet ou l'étape où tu l'avais posé.");
     }
     editInList(id);
   };
@@ -1885,50 +2159,77 @@
     (c.replies = c.replies || []).push({ date: new Date().toISOString(), text: text });
     pushHistory(c, { date: new Date().toISOString(), status: 'complement', source: 'moi', message: 'réponse : ' + text });
     persist(); renderList(); renderMarkers();
-    cmStatus('Réponse enregistrée — elle partira dans le prochain rapport');
+    cmStatus('réponse enregistrée : elle partira dans le prochain rapport.');
     return true;
   }
-  /* opts (mode live, répondre / rouvrir) : placeholder, required (message si vide : le champ reste ouvert),
-     keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir par mégarde), onSave(texte). */
+  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ coupé, puis
+     « annuler » (échap) à gauche et la touche secondaire (envoyer, rouvrir, enregistrer ↵) à droite.
+     opts (mode live, répondre / rouvrir) : libelle, placeholder, touche, required (phrase sous le champ si vide :
+     le champ reste ouvert), keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir
+     par mégarde), onSave(texte). Sans opts : réponse à un complément demandé (mode maquette). */
   function replyInList(item, c, opts) {
     opts = opts || {};
-    var meta = item.querySelector('.cm-meta');
-    var ta = document.createElement('textarea');
-    ta.className = 'cm-inline-edit cm-inline-reply';
-    ta.placeholder = opts.placeholder || 'Ta réponse au complément demandé… (Entrée = enregistrer, Échap = annuler)';
-    meta.parentNode.insertBefore(ta, meta);
+    var body = item.querySelector('.body');
+    var acts = item.querySelector('.cm-thread-actions');
+    var bloc = document.createElement('div');
+    bloc.className = 'cm-reponse-bloc';
+    var repereEntree = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
+    bloc.innerHTML =
+      '<div class="cm-reponse-libelle">' + (opts.libelle || icone('ArrowBendDownRight', 14) + 'ta réponse au complément') + '</div>' +
+      '<span class="wm-champ"><textarea class="cm-inline-edit cm-inline-reply"></textarea></span>' +
+      '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span></span></div>' +
+      '<div class="cm-reponse-actions"><button type="button" class="wm-texte cm-rep-annuler">annuler<span class="wm-repere" aria-hidden="true">échap</span></button>' +
+      '<button type="button" class="wm-touche wm-petite cm-rep-envoyer">' + (opts.touche || 'enregistrer') + repereEntree + '</button></div>';
+    var ta = bloc.querySelector('textarea');
+    ta.placeholder = opts.placeholder || 'ta réponse…';
+    ta.setAttribute('aria-label', bloc.querySelector('.cm-reponse-libelle').textContent);
+    var refus = bloc.querySelector('.cm-refus');
+    refus.querySelector('span').textContent = opts.required || '';
+    // Un appui dans le bloc ne sélectionne pas la ligne ; sur une touche, il garde le focus dans le champ.
+    bloc.addEventListener('mousedown', function (e) { e.stopPropagation(); if (e.target.closest && e.target.closest('button')) e.preventDefault(); });
+    if (acts) acts.hidden = true;
+    body.appendChild(bloc);
     ta.focus();
     var finished = false;
     function finish(save) {
       if (finished) return;
       var v = ta.value.trim();
-      if (save && !v && opts.required) { cmStatus(opts.required); return; }
+      if (save && !v && opts.required) { refus.hidden = false; ta.focus(); return; }
       finished = true;
-      if (save && v) { if (opts.onSave) { ta.remove(); opts.onSave(v); } else addReply(c, v); }
-      else ta.remove();
+      bloc.remove();
+      if (acts) acts.hidden = false;
+      if (save && v) { if (opts.onSave) opts.onSave(v); else addReply(c, v); }
     }
+    ta.addEventListener('input', function () { if (ta.value.trim()) refus.hidden = true; });
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
     });
     ta.addEventListener('blur', function () { if (!opts.keepOnBlur) finish(true); });
+    bloc.querySelector('.cm-rep-annuler').onclick = function (e) { e.stopPropagation(); finish(false); };
+    bloc.querySelector('.cm-rep-envoyer').onclick = function (e) { e.stopPropagation(); finish(true); };
   }
 
-  /* Modification du texte directement dans la liste : Entrée = enregistrer, Maj+Entrée = nouvelle
-     ligne, Échap = annuler, clic ailleurs = enregistrer. */
+  /* Modification du texte directement dans la liste (fiche Tiroir, « en modification ») : champ coupé en
+     place, aide « ↵ envoyer · échap annuler » dessous. Entrée = enregistrer, Maj+Entrée = nouvelle ligne,
+     Échap = annuler, clic ailleurs = enregistrer (comportement inchangé). */
   function editInList(id) {
     var item = document.querySelector('.cm-panel-item[data-id="' + id + '"]');
     if (!item || item.querySelector('textarea')) return;
     var c = findComment(id);
     if (!c) return;
     if (c.status === 'complement') { replyInList(item, c); return; }
-    if (!isEditable(c)) { cmStatus(statusLabel(c) + ' — non modifiable'); return; }
+    if (!isEditable(c)) { cmStatus(statusLabel(c) + ' : non modifiable.'); return; }
     var txt = item.querySelector('.txt');
-    var ta = document.createElement('textarea');
-    ta.className = 'cm-inline-edit';
+    var bloc = document.createElement('div');
+    bloc.className = 'cm-edit-bloc';
+    bloc.innerHTML = '<span class="wm-champ"><textarea class="cm-inline-edit" aria-label="modifier ce retour"></textarea></span>' +
+      '<div class="cm-aide"><span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span><span>' + (LIVE ? 'envoyer' : 'enregistrer') + ' ·</span>' +
+      '<span class="wm-repere" aria-hidden="true">échap</span><span>annuler</span></div>';
+    var ta = bloc.querySelector('textarea');
     ta.value = c.text;
-    txt.replaceWith(ta);
-    ta.style.height = Math.max(ta.scrollHeight, 40) + 'px';
+    txt.replaceWith(bloc);
+    ta.style.height = Math.max(ta.scrollHeight + 2, 48) + 'px';
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
     var finished = false;
@@ -1936,20 +2237,20 @@
       if (finished) return;
       finished = true;
       var v = ta.value.trim();
-      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus('Commentaire modifié'); c.sync = null; scheduleSync(c); }
+      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.'); c.sync = null; scheduleSync(c); }
       // On remet le texte en place SANS redessiner la liste : un clic en cours sur un autre item
       // (qui a provoqué ce blur) doit atteindre sa cible.
       var div = document.createElement('div');
       div.className = 'txt';
       div.textContent = c.text;
-      ta.replaceWith(div);
+      bloc.replaceWith(div);
       if (save && v && v === c.text) renderMarkers(); // met à jour l'info-bulle des pastilles
     }
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
     });
-    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 40) + 'px'; });
+    ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight + 2, 48) + 'px'; });
     ta.addEventListener('blur', function () { finish(true); });
   }
 
@@ -2010,38 +2311,48 @@
     return !!(hb && hb.length >= 3 && (0.2126 * hb[0] + 0.7152 * hb[1] + 0.0722 * hb[2]) < 128 && (hb.length < 4 || parseFloat(hb[3]) > 0.5));
   }
 
-  window.cmDeleteById = function (id) {
-    if (sessionMarks[id]) { unwrapMarks(sessionMarks[id]); delete sessionMarks[id]; }
-    allComments = allComments.filter(function (c) { return c.id !== id; });
-    persist(); renderMarkers(); renderList();
-  };
-  window.cmClearAll = function () {
-    var pc = pageComments();
-    if (!pc.length) return;
-    pc.forEach(function (c) { if (sessionMarks[c.id]) { unwrapMarks(sessionMarks[c.id]); delete sessionMarks[c.id]; } });
-    var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
+  /* Suppressions (Léa 3.9 et 3.10 ; C9). En live, seuls les retours jamais reçus par witmit s'effacent :
+     cmDeleteById, cmClearAll et cmClearSite refusent eux-mêmes un retour reçu, même appelés directement. */
+  function effacerRetours(ids) {
+    allComments.forEach(function (c) { if (ids[c.id] && sessionMarks[c.id]) { unwrapMarks(sessionMarks[c.id]); delete sessionMarks[c.id]; } });
     allComments = allComments.filter(function (c) { return !ids[c.id]; });
     persist(); renderMarkers(); renderList();
-    cmStatus('Commentaires de cette page effacés');
+  }
+  window.cmDeleteById = function (id) {
+    var c = findComment(id);
+    if (!c || !supprimable(c)) return;
+    var ids = {}; ids[id] = true;
+    effacerRetours(ids);
+  };
+  function nRetours(n, pasPartis) { return n + (n > 1 ? ' retours' : ' retour') + (pasPartis ? (n > 1 ? ' pas encore partis' : ' pas encore parti') : ''); }
+  window.cmClearAll = function () {
+    var pc = pageComments().filter(supprimable);
+    if (!pc.length) return;
+    var question = SYNC
+      ? 'effacer ' + (pc.length > 1 ? 'les ' + nRetours(pc.length, true) : 'le retour pas encore parti') + " de cette page ? c'est définitif. tes retours envoyés restent."
+      : 'effacer ' + (pc.length > 1 ? 'les ' + nRetours(pc.length) : 'le retour') + " de cette page ? c'est définitif.";
+    if (!window.confirm(question)) return;
+    var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
+    effacerRetours(ids);
+    cmStatus(SYNC ? 'retours pas encore partis effacés.' : 'retours de cette page effacés.');
   };
   /* Vide le stockage PARTAGÉ (toutes les pages/fichiers du site, pas seulement celle-ci) —
      utile pour repartir propre quand d'anciens fichiers de test (noms différents) ont laissé
-     des commentaires orphelins dans le rapport site-wide. */
+     des retours orphelins dans le rapport du site. En live, seulement les retours jamais reçus. */
   window.cmClearSite = function () {
-    if (!allComments.length) { cmStatus('Rien à vider — le site est déjà vide'); return; }
+    var cibles = allComments.filter(supprimable);
+    if (!cibles.length) { if (!SYNC) cmStatus('rien à effacer : aucun retour sur ce site.'); return; }
     var nPages = {};
-    allComments.forEach(function (c) { nPages[c.page] = true; });
-    var nPagesCount = Object.keys(nPages).length;
-    var ok = window.confirm(
-      'Supprimer les ' + allComments.length + ' commentaire(s) sur les ' + nPagesCount +
-      ' page(s) du site (pas seulement cette page) ?\nAction irréversible.'
-    );
-    if (!ok) return;
-    Object.keys(sessionMarks).forEach(function (id) { unwrapMarks(sessionMarks[id]); });
-    sessionMarks = {};
-    allComments = [];
-    persist(); renderMarkers(); renderList();
-    cmStatus('Tous les commentaires du site ont été supprimés');
+    cibles.forEach(function (c) { nPages[c.page] = true; });
+    var nP = Object.keys(nPages).length;
+    var pages = nP > 1 ? ' des ' + nP + ' pages du site, pas seulement celle-ci' : ' du site';
+    var question = SYNC
+      ? 'effacer ' + (cibles.length > 1 ? 'les ' + nRetours(cibles.length, true) : 'le retour pas encore parti') + pages + " ? c'est définitif. tes retours envoyés restent."
+      : 'effacer ' + (cibles.length > 1 ? 'les ' + nRetours(cibles.length) : 'le retour') + pages + " ? c'est définitif.";
+    if (!window.confirm(question)) return;
+    var ids = {}; cibles.forEach(function (c) { ids[c.id] = true; });
+    effacerRetours(ids);
+    cmStatus(SYNC ? 'retours pas encore partis du site effacés.' : 'tous les retours du site sont effacés.');
   };
 
   /* ---------- détection de zone : générique, valable sur n'importe quelle page ----------
@@ -2194,12 +2505,13 @@
   }
 
   /* Icône par type de cible, dans la fenêtre et la liste (fiche Icones) : élément, zone, passage de texte,
-     plusieurs éléments. Le rapport Markdown garde ses symboles jusqu'au lot 8 (C3, Léa 3.12). */
+     plusieurs éléments. */
   function typeIcon(type, multi) {
     return icone(multi ? 'SelectionPlus' : type === 'box' ? 'BoundingBox' : type === 'text' ? 'TextT' : 'CursorClick', 14, 'wm-devant');
   }
-  function typeEmojiRapport(type) {
-    return type === 'box' ? '🔲' : type === 'text' ? '✏️' : '📍';
+  // Type de cible dans le rapport Markdown (C3, Léa 3.12) : « élément », « zone » ou « texte », sans émoji.
+  function typeRapport(type) {
+    return type === 'box' ? 'zone' : type === 'text' ? 'texte' : 'élément';
   }
 
   /* Contour PERSISTANT qui confirme visuellement l'objet visé par le commentaire en cours de saisie —
@@ -2467,19 +2779,9 @@
   }
 
   /* ---------- fenêtre de saisie : textes et morceaux (fiche Fenetre ; Léa 3.7 et 3.8) ---------- */
-  // Point d'accroche de la décision c1 de François (25/10) : en live, la corbeille de la fenêtre disparaît pour
-  // un retour déjà reçu par witmit. La règle complète (recuLe, C9) se code au lot 5 ; d'ici là, tout retour
-  // modifiable garde sa corbeille, comme avant.
-  function supprimable(c) { return true; }
   function nomCategorie(key) { return categoryOf(key).label.toLowerCase(); }
-  // Nom du statut dans la ligne de verrou (Léa 2.1 et 2.2) : en minuscules, sans date.
-  function nomStatut(c) {
-    if (c.status === 'signale') return 'signalé';
-    if (c.status === 'pris_en_compte') return 'pris en compte';
-    if (c.status === 'complement') return 'complément demandé';
-    if (c.status === 'resolu') return c.resolvedBy === 'moi' ? 'résolu par moi' : c.repondu ? 'répondu' : 'résolu';
-    return '';
-  }
+  // Nom du statut dans la ligne de verrou (Léa 2.1 et 2.2) : en minuscules, sans date. (supprimable(c) : C9, plus haut.)
+  function nomStatut(c) { return statusLabel(c); }
   // Nombre d'éléments visés par une fenêtre « plusieurs éléments » (0 sinon).
   function nbCibles(meta) {
     if (!meta || meta.type !== 'pin') return 0;
@@ -2534,9 +2836,10 @@
     var libelleTouche = askReply ? 'enregistrer la réponse' : LIVE ? 'envoyer' : 'enregistrer';
     var repere = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
     var shot = isEdit && ex.shot && ex.shot.dataUrl ? ex.shot : null;
+    var enCapture = isEdit && !shot && capturesEnCours[ex.id];   // fiche Etats, Léa 3.7 : « capture… » pendant la capture
     var vignette = shot ? '<div class="cm-vignette-ligne"><button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture">' +
       '<span class="cm-vignette-face"><img alt="capture de la zone"></span></button><span class="cm-vignette-meta">capture de la zone · ' +
-      (shot.width || '?') + ' × ' + (shot.height || '?') + ' · ' + Math.max(1, Math.round(shot.dataUrl.length * 0.75 / 1024)) + ' ko</span></div>' : '';
+      (shot.width || '?') + ' × ' + (shot.height || '?') + ' · ' + Math.max(1, Math.round(shot.dataUrl.length * 0.75 / 1024)) + ' ko</span></div>' : enCapture ? captureEnCoursHtml() : '';
     var corps;
     if (askReply) {
       // Complément demandé (mode maquette) : le retour, la question de l'équipe en creux, le champ de réponse.
@@ -2583,7 +2886,7 @@
     majTete(pop, meta, zone);
     if (shot && pop.querySelector('.cm-vignette')) {               // (pas de vignette dans la fenêtre d'un complément)
       pop.querySelector('.cm-vignette img').src = shot.dataUrl;
-      pop.querySelector('.cm-vignette').onclick = function (e) { e.stopPropagation(); window.cmShowShot(ex.id); };
+      pop.querySelector('.cm-vignette').onclick = function (e) { e.stopPropagation(); window.cmShowShot(ex.id, this); };
     }
     habiller(pop);
     document.body.appendChild(pop);
@@ -2712,12 +3015,13 @@
         if (desc) { ex.zone = desc.label; ex.anchor = desc.anchor; ex.fallback = meta.box; (function (c2, bx) { setTimeout(function () { captureFor(c2, bx, function () { c2.sync = null; scheduleSync(c2); }); }, 60); })(ex, meta.box); }
         if (multi) { ex.zone = multi.zone; ex.anchor = multi.anchor; ex.fallback = multi.fallback; ex.targets = multi.targets; }
         if (desc || multi) { var prev = ex.tech || {}; ex.tech = captureTech(ex); ex.tech.date = prev.date || ex.tech.date; ex.tech.consoleErrors = prev.consoleErrors || []; }
-        cmStatus('Commentaire modifié');
+        cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.');
         if (!desc) { ex.sync = null; scheduleSync(ex); } // encadré ajusté : renvoyé après la nouvelle capture
       } else {
         var id = uid();
         savedId = id;
         var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
+        c.vuLe = c.date;   // un retour tout juste écrit n'a rien de nouveau (C5)
         if (meta.type === 'box') {
           c.anchor = desc ? desc.anchor : meta.boxAnchor;
           c.fallback = meta.box;
@@ -2917,7 +3221,7 @@
      l'élément visé au groupe (ou le retire s'il y est déjà). Un seul commentaire, un cadre par élément. */
   function toggleMultiTarget(target) {
     var meta = pendingPopup._meta;
-    if (meta.existing && !isEditable(meta.existing)) { cmStatus(statusLabel(meta.existing) + ' — non modifiable'); return; }
+    if (meta.existing && !isEditable(meta.existing)) { cmStatus(statusLabel(meta.existing) + ' : non modifiable.'); return; }
     var zone = detectZone(target);
     if (!zone.el) return;
     meta.targets = meta.targets || [];
@@ -3072,9 +3376,13 @@
       closePopup(true);
       flushPending(); refreshStatuses();
     }
+    var etaitOuverte = panel.classList.contains('show');
     panel.classList.toggle('show', show);
     if (!show && !pendingPopup) setFocused(null);
-    if (CONFIG.drawer === 'push') pushPage(show ? panel.offsetWidth : 0);
+    if (!show && etaitOuverte) marquerVus();                      // le voyant s'éteint quand on ferme la liste après l'avoir vue (C5)
+    // Mode « pousser » au-dessus de 480 px (C7) ; en dessous, la liste couvre l'écran sans pousser la page (M1).
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    if (CONFIG.drawer === 'push') pushPage(show && !etroit ? panel.offsetWidth : 0);
     placerBoutons();
     majBoutons();
   };
@@ -3082,9 +3390,13 @@
     var fab = document.querySelector('.cm-fab');
     if (!fab) return;
     var panel = document.getElementById('cmPanel');
-    if (!listeOuverte()) { fab.style.right = ''; fab.classList.remove('wm-decale'); return; }
-    var base = window.matchMedia && window.matchMedia('(max-width:480px)').matches ? 16 : 24;   // marge de la fiche (M1 sous 480 px)
+    if (!listeOuverte()) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    var base = etroit ? 16 : 24;   // marge de la fiche (M1 sous 480 px)
     var vw = document.documentElement.clientWidth;
+    // Sous 480 px, la liste couvre l'écran (M1) : les boutons montent au-dessus de son pied, pour ne pas cacher « nouveau retour ».
+    var pied = document.getElementById('cmPanelPied');
+    fab.style.bottom = etroit && pied ? (pied.offsetHeight + 12) + 'px' : '';
     // À 24 px à gauche de la liste ; sur un écran trop étroit, au plus près du bord gauche, par-dessus la liste.
     var right = Math.min(panel.offsetWidth + base, vw - fab.offsetWidth - 16);
     fab.style.right = Math.max(base, right) + 'px';
@@ -3117,7 +3429,7 @@
     var all = document.body.querySelectorAll('*');
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
-      if (el.closest('#cmPanel, #cmFrame, #cmPill, #cmStatus, #cmLinks, .cm-popup, .cm-pin, .cm-box, .cm-fab')) continue; // (les boutons de witmit : placerBoutons)
+      if (el.closest('#cmPanel, #cmFrame, #cmPill, #cmStatus, #cmLinks, .cm-popup, .cm-pin, .cm-box, .cm-fab, .cm-lightbox')) continue; // (les boutons de witmit : placerBoutons)
       var cs = getComputedStyle(el);
       if (cs.position !== 'fixed' || cs.display === 'none') continue;
       var r = el.getBoundingClientRect();
@@ -3139,7 +3451,11 @@
     }
     setTimeout(renderMarkers, 260);
   }
-  window.addEventListener('resize', function () { if (pushWidth) pushPage(pushWidth); });
+  window.addEventListener('resize', function () {
+    if (!pushWidth) return;
+    var panel = document.getElementById('cmPanel');
+    pushPage(window.matchMedia && window.matchMedia('(max-width:480px)').matches ? 0 : (panel ? panel.offsetWidth : pushWidth));
+  });
 
   // Un clic en dehors du tiroir "Commentaires" le referme — et ne fait QUE ça : il ne crée pas
   // d'annotation (ce listener est enregistré avant onMouseDown, il passe donc en premier).
@@ -3148,7 +3464,7 @@
     var panel = document.getElementById('cmPanel');
     if (!panel || !panel.classList.contains('show')) return;
     if (panel.contains(e.target)) return;
-    if (e.target.closest && e.target.closest('#cmPanelBtn')) return;
+    if (e.target.closest && e.target.closest('#cmPanelBtn, .cm-lightbox')) return;   // la visionneuse s'ouvre par-dessus la liste
     cmTogglePanel(false);
     swallowClick = active && !inUi(e.target);
   }, true);
@@ -3239,9 +3555,8 @@
     // Échap, de la couche la plus proche à la plus lointaine : la fenêtre, la visionneuse, la liste, le mode.
     // (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce champ, sans aller plus loin.)
     if (e.key === 'Escape') {
-      var vis = document.querySelector('.cm-lightbox');
-      if (pendingPopup) { e.preventDefault(); closePopup(true); }
-      else if (vis) { e.preventDefault(); vis.remove(); }
+      if (visionneuse) { e.preventDefault(); fermerVisionneuse(); }   // au-dessus de tout, fenêtre comprise
+      else if (pendingPopup) { e.preventDefault(); closePopup(true); }
       else if (listeOuverte()) { e.preventDefault(); cmTogglePanel(false); }
       else if (active) { e.preventDefault(); cmToggle(false); }
       return;
@@ -3356,6 +3671,7 @@
   function captureFor(c, box, done) {
     if (!CONFIG.capture || !box) { if (done) done(); return; }
     cmStatus('Capture de la zone…');
+    capturesEnCours[c.id] = true; renderList();
     captureBox(box).then(function (img) {
       var live = findComment(c.id);
       if (!live) return;
@@ -3365,19 +3681,54 @@
       cmStatus('Capture enregistrée (' + Math.round(img.dataUrl.length / 1024) + ' Ko)');
     }).catch(function (err) {
       cmStatus('Capture impossible (' + (err && err.message || 'erreur') + ') — le commentaire est bien enregistré');
-    }).then(function () { if (done) done(); });
+    }).then(function () { delete capturesEnCours[c.id]; renderList(); if (done) done(); });
   }
-  window.cmShowShot = function (id) {
+  /* Visionneuse (fiche Visionneuse ; Léa 3.9) : une fenêtre witmit centrée, sans voile ; la capture en grand.
+     Fermée par la croix, Échap ou un clic à côté (ce clic ne fait rien d'autre) ; le clic sur l'image ne ferme
+     plus. À l'ouverture, le focus va sur la croix ; à la fermeture, il revient à la vignette. */
+  var visionneuse = null;
+  function fermerVisionneuse() {
+    if (!visionneuse) return;
+    var v = visionneuse; visionneuse = null;
+    window.removeEventListener('mousedown', v._aCote, true);
+    v.el.remove();
+    if (v.retour && v.retour.isConnected) { try { v.retour.focus({ preventScroll: true }); } catch (e) { v.retour.focus(); } }
+  }
+  window.cmShowShot = function (id, vignette) {
     var c = findComment(id);
     if (!c || !c.shot || !c.shot.dataUrl) return;
+    fermerVisionneuse();
+    var n = pageComments().indexOf(c) + 1;
+    var type = c.type === 'box' ? 'zone' : c.type === 'text' ? 'texte' : 'élément';
     var ov = document.createElement('div');
     ov.className = 'cm-lightbox cm-ui';
-    ov.innerHTML = '<div class="cm-lightbox-fenetre"><img alt="Capture de la zone commentée"><div class="cm-lightbox-hint">Cliquer pour fermer</div></div>';
-    habiller(ov.firstChild);
-    ov.querySelector('img').src = c.shot.dataUrl;
-    ov.onclick = function () { ov.remove(); };
+    ov.innerHTML = '<div class="cm-lightbox-fenetre" role="dialog" aria-labelledby="cmLbTitre">' +
+      '<div class="cm-lb-tete"><div class="cm-lb-l1"><span class="cm-lb-titre" id="cmLbTitre">Capture de la zone</span>' +
+      '<button type="button" class="wm-cercle cm-lb-fermer" aria-label="fermer" title="fermer">' + icone('X', 14) + '</button></div>' +
+      '<div class="cm-lb-meta"></div></div>' +
+      '<div class="cm-lb-corps"><div class="cm-lb-image"><span class="cm-lb-face"><img alt="capture de la zone commentée"></span></div>' +
+      '<div class="cm-lightbox-hint"><span class="wm-repere" aria-hidden="true">échap</span><span>ou clic à côté : fermer</span></div></div></div>';
+    var fen = ov.firstChild;
+    var meta = (n > 0 ? 'retour ' + n + ' · ' : '') + type + ' · ' + (c.zone || '') + ' · ' + dateCourte(c.date);
+    fen.querySelector('.cm-lb-meta').textContent = meta;
+    fen.querySelector('.cm-lb-meta').title = meta;
+    var img = fen.querySelector('img');
+    img.src = c.shot.dataUrl;
+    // Largeur : celle de l'image + 44 px, au moins 360 px, au plus 92vw (et l'écran moins 16 px).
+    if (c.shot.width) fen.style.width = 'min(' + Math.max(360, c.shot.width + 46) + 'px, 92vw, calc(100vw - 16px))';
+    habiller(fen);
     document.body.appendChild(ov);
-    tracerContour(ov.firstChild);
+    tracerContour(fen);
+    var aCote = function (e) {
+      if (fen.contains(e.target)) return;
+      e.preventDefault(); e.stopPropagation();                 // le clic à côté ferme, et ne fait rien d'autre
+      window.addEventListener('click', function avaler(ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener('click', avaler, true); }, true);
+      fermerVisionneuse();
+    };
+    window.addEventListener('mousedown', aCote, true);
+    visionneuse = { el: ov, retour: vignette || null, _aCote: aCote };
+    fen.querySelector('.cm-lb-fermer').onclick = function (e) { e.stopPropagation(); fermerVisionneuse(); };
+    fen.querySelector('.cm-lb-fermer').focus();
   };
 
   /* ---------- rapport : un fichier Markdown = texte lisible + bloc JSON par ticket ----------
@@ -3401,7 +3752,7 @@
     var t = c.tech || {};
     return {
       id: c.id, page: c.page, page_titre: c.pageTitle || '', type: t.type || c.type,
-      categorie: categoryOf(c.category).label, statut: c.status,
+      categorie: nomCategorie(c.category), statut: c.status,
       texte: c.text,
       auteur: c.author || undefined,
       cibles: (t.selectors || []).map(function (sel, i) { return { selecteur: sel, libelle: (t.labels || [])[i] || c.zone }; }),
@@ -3424,7 +3775,7 @@
     var L = [];
     L.push('# ' + CONFIG.project + ' — Rapport de retours ' + reportId);
     L.push('');
-    L.push('Généré le ' + new Date().toLocaleString('fr-FR') + ' · ' + items.length + ' ticket(s) sur ' + order.length + ' page(s) · périmètre : ' + (full ? 'complet (tous statuts)' : 'nouveautés'));
+    L.push('Généré le ' + new Date().toLocaleString('fr-FR') + ' · ' + items.length + (items.length > 1 ? ' retours' : ' retour') + ' sur ' + order.length + (order.length > 1 ? ' pages' : ' page') + ' · périmètre : ' + (full ? 'complet (tous statuts)' : 'nouveautés'));
     L.push('');
     var n = 0;
     order.forEach(function (page) {
@@ -3434,13 +3785,13 @@
       grp.items.forEach(function (c) {
         n++;
         var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c);
-        L.push('### #' + n + ' · ' + typeEmojiRapport(c.type) + ' ' + c.zone + ' — ' + categoryOf(c.category).label + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
+        L.push('### #' + n + ' · ' + typeRapport(c.type) + ' : ' + c.zone + ' — ' + nomCategorie(c.category) + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
         L.push('');
         if (c.author) { L.push('_Signalé par ' + c.author + '_'); L.push(''); }
         L.push(c.text);
         L.push('');
-        if (c.complementMessage) { L.push('> ❔ Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '') + ' : ' + c.complementMessage); }
-        (c.replies || []).forEach(function (r) { L.push('> ↳ Réponse du ' + frDate(r.date) + ' : ' + r.text); });
+        if (c.complementMessage) { L.push('> Complément demandé' + (c.complementAt ? ' le ' + frDate(c.complementAt) : '') + ' : ' + c.complementMessage); }
+        (c.replies || []).forEach(function (r) { L.push('> Réponse du ' + frDate(r.date) + ' : ' + r.text); });
         if (c.complementMessage || (c.replies && c.replies.length)) L.push('');
         if (c.shot && c.shot.dataUrl) { L.push('![Capture de la zone](' + c.shot.dataUrl + ')'); L.push(''); }
         L.push('```json');
@@ -3453,7 +3804,7 @@
     L.push('');
     L.push('## Pour répondre à ce rapport');
     L.push('');
-    L.push('Termine ton traitement par un bloc de ce format (une ligne par ticket, séparateur `|` avant un message facultatif). Il se colle dans witmit : tiroir 📋 → « Coller un retour ».');
+    L.push('Termine ton traitement par un bloc de ce format (une ligne par retour, séparateur `|` avant un message facultatif). Il se colle dans witmit : bouton witmit → « coller un retour », en bas de la liste.');
     L.push('');
     L.push('```');
     L.push('witmit-retour ' + reportId);
@@ -3489,16 +3840,17 @@
   function prepareReport() {
     var full = !!(document.getElementById('cmFullReport') && document.getElementById('cmFullReport').checked);
     var items = reportItems(full);
-    if (!items.length) { cmStatus(full ? 'Aucun commentaire sur le site' : 'Rien de nouveau à signaler (coche « Rapport complet » pour tout exporter)'); return null; }
+    if (!items.length) { cmStatus(full ? 'aucun retour sur ce site.' : 'rien de nouveau à signaler. coche « rapport complet » pour tout exporter.'); return null; }
     var id = nextReportId();
     var md = buildReportMd(items, id, full);
     var toMark = items.filter(function (c) { return c.status === 'nouveau' || hasPendingReply(c); }).length;
     var marked = 0;
     if (toMark) {
-      if (window.confirm('Marquer ' + toMark + ' ticket(s) comme signalé(s) dans le rapport ' + id + ' ?\n(Ils ne seront plus modifiables. Annuler = générer le rapport sans les marquer.)')) marked = markReported(items, id);
+      if (window.confirm('marquer ' + (toMark > 1 ? toMark + ' retours comme signalés' : '1 retour comme signalé') + ' dans le rapport ' + id + ' ? ' + (toMark > 1 ? 'ils ne seront plus modifiables' : 'il ne sera plus modifiable') + '. annuler : le rapport est créé sans les marquer.')) marked = markReported(items, id);
     }
     return { id: id, md: md, items: items, marked: marked };
   }
+  function signales(n) { return n > 1 ? n + ' retours signalés' : '1 retour signalé'; }
   window.cmExport = function () {
     var r = prepareReport();
     if (!r) return;
@@ -3508,24 +3860,24 @@
     a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-    cmStatus('Rapport ' + r.id + ' téléchargé' + (r.marked ? ' — ' + r.marked + ' ticket(s) signalé(s)' : ''));
+    cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.');
   };
   window.cmCopy = function () {
     var r = prepareReport();
     if (!r) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(r.md).then(function () {
-        cmStatus('Rapport ' + r.id + ' copié' + (r.marked ? ' — ' + r.marked + ' ticket(s) signalé(s)' : '') + ' — colle-le à Claude');
-      }).catch(function () { cmStatus('Copie impossible — essaie Télécharger'); });
-    } else cmStatus('Copie non supportée par ce navigateur');
+        cmStatus('rapport ' + r.id + ' copié' + (r.marked ? ' · ' + signales(r.marked) : '') + '. colle-le à Claude.');
+      }).catch(function () { cmStatus('copie impossible : utilise « télécharger ».'); });
+    } else cmStatus('ce navigateur ne permet pas la copie : utilise « télécharger ».');
   };
   window.cmSendMail = function () {
-    if (!EMAIL_TO) { cmStatus('Aucune adresse configurée (data-email) — utilise Télécharger ou Copier'); return; }
+    if (!EMAIL_TO) { cmStatus('aucune adresse d\'envoi prévue pour ce site : utilise « télécharger » ou « copier ».'); return; }
     var r = prepareReport();
     if (!r) return;
     var subject = CONFIG.project + ' — Rapport de retours ' + r.id + ' (' + r.items.length + ')';
     var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(r.md);
-    if (mailto.length > 1900) { cmStatus('Trop long pour un email — utilise Télécharger ou Copier'); return; }
+    if (mailto.length > 1900) { cmStatus('rapport trop long pour un email : utilise « télécharger » ou « copier ».'); return; }
     window.location.href = mailto;
   };
 
@@ -3558,6 +3910,7 @@
       if (st === 'resolu') { c.resolvedAt = now; c.resolvedBy = 'retour'; if (msg) c.feedbackMessage = msg; }
       if (st === 'complement') { c.complementAt = now; c.complementMessage = msg || 'Peux-tu préciser ?'; }
       pushHistory(c, { date: now, status: st, source: 'retour', message: msg || undefined });
+      equipeAAgi(c);                                            // voyant (C5) : l'équipe a changé le statut
       applied++;
     });
     persist(); renderList(); renderMarkers();
@@ -3573,7 +3926,8 @@
     var box = document.getElementById('cmFeedbackBox');
     var res = applyFeedback(box.querySelector('textarea').value);
     box.hidden = true;
-    cmStatus(res.applied + ' ticket(s) mis à jour' + (res.unknown ? ' · ' + res.unknown + ' identifiant(s) inconnu(s)' : '') + (res.ignored ? ' · ' + res.ignored + ' ligne(s) ignorée(s)' : ''));
+    var acc = function (n, un, plusieurs) { return n + ' ' + (n > 1 ? plusieurs : un); };
+    cmStatus(acc(res.applied, 'retour mis à jour', 'retours mis à jour') + (res.unknown ? ' · ' + acc(res.unknown, 'identifiant inconnu', 'identifiants inconnus') : '') + (res.ignored ? ' · ' + acc(res.ignored, 'ligne ignorée', 'lignes ignorées') : ''));
   };
 
   document.addEventListener('mousedown', onMouseDown, true);

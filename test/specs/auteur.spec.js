@@ -29,7 +29,7 @@ test.describe('mode live (Supabase simulé)', () => {
     await identify(page, { nom: '  Marine \n ' });
     await openDrawer(page);
     await expect(author(page)).toBeVisible();
-    await expect(author(page)).toHaveText('Tes retours sont signés : Marine');
+    await expect(author(page)).toHaveText('tes retours sont signés : Marine');
     await page.locator('#cmPanelBtn').click();
     await H.activate(page);
     await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Colonne trop étroite');
@@ -45,10 +45,10 @@ test.describe('mode live (Supabase simulé)', () => {
     });
     await page.goto(H.fileUrl(PAGE) + '?witmit=on');
     await openDrawer(page);
-    await expect(author(page)).toHaveText('Tes retours sont signés : Éléonore');
+    await expect(author(page)).toHaveText('tes retours sont signés : Éléonore');
     // après le chargement, un push dans la file s'exécute aussitôt
     await page.evaluate(() => window.witmitQueue.push(['identify', { nom: 'Marine' }]));
-    await expect(author(page)).toHaveText('Tes retours sont signés : Marine');
+    await expect(author(page)).toHaveText('tes retours sont signés : Marine');
   });
 
   test('3. identify(null) efface : plus de ligne, ticket suivant anonyme, rien de gardé au rechargement', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('mode live (Supabase simulé)', () => {
     expect(await page.locator('#cmAuthor img').count()).toBe(0);
     expect(await page.evaluate(() => window.__pirate)).toBeUndefined();
     await identify(page, 'X'.repeat(200));   // une simple chaîne est acceptée aussi
-    await expect(author(page)).toHaveText('Tes retours sont signés : ' + 'X'.repeat(60));
+    await expect(author(page)).toHaveText('tes retours sont signés : ' + 'X'.repeat(60));
     await identify(page, { nom: '   ' });
     await expect(author(page)).toBeHidden();
   });
@@ -113,7 +113,7 @@ test.describe('mode maquette', () => {
     await H.addPin(page, '#carte', 'Le montant est mal aligné');
     await H.deactivate(page);
     await openDrawer(page);
-    await expect(author(page)).toHaveText('Tes retours sont signés : Élise');
+    await expect(author(page)).toHaveText('tes retours sont signés : Élise');
     page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     await expect(page.locator('#cmStatus')).toContainText('copié');

@@ -516,19 +516,20 @@ test('19. focus clavier : anneau qui suit les coins sur une touche, outline sur 
   await page.locator('#cmPanel .cm-panel-foot .wm-touche', { hasText: 'Copier' }).hover();
   await page.mouse.down(); await page.mouse.up();
   expect((await anneau('#cmPanel .cm-panel-foot .wm-touche >> text=Copier')).contenu).toBe('none');
-  // au clavier : Tab jusqu'à « Envoyer », anneau de 2 px à 2 px de la forme, coins coupés
+  // au clavier : Tab jusqu'à « envoyer par email », anneau de 2 px à 2 px de la forme, coins coupés
   await page.locator('#cmPanel .cm-panel-foot .wm-touche', { hasText: 'Copier' }).focus();
   await page.keyboard.press('Tab');
-  await expect(page.locator('#cmPanel .cm-panel-report .wm-principale')).toBeFocused();
-  const a = await anneau('#cmPanel .cm-panel-report .wm-principale');
+  const envoyer = '#cmPanel .cm-panel-report .wm-touche >> text=envoyer par email';
+  await expect(page.locator(envoyer)).toBeFocused();
+  const a = await anneau(envoyer);
   expect(a.contenu).toBe('""');
   expect([a.l, a.t]).toEqual(['-4px', '-4px']);
   expect(a.clip).toContain('evenodd');
   expect(a.clip).toContain('8.34px 0px');                              // coupe de 6 px + 2,34 px au bord extérieur
   // forme ronde : outline de 2 px à 2 px
-  await page.locator('#cmPanel .wm-cercle[aria-label="Fermer"]').focus();
+  await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').focus();
   await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
-  const o = await page.locator('#cmPanel .wm-cercle[aria-label="Fermer"]').evaluate((el) => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth, getComputedStyle(el).outlineOffset]);
+  const o = await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').evaluate((el) => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth, getComputedStyle(el).outlineOffset]);
   expect(o).toEqual(['solid', '2px', '2px']);
 });
 
@@ -621,6 +622,10 @@ test('22. voyant (F8) : disque net de 7 px, sans ombre ; cerne intérieur seulem
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
     await H.addPin(page, cible, 'Voyant');
+    await H.deactivate(page);
+    const proj = nom === 'planche-charte.html' ? 'planche' : 'kiosque';
+    const [c] = await H.stored(page, 'witmit_' + proj + '_v1');
+    await H.retourColle(page, [c.id + ' pris_en_compte']);            // l'équipe a changé le statut : voyant allumé (C5)
     const v = await page.locator('#cmCount').evaluate((el) => {
       const cs = getComputedStyle(el), r = el.getBoundingClientRect();
       return { w: r.width, h: r.height, rond: cs.borderTopLeftRadius, ombre: cs.boxShadow, fond: cs.backgroundColor, cerne: parseFloat(cs.borderTopWidth) > 0, entier: Number.isInteger(r.left * devicePixelRatio) && Number.isInteger(r.top * devicePixelRatio) };

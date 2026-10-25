@@ -63,7 +63,7 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     const txt = await page.evaluate(() => navigator.clipboard.readText());
-    expect(txt).toContain('### #1 · 📍 Boulangerie Martin');
-    expect(txt).toContain('### #2 · 🔲 zone encadrée : Commandes, 37');
+    expect(txt).toContain('### #1 · élément : Boulangerie Martin');        // Léa 3.12 : le type en mots, sans émoji
+    expect(txt).toContain('### #2 · zone : zone encadrée : Commandes, 37');
   });
 });

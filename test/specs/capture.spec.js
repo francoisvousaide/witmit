@@ -36,7 +36,9 @@ test.describe('Capture (Kiosque)', () => {
     await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
     await page.locator('.cm-panel-item img.cm-shot').click();
     await expect(page.locator('.cm-lightbox img')).toBeVisible();
-    await page.locator('.cm-lightbox').click();
+    await page.locator('.cm-lightbox img').click();                    // le clic sur l'image ne ferme plus (fiche Visionneuse)
+    await expect(page.locator('.cm-lightbox')).toHaveCount(1);
+    await page.mouse.click(30, 600);                                     // clic à côté : la visionneuse se ferme
     await expect(page.locator('.cm-lightbox')).toHaveCount(0);
     // un clic simple (pastille) n'a pas de capture
     await page.mouse.click(30, 600); await H.activate(page);

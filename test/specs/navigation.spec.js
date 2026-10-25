@@ -54,7 +54,9 @@ test.describe('Navigation sans rechargement', () => {
     await H.activate(page); await H.addPin(page, '#r2', 'Accueil'); await H.deactivate(page);
     await nav(page, 'Adhésion');
     await H.activate(page); await H.addPin(page, '#r3', 'Adhésion'); await H.deactivate(page);
+    const question = H.accepterConfirmation(page);                        // confirmation (Léa 3.9)
     await page.evaluate(() => window.cmClearAll());
+    expect(await question).toBe("effacer le retour de cette page ? c'est définitif.");
     const t = await H.stored(page, KEY);
     expect(t.map((c) => c.page)).toEqual(['/accueil']);
   });

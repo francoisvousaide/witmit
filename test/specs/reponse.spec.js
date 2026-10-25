@@ -37,10 +37,11 @@ test('1. le fil est affiché : messages de l’équipe et les tiens, datés, dan
   const msgs = page.locator('.cm-msg');
   await expect(msgs).toHaveCount(3);
   await expect(msgs.nth(0)).toHaveClass(/cm-msg-equipe/);
-  await expect(msgs.nth(0)).toContainText('Équipe · 28/09/2026');
+  await expect(msgs.nth(0)).toContainText('équipe · 28/09/2026');
   await expect(msgs.nth(0)).toContainText('Corrigé, peux-tu vérifier ?');
-  await expect(msgs.nth(1)).toContainText('Toi');
-  await expect(msgs.nth(2)).toContainText('Tu as rouvert le ticket · 29/09/2026');
+  await expect(msgs.nth(1)).toContainText('toi');
+  await expect(msgs.nth(1)).toHaveClass(/cm-msg-auteur/);
+  await expect(msgs.nth(2)).toContainText('tu as rouvert ce retour · 29/09/2026');
   await expect(page.locator('.cm-feedback')).toHaveCount(0);   // le fil remplace l'ancien message unique
   expect((await ticket(page)).thread).toHaveLength(3);
 });
@@ -50,7 +51,7 @@ test('2. Répondre : le texte part au guichet, rejoint le fil ; le statut ne cha
   await expect(page.locator('.cm-reopen-btn')).toHaveCount(0);
   await page.locator('.cm-reply-btn').click();
   const ta = page.locator('.cm-inline-reply');
-  await expect(ta).toHaveAttribute('placeholder', /Ta réponse à l’équipe/);
+  await expect(ta).toHaveAttribute('placeholder', "ta réponse à l'équipe…");
   await ta.fill('Merci, je regarde');
   await page.locator('#cmPanelSub').click();                 // clic ailleurs : rien ne part, le champ reste
   await page.waitForTimeout(500);
@@ -63,40 +64,41 @@ test('2. Répondre : le texte part au guichet, rejoint le fil ; le statut ne cha
   expect(r.body).toMatchObject({ ticket_id: 'srv-1', texte: 'Merci, je regarde', rouvrir: false });
   await expect(page.locator('.cm-msg').nth(1)).toContainText('Merci, je regarde');
   await expect(page.locator('.cm-msg-pending')).toHaveCount(0);
-  await expect(page.locator('.cm-status-chip')).toContainText('Pris en compte');
+  await expect(page.locator('.cm-status-chip')).toContainText('pris en compte');
   expect((await ticket(page)).replies).toHaveLength(0);
 });
 
 test('3. Rouvrir : texte obligatoire, puis le ticket résolu repasse « pris en compte »', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
-  await expect(page.locator('.cm-status-chip')).toContainText('Résolu');
+  await expect(page.locator('.cm-status-chip')).toContainText('résolu');
   await expect(page.locator('.cm-reply-btn')).toBeVisible();
   await page.locator('.cm-reopen-btn').click();
   const ta = page.locator('.cm-inline-reply');
-  await ta.press('Enter');                                   // vide : refusé, le champ reste
-  await expect(page.locator('#cmStatus')).toContainText('Dis ce qui ne va pas');
+  await ta.press('Enter');                                   // vide : refusé, le champ reste ; la phrase sous le champ (plus de toast)
+  await expect(page.locator('.cm-panel-item .cm-refus')).toBeVisible();
+  await expect(page.locator('.cm-panel-item .cm-refus')).toHaveText('dis ce qui ne va pas pour rouvrir ce retour.');
   await expect(ta).toBeVisible();
   expect(state.replies).toHaveLength(0);
   await ta.fill('Le bouton est toujours décalé');
   await ta.press('Enter');
   await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
   expect(state.replies[0].body).toMatchObject({ texte: 'Le bouton est toujours décalé', rouvrir: true });
-  await expect(page.locator('.cm-status-chip')).toContainText('Pris en compte');
-  await expect(page.locator('.cm-msg').nth(1)).toContainText('Tu as rouvert le ticket');
+  await expect(page.locator('.cm-status-chip')).toContainText('pris en compte');
+  await expect(page.locator('.cm-msg').nth(1)).toContainText('tu as rouvert ce retour');
   await expect(page.locator('.cm-reopen-btn')).toHaveCount(0);
   expect((await ticket(page)).status).toBe('pris_en_compte');
   // la relecture suivante (serveur : en_cours) garde « pris en compte »
   state.rows[0].statut = 'en_cours';
   await rouvrirTiroir(page);
-  await expect(page.locator('.cm-status-chip')).toContainText('Pris en compte');
+  await expect(page.locator('.cm-status-chip')).toContainText('pris en compte');
 });
 
 test('4. une issue rouverte sur GitHub : le ticket résolu redevient « pris en compte »', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'resolu' });
-  await expect(page.locator('.cm-status-chip')).toContainText('Résolu');
+  await expect(page.locator('.cm-status-chip')).toContainText('résolu');
   state.rows[0].statut = 'en_cours';
   await rouvrirTiroir(page);
-  await expect(page.locator('.cm-status-chip')).toContainText('Pris en compte');
+  await expect(page.locator('.cm-status-chip')).toContainText('pris en compte');
   expect((await ticket(page)).status).toBe('pris_en_compte');
 });
 
@@ -152,8 +154,8 @@ test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) =
 test('7. Répondu : même ✅, libellé « Répondu », verrouillé ; Rouvrir disponible', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'repondu', messages: [EQUIPE] });
   const chip = page.locator('.cm-status-chip');
-  await expect(chip).toContainText('Répondu le');
-  await expect(chip).not.toContainText('Résolu');
+  await expect(chip).toHaveText('répondu');
+  await expect(chip).toHaveAttribute('title', /^répondu le \d\d\/\d\d\/\d{4}$/);   // la date du statut passe en info-bulle
   await expect(page.locator('.cm-panel-item .cm-st-locked')).toHaveCount(1);   // terminé : ✓ verrouillé
   expect((await ticket(page)).status).toBe('resolu');
   expect((await ticket(page)).repondu).toBe(true);
@@ -162,24 +164,75 @@ test('7. Répondu : même ✅, libellé « Répondu », verrouillé ; Rouvrir di
   await page.locator('.cm-inline-reply').press('Enter');
   await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
   expect(state.replies[0].body).toMatchObject({ rouvrir: true });
-  await expect(chip).toContainText('Pris en compte');
+  await expect(chip).toContainText('pris en compte');
   expect((await ticket(page)).repondu).toBeUndefined();
   // refermée cette fois comme corrigée : « Résolu », plus « Répondu »
   state.rows[0].statut = 'resolu';
   await rouvrirTiroir(page);
-  await expect(chip).toContainText('Résolu le');
+  await expect(chip).toHaveText('résolu');
 });
 
 test('8. Répondu puis rouvert sur GitHub : « pris en compte » ; fermé corrigé ensuite : « Résolu »', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'repondu' });
   const chip = page.locator('.cm-status-chip');
-  await expect(chip).toContainText('Répondu');
+  await expect(chip).toHaveText('répondu');
   state.rows[0].statut = 'en_cours';
   await rouvrirTiroir(page);
-  await expect(chip).toContainText('Pris en compte');
+  await expect(chip).toContainText('pris en compte');
   expect((await ticket(page)).repondu).toBeUndefined();
   state.rows[0].statut = 'resolu';
   await rouvrirTiroir(page);
-  await expect(chip).toContainText('Résolu le');
+  await expect(chip).toHaveText('résolu');
   expect((await ticket(page)).repondu).toBeUndefined();
+});
+
+// Lot 5 — voyant « l'équipe a écrit » (décision B du 25/10, option 1 ; C5).
+test('9. voyant : allumé par un message de l’équipe, éteint après lecture ; au premier chargement de la 0.2.0, tout l’existant compte comme vu', async ({ page }) => {
+  const voyant = page.locator('#cmPanelBtn #cmCount');
+  const witmit = page.locator('#cmPanelBtn');
+  await ticketEnvoye(page, { statut: 'nouveau' });
+  await page.waitForTimeout(800);                                            // relecture des statuts faite
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);   // ton propre retour : rien de nouveau
+  await witmit.click();
+  await expect(voyant).toBeHidden();
+  // L'équipe écrit : la relecture suivante (ouverture de la liste) allume le voyant et le mot « nouveau ».
+  state.rows[0].statut = 'en_cours'; state.rows[0].messages = [EQUIPE];
+  await witmit.click();
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveText('nouveau', { timeout: 15000 });
+  await expect(voyant).toBeVisible();
+  await expect(witmit).toHaveAccessibleName('witmit, 1 nouveau retour');
+  await witmit.click();                                                      // liste fermée après lecture : éteint
+  await expect(voyant).toBeHidden();
+  await expect(witmit).toHaveAccessibleName('witmit');
+  await page.reload();
+  await page.waitForTimeout(2500);                                           // relecture au chargement : rien de neuf
+  await expect(voyant).toBeHidden();
+  // Un second message de l'équipe : allumé dès le chargement, sans ouvrir la liste.
+  state.rows[0].messages = [EQUIPE, { de: 'equipe', texte: 'Et maintenant ?', rouvre: false, cree_le: '2026-09-29T10:00:00Z' }];
+  await page.reload();
+  await expect(voyant).toBeVisible({ timeout: 15000 });
+  // Ta réponse ne rallume rien : lue, puis tu réponds.
+  await witmit.click(); await witmit.click();
+  await expect(voyant).toBeHidden();
+  await witmit.click();
+  await page.locator('.cm-reply-btn').click();
+  await page.locator('.cm-inline-reply').fill('Je regarde');
+  await page.locator('.cm-inline-reply').press('Enter');
+  await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
+  state.rows[0].messages = state.rows[0].messages.concat([{ de: 'auteur', texte: 'Je regarde', rouvre: false, cree_le: '2026-09-30T10:00:00Z' }]);
+  await witmit.click(); await witmit.click();
+  await page.waitForTimeout(800);
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);
+  // Premier chargement de la 0.2.0 : retour écrit avec la 0.1 (ni vuLe, ni equipeLe), l'équipe a écrit entre-temps.
+  await witmit.click();
+  await page.evaluate((k) => {
+    const l = JSON.parse(localStorage.getItem(k));
+    l.forEach((c) => { delete c.vuLe; delete c.equipeLe; c.sync.statut = 'nouveau'; c.thread = []; });
+    localStorage.setItem(k, JSON.stringify(l));
+    localStorage.removeItem('witmit_kiosque-sync_vu_0_2');
+  }, KEY);
+  await page.reload();
+  await expect.poll(async () => ((await ticket(page)).thread || []).length, { timeout: 15000 }).toBe(3);   // relecture faite
+  await expect(voyant).toBeHidden();                                         // pas de vague de points jaunes
+  expect((await ticket(page)).vuLe).toBeTruthy();
 });

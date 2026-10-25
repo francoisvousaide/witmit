@@ -73,7 +73,8 @@ for (const P of PAGES) {
       expect(data[0].anchor.path).toBeTruthy();       // chemin DOM stable, pas des pixels bruts
       expect(data[0].anchor.relX).toBeGreaterThanOrEqual(0);
       expect(data[0].anchor.relX).toBeLessThanOrEqual(1);
-      await expect(page.locator('#cmCount')).toHaveText('1');
+      await expect(page.locator('#cmPanelSub')).toContainText('1 à suivre');          // le nombre « à suivre » (Léa 2.1)
+      await expect(page.locator('#cmCount')).toHaveAttribute('data-zero', '1');       // voyant : ton propre retour n'est pas du nouveau (C5)
     });
 
     test('5. Annuler / clic ailleurs → rien n’est enregistré', async ({ page }) => {
@@ -157,7 +158,7 @@ for (const P of PAGES) {
       await page.locator('.cm-popup textarea').press('Enter');
       const quoteBefore = await page.locator('mark.cm-highlight').allInnerTexts();
       await page.reload();
-      await expect(page.locator('#cmCount')).toHaveText('2');
+      await expect(page.locator('#cmPanelSub')).toContainText('2 à suivre');
       await H.activate(page);
       await expect(page.locator('.cm-pin')).toHaveCount(2);
       await expect(page.locator('.cm-box-outline')).toHaveCount(1);      // contour de la pastille
@@ -197,7 +198,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-panel-item .txt')).toHaveText('Modifié depuis la liste');
       expect((await H.stored(page, P.key))[0].text).toBe('Modifié depuis la liste');
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);           // toujours sélectionné
-      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();      // fermer le tiroir → fin de sélection
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="fermer"]').click();      // fermer le tiroir → fin de sélection
       await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);
       await page.locator('#cmPanelBtn').click();
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
@@ -250,7 +251,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
       // fermer une bulle par Échap ou Annuler : retour à l'orange immédiat (pas d'effet, réservé à l'enregistrement)
-      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="fermer"]').click();
       await page.locator('.cm-pin').nth(0).click();
       await page.keyboard.press('Escape');
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
@@ -343,7 +344,9 @@ for (const P of PAGES) {
       await H.addPin(page, P.pinTarget, 'À effacer');
       await H.deactivate(page);
       await page.locator('#cmPanelBtn').click();
-      await page.locator('.cm-panel-foot button', { hasText: 'Effacer (page)' }).click();
+      const question = H.accepterConfirmation(page);                       // « effacer (page) » demande confirmation (Léa 3.9)
+      await page.locator('.cm-panel-foot button', { hasText: 'effacer (page)' }).click();
+      expect(await question).toBe("effacer le retour de cette page ? c'est définitif.");
       await expect(page.locator('.cm-pin')).toHaveCount(0);
       expect(await H.stored(page, P.key)).toHaveLength(0);
       // Vider tout : refuser la confirmation ne supprime rien
@@ -351,11 +354,12 @@ for (const P of PAGES) {
       await page.reload();
       await page.locator('#cmPanelBtn').click();
       page.once('dialog', (d) => d.dismiss());
-      await page.locator('.cm-panel-foot button', { hasText: 'Vider tout' }).click();
+      await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();
       expect(await H.stored(page, P.key)).toHaveLength(1);
-      page.once('dialog', (d) => d.accept());
-      await page.locator('.cm-panel-foot button', { hasText: 'Vider tout' }).click();
-      await expect(page.locator('#cmStatus')).toContainText('supprimés');
+      const q2 = H.accepterConfirmation(page);
+      await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();
+      expect(await q2).toBe("effacer le retour du site ? c'est définitif.");
+      await expect(page.locator('#cmStatus')).toContainText('tous les retours du site sont effacés.');
       expect(await H.stored(page, P.key)).toHaveLength(0);
     });
 
