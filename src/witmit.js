@@ -546,6 +546,8 @@
   /* Épingles secondaires d'une sélection multiple : 20 px, numéro en 12 px, coins 5 × 2 px, jamais de voyant. */
   .cm-pin.cm-pin-secondary { --wm-coin-pin: 5px; height:20px; min-width:20px; padding:0 5px; }
   .cm-pin.cm-pin-secondary::after { inset:-12px; }
+  /* Zone en édition : la fenêtre est déjà ouverte ; la zone élargie de l'épingle ne doit pas couvrir les poignées. */
+  body.wm-zone-en-edition .cm-pin::after { pointer-events:none; }
   /* Nouveau : voyant jaune de 7 px centré sur le coin haut droit ; cerne intérieur sur fond clair, disque plein
      sur fond sombre ; jamais de halo. */
   .cm-pin .wm-voyant-epingle { position:absolute; right:-4px; top:-4px; width:7px; height:7px; border-radius:50%; background:var(--wm-accent); border:1.5px solid var(--wm-accent-ring); pointer-events:none; }
@@ -632,10 +634,11 @@
   @media (prefers-reduced-motion:reduce) { .wm-onde { display:none; } }
 
   /* Passage de texte (F10) : marqué comme le ferait un correcteur, souligné et pris entre deux coins witmit
-     (début du premier morceau, fin du dernier : classes wm-debut et wm-fin), 3 px d'air de chaque côté. Le
-     texte garde sa couleur et sa police : witmit ne touche qu'au trait. Hors mode annotation : rien. */
-  body.cm-active mark.cm-highlight { position:relative; margin:0 3px; padding:0; border-radius:0; text-decoration-line:underline; text-decoration-style:solid; text-decoration-thickness:2px; text-decoration-color:var(--wm-encre); text-underline-offset:4px; text-decoration-skip-ink:none; }
-  body.cm-active mark.cm-highlight.wm-debut::before, body.cm-active mark.cm-highlight.wm-fin::after { content:''; position:absolute; width:7px; height:7px; border:0 solid var(--wm-encre); pointer-events:none; }
+     (début du premier morceau, fin du dernier : classes wm-debut et wm-fin), qui débordent de 4 px de chaque côté.
+     Aucune marge : le texte garde sa place, sa couleur et sa police ; witmit ne touche qu'au trait (relecture de
+     Paula). Les coins sont en border-box (le mark n'est pas sous la remise à zéro de .cm-ui). Hors mode : rien. */
+  body.cm-active mark.cm-highlight { position:relative; padding:0; border-radius:0; text-decoration-line:underline; text-decoration-style:solid; text-decoration-thickness:2px; text-decoration-color:var(--wm-encre); text-underline-offset:4px; text-decoration-skip-ink:none; }
+  body.cm-active mark.cm-highlight.wm-debut::before, body.cm-active mark.cm-highlight.wm-fin::after { content:''; position:absolute; box-sizing:border-box; width:7px; height:7px; border:0 solid var(--wm-encre); pointer-events:none; }
   body.cm-active mark.cm-highlight.wm-debut::before { left:-4px; top:-2px; border-left-width:2px; border-top-width:2px; }
   body.cm-active mark.cm-highlight.wm-fin::after { right:-4px; bottom:-6px; border-right-width:2px; border-bottom-width:2px; }
   body.cm-active mark.cm-highlight.cm-focus { text-decoration-thickness:3px; }
@@ -1807,6 +1810,7 @@
           editPt = { x: editMeta.box.x, y: editMeta.box.y + editMeta.box.h }; // sous l'encadré, pour laisser ses poignées accessibles
         }
         openPopup(editPt.x, editPt.y, c.zone, editMeta);
+        epingleOuvreuse = c.id;   // Échap rendra le focus à cette épingle
       }
       function poserEpingle(pt, secondaire, sombrePin) {
         var p = document.createElement('div');
@@ -1818,6 +1822,7 @@
         p.setAttribute('role', 'button');
         p.setAttribute('aria-label', nomEpingle(c, i + 1));
         p.tabIndex = secondaire ? -1 : 0;   // une seule épingle par retour dans l'ordre du clavier
+        if (secondaire) p.setAttribute('aria-hidden', 'true');   // annoncée une seule fois, par l'épingle principale
         p.onclick = openEditor;
         p.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(e); } };
         document.body.appendChild(p);
@@ -2805,6 +2810,7 @@
   function makeBoxEditable(boxEl, meta) {
     if (!boxEl || boxEl.classList.contains('cm-box-editable')) return;
     boxEl.classList.add('cm-box-editable');
+    document.body.classList.add('wm-zone-en-edition');   // la zone de 44 px des épingles laisse passer les poignées
     assurerCadre(boxEl);
     applyBoxStyle(boxEl, meta.box || { x: boxEl.offsetLeft, y: boxEl.offsetTop, w: boxEl.offsetWidth, h: boxEl.offsetHeight });
     ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(function (d) {
@@ -2844,6 +2850,7 @@
     });
   }
   function endBoxEdit(meta) {
+    document.body.classList.remove('wm-zone-en-edition');
     if (!meta || !meta.boxEl) return;
     meta.boxEl.classList.remove('cm-box-editable');
     var hs = meta.boxEl.querySelectorAll('.cm-handle');
@@ -2864,6 +2871,7 @@
 
   /* ---------- bulle de saisie ---------- */
 
+  var epingleOuvreuse = null;   // id du retour dont l'épingle a ouvert la fenêtre en cours
   function closePopup(discard) {
     if (!pendingPopup) return;
     var meta = pendingPopup._meta;
@@ -2877,6 +2885,7 @@
     hideEditOutline();
     pendingPopup.remove();
     pendingPopup = null;
+    epingleOuvreuse = null;
     setFocused(null); // Annuler / Échap : retour au repos immédiat (l'effet « actif » puis repos est réservé à l'enregistrement)
   }
 
@@ -3521,8 +3530,8 @@
     document.body.classList.toggle('cm-active', active);
     document.getElementById('cmFrame').classList.toggle('show', active);
     document.getElementById('cmPill').classList.toggle('show', active);
-    // Les repères ne se dessinent qu'en mode annotation : le passage marqué prend alors ses 3 px d'air (F10),
-    // et les épingles sont replacées d'après la page telle qu'elle est maintenant.
+    // Les repères ne se dessinent qu'en mode annotation : les épingles sont replacées d'après la page telle
+    // qu'elle est maintenant (elle a pu bouger pendant que les repères étaient cachés).
     if (active) renderMarkers();
     if (!active) {
       clearTimeout(clickTimer);
@@ -3773,7 +3782,14 @@
     // (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce champ, sans aller plus loin.)
     if (e.key === 'Escape') {
       if (visionneuse) { e.preventDefault(); fermerVisionneuse(); }   // au-dessus de tout, fenêtre comprise
-      else if (pendingPopup) { e.preventDefault(); closePopup(true); }
+      else if (pendingPopup) {
+        e.preventDefault();
+        var ouvreuse = epingleOuvreuse;
+        closePopup(true);
+        // Comme la visionneuse : le focus revient à l'épingle qui avait ouvert la fenêtre.
+        var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
+        if (pinOuvreuse) pinOuvreuse.focus();
+      }
       else if (listeOuverte()) { e.preventDefault(); cmTogglePanel(false); }
       else if (active) { e.preventDefault(); cmToggle(false); }
       return;

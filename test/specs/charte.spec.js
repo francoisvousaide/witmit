@@ -720,12 +720,29 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   await page.locator('.cm-popup textarea').fill('passage');
   await page.locator('.cm-popup textarea').press('Enter');
   await page.waitForTimeout(1500);
-  const m = await page.locator('mark.cm-highlight').evaluateAll((ms) => ms.map((el) => {
-    const cs = getComputedStyle(el), av = getComputedStyle(el, '::before'), ap = getComputedStyle(el, '::after');
-    return { fond: cs.backgroundColor, trait: cs.textDecorationThickness, couleur: cs.textDecorationColor, debut: el.classList.contains('wm-debut') ? av.width : null, fin: el.classList.contains('wm-fin') ? ap.width : null };
+  // Taille RENDUE des coins (largeur + bordures si le navigateur est en content-box), mesurée comme sur un site sans
+  // remise à zéro : la planche pose * { box-sizing: border-box }, qu'on annule ici pour la mesure.
+  await page.addStyleTag({ content: '*, *::before, *::after { box-sizing: content-box; }' });
+  const passage = () => page.locator('mark.cm-highlight').evaluateAll((ms) => ms.map((el) => {
+    const cs = getComputedStyle(el), rendu = (ps) => ps.content === 'none' ? null
+      : (ps.boxSizing === 'border-box' ? parseFloat(ps.width) : parseFloat(ps.width) + parseFloat(ps.borderLeftWidth) + parseFloat(ps.borderRightWidth));
+    return { fond: cs.backgroundColor, marge: cs.marginLeft + ' ' + cs.marginRight, trait: cs.textDecorationThickness, couleur: cs.textDecorationColor,
+      debut: el.classList.contains('wm-debut') ? rendu(getComputedStyle(el, '::before')) : null, fin: el.classList.contains('wm-fin') ? rendu(getComputedStyle(el, '::after')) : null };
   }));
-  expect(m[0]).toMatchObject({ fond: 'rgba(0, 0, 0, 0)', trait: '2px', couleur: 'rgb(246, 243, 238)', debut: '7px' });
-  expect(m[m.length - 1].fin).toBe('7px');
+  // Repos : souligné de 2 px, coins de 7 px ; aucune marge (witmit ne touche qu'au trait, relecture de Paula).
+  let m = await passage();
+  expect(m[0]).toMatchObject({ fond: 'rgba(0, 0, 0, 0)', marge: '0px 0px', trait: '2px', couleur: 'rgb(246, 243, 238)', debut: 7 });
+  expect(m[m.length - 1].fin).toBe(7);
+  // Actif (fenêtre ouverte depuis son épingle) : souligné de 3 px, coins de 10 px.
+  await page.locator('.cm-pin').nth(1).click();
+  await expect(page.locator('mark.cm-highlight').first()).toHaveClass(/cm-focus/);
+  m = await passage();
+  expect(m[0]).toMatchObject({ trait: '3px', debut: 10 });
+  expect(m[m.length - 1].fin).toBe(10);
+  // Échap ferme la fenêtre et rend le focus à l'épingle qui l'avait ouverte (comme la visionneuse).
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cm-popup')).toHaveCount(0);
+  await expect(page.locator('.cm-pin').nth(1)).toBeFocused();
 });
 
 test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre ne recouvre ni le cadre ni l’épingle', async ({ page }) => {
@@ -742,6 +759,13 @@ test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre n
   await page.locator('.cm-popup textarea').fill('zone');
   await page.locator('.cm-popup textarea').press('Enter');
   await page.locator('.cm-pin').click();
+  // Les 8 poignées se saisissent, même celle du coin haut droit, sous l'épingle (sa zone de 44 px les laisse passer).
+  await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
+  const touchees = await page.locator('.cm-box-editable .cm-handle').evaluateAll((hs) => hs.map((h) => {
+    const r = h.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return h.dataset.dir + ':' + (e === h);
+  }));
+  expect(touchees).toEqual(['nw:true', 'n:true', 'ne:true', 'e:true', 'se:true', 's:true', 'sw:true', 'w:true']);
   const pop = await page.locator('.cm-popup').boundingBox(), pin = await page.locator('.cm-pin').boundingBox(), box = await page.locator('.cm-box-editable').boundingBox();
   const chevauche = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
   expect(chevauche(pop, pin)).toBe(false);
