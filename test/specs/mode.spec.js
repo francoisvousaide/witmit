@@ -1,5 +1,6 @@
 // Mode live (data-mode="live") : le widget est invisible par défaut sur un site en production,
-// révélé par Alt+A ou ?witmit=on (mémorisé), re-caché par le bouton du tiroir ou ?witmit=off.
+// révélé par Alt+W (⌥+W) ou ?witmit=on (mémorisé), re-caché par Alt+W, le bouton du tiroir ou ?witmit=off.
+// Alt+A (⌥+A) ne révèle plus : il lance le mode annotation (raccourcis.spec).
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
 
@@ -22,23 +23,25 @@ test('1. caché par défaut : interface injectée mais aucune couche visible', a
   expect(await revealed(page)).toBeNull();
 });
 
-test('2. Alt+A révèle le widget, entre en mode annotation et mémorise', async ({ page }) => {
-  await page.keyboard.press(H.SHORTCUT);
+test('2. Alt+W révèle witmit : les deux boutons, liste fermée, mode éteint ; mémorisé', async ({ page }) => {
+  await page.keyboard.press(H.MONTRER);
   await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
-  await expect(page.locator('body')).toHaveClass(/cm-active/);
   await expect(page.locator('#cmToggleBtn')).toBeVisible();
+  await expect(page.locator('#cmPanelBtn')).toBeVisible();
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('body')).not.toHaveClass(/cm-active/);
   expect(await revealed(page)).toBe('1');
-  // Après rechargement, il reste visible (mémorisé) mais pas en mode annotation
+  // Après rechargement, il reste visible (mémorisé), toujours sans mode annotation
   await page.reload();
   await expect(page.locator('#cmToggleBtn')).toBeVisible();
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
 });
 
-test('3. Alt+A ignoré pendant la saisie dans un champ : le widget reste caché', async ({ page }) => {
+test('3. Alt+W ignoré pendant la saisie dans un champ : le widget reste caché', async ({ page }) => {
   await page.locator('#tabBtnForm').click();
   const input = page.locator('input[type="text"], input:not([type]), textarea').first();
   await input.click();
-  await page.keyboard.press(H.SHORTCUT);
+  await page.keyboard.press(H.MONTRER);
   await expect(page.locator('body')).toHaveClass(/cm-concealed/);
 });
 
@@ -46,6 +49,7 @@ test('4. ?witmit=on révèle, mémorise et nettoie l’URL', async ({ page }) =>
   await page.goto(H.fileUrl(PAGE) + '?witmit=on&autre=1');
   await expect(page.locator('#cmToggleBtn')).toBeVisible();
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
   expect(await revealed(page)).toBe('1');
   expect(new URL(page.url()).search).toBe('?autre=1');
   await page.goto(H.fileUrl(PAGE));
@@ -89,8 +93,9 @@ test('7. les commentaires existants restent stockés mais invisibles tant que le
   expect(data).toHaveLength(1);
   await expect(page.locator('.cm-pin')).toBeHidden();
   await expect(page.locator('.cm-box-saved').first()).toBeHidden();
-  // Re-révélé : le repère est de nouveau là
-  await page.keyboard.press(H.SHORTCUT);
+  // Re-révélé (Alt+W), puis le mode lancé : le repère est de nouveau là
+  await page.keyboard.press(H.MONTRER);
+  await H.activate(page);
   await expect(page.locator('.cm-pin').first()).toBeVisible();
 });
 

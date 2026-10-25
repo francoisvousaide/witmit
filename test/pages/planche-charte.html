@@ -48,6 +48,15 @@
   .wm-specimen .grille { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px; color: var(--wm-ink-soft); }
   .wm-specimen .grille span { display: flex; align-items: center; gap: 8px; color: var(--wm-ink); }
   .wm-specimen .grille small { font-size: 12px; color: var(--wm-ink-soft); }
+  /* Lot 3 : les deux boutons ronds, en métal sombre (site clair) et clair (site sombre), dans leurs trois états. */
+  .boutons { position: relative; margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 10px; overflow: hidden; }
+  .boutons .fond { padding: 28px 24px 32px; }
+  .boutons .fond-clair { background: #f6f1ea; color: #1d1b18; }
+  .boutons .fond-sombre { background: #14161a; color: #ece8e1; }
+  .boutons h2 { margin: 0 0 18px; font-size: 22px; }
+  .boutons .etats { display: flex; flex-wrap: wrap; gap: 28px; }
+  .boutons .etat { display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 13px; text-align: center; }
+  .boutons .paire { display: flex; align-items: center; gap: 8px; }
 </style>
 </head>
 <body>
@@ -109,6 +118,11 @@
       <div class="cm-ui wm-specimen" id="specimenIcones" style="width:480px"></div>
     </div>
   </section>
+
+  <section class="boutons" id="specimensBoutons">
+    <div class="fond fond-clair"><h2>Boutons sur un site clair</h2><div class="etats" id="boutonsSurClair"></div></div>
+    <div class="fond fond-sombre"><h2>Boutons sur un site sombre</h2><div class="etats" id="boutonsSurSombre"></div></div>
+  </section>
 </main>
 
 <script>
@@ -155,6 +169,20 @@
     g.innerHTML = '<p class="titre">Icônes (Phosphor Regular)</p><div class="grille">' +
       P.icones.map(function (n) { return '<span>' + i(n, 16) + '<small>' + n + '</small></span>'; }).join('') + '</div>';
     P.habiller(g);
+    // Lot 3 : spécimens des deux boutons (au repos avec du nouveau, mode actif, liste ouverte), métal forcé.
+    function paire(metal, modeActif, listeOuverte, nouveau) {
+      return '<div class="paire cm-ui">' +
+        '<button type="button" class="wm-bouton wm-bouton-mode ' + metal + '" aria-label="mode annotation" aria-pressed="' + modeActif + '">' + i('CrosshairSimple', 20) + '</button>' +
+        '<button type="button" class="wm-bouton wm-bouton-witmit ' + metal + '" aria-label="' + (nouveau ? 'witmit, 2 nouveaux retours' : 'witmit') + '" aria-expanded="' + listeOuverte + '">' +
+          '<span class="wm-signe">' + P.signe + '</span>' + (nouveau ? '<span class="cm-count-badge" data-zero="0" aria-hidden="true">2</span>' : '') + '</button></div>';
+    }
+    function etats(metal) {
+      return '<div class="etat">' + paire(metal, false, false, true) + '<span>au repos, du nouveau<br><b>les deux levés</b></span></div>' +
+        '<div class="etat">' + paire(metal, true, false, false) + '<span>mode annotation<br><b>viseur enfoncé</b></span></div>' +
+        '<div class="etat">' + paire(metal, false, true, false) + '<span>liste ouverte<br><b>witmit enfoncé</b></span></div>';
+    }
+    document.getElementById('boutonsSurClair').innerHTML = etats('wm-metal-sombre');
+    document.getElementById('boutonsSurSombre').innerHTML = etats('wm-metal-clair');
   })();
 </script>
 </body>

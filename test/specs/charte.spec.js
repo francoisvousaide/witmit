@@ -228,7 +228,7 @@ test.describe('Halo du mode annotation', () => {
     const releves = {};
     for (const nom of ['tellus-accueil.html', 'generic-dashboard.html']) {
       await page.goto(H.fileUrl(nom));
-      await page.keyboard.press(H.SHORTCUT); // ⌥+A / alt+A lance le mode
+      await page.keyboard.press(H.ANNOTER); // ⌥+A / alt+A lance le mode
       await expect(page.locator('body')).toHaveClass(/cm-active/);
       await expect(page.locator('#cmFrame')).toBeVisible();
       const halo = await lireHalo(page);
@@ -243,7 +243,7 @@ test.describe('Halo du mode annotation', () => {
         expect(ANCIENNES_RGB, c.txt).not.toContain(`${c.r},${c.g},${c.b}`);
       }
       // mode arrêté : le halo disparaît
-      await page.keyboard.press(H.SHORTCUT);
+      await page.keyboard.press(H.ANNOTER);
       await expect(page.locator('body')).not.toHaveClass(/cm-active/);
       await expect(page.locator('#cmFrame')).toBeHidden();
       expect(await page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).visibility)).toBe('hidden');
@@ -519,8 +519,8 @@ test('19. focus clavier : anneau qui suit les coins sur une touche, outline sur 
   // au clavier : Tab jusqu'à « Envoyer », anneau de 2 px à 2 px de la forme, coins coupés
   await page.locator('#cmPanel .cm-panel-foot .wm-touche', { hasText: 'Copier' }).focus();
   await page.keyboard.press('Tab');
-  await expect(page.locator('#cmPanel .cm-panel-foot .wm-principale')).toBeFocused();
-  const a = await anneau('#cmPanel .cm-panel-foot .wm-principale');
+  await expect(page.locator('#cmPanel .cm-panel-report .wm-principale')).toBeFocused();
+  const a = await anneau('#cmPanel .cm-panel-report .wm-principale');
   expect(a.contenu).toBe('""');
   expect([a.l, a.t]).toEqual(['-4px', '-4px']);
   expect(a.clip).toContain('evenodd');

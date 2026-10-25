@@ -7,7 +7,10 @@ const PAGES_DIR = path.resolve(__dirname, '..', 'pages');
 const fileUrl = (name) => 'file://' + path.join(PAGES_DIR, name);
 
 const IS_MAC = process.platform === 'darwin';
-const SHORTCUT = 'Alt+KeyA'; // identique sur toutes les plateformes
+// Raccourcis (K1) : ⌥+A / alt+A lance et arrête le mode annotation ; ⌥+W / alt+W montre et cache witmit (live).
+// Playwright tape la lettre de base avec alt (« a », « w »), comme Windows et Linux.
+const ANNOTER = 'Alt+KeyA';
+const MONTRER = 'Alt+KeyW';
 
 async function clearStorage(page) {
   await page.evaluate(() => localStorage.clear());
@@ -15,13 +18,46 @@ async function clearStorage(page) {
 async function stored(page, key) {
   return page.evaluate((k) => JSON.parse(localStorage.getItem(k) || '[]'), key);
 }
+// Bouton du mode annotation (#cmToggleBtn) : un clic bascule le mode ; il suit en aria-pressed, le halo aussi.
 async function activate(page) {
   await page.locator('#cmToggleBtn').click();
   await expect(page.locator('body')).toHaveClass(/cm-active/);
+  await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#cmFrame')).toHaveClass(/show/);
 }
 async function deactivate(page) {
   await page.locator('#cmToggleBtn').click();
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+  await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
+}
+// Live : ⌥+W montre witmit (les deux boutons, liste fermée).
+async function montrer(page) {
+  await page.keyboard.press(MONTRER);
+  await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
+  await expect(page.locator('#cmToggleBtn')).toBeVisible();
+}
+// Un vrai événement clavier envoyé par le protocole de Chromium (CDP Input.dispatchKeyEvent), pour les
+// caractères que Playwright ne sait pas taper avec alt (« ∑ », « ‹ », « Æ », touche morte « Dead »).
+// rawKeyDown puis keyUp : la page reçoit keydown avec exactement ce key et ce code.
+async function toucheBrute(page, { key, code, alt = false, ctrl = false, meta = false, shift = false, repeat = false, up = true }) {
+  const cdp = page._wmCdp || (page._wmCdp = await page.context().newCDPSession(page));
+  const modifiers = (alt ? 1 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0) | (shift ? 8 : 0);
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, modifiers, autoRepeat: repeat });
+  if (up) await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
+}
+// Carte du clavier simulée, posée avant le chargement de la page (addInitScript) : 'azerty' (Mac français :
+// la touche à la position KeyQ porte « a », KeyZ porte « w »…) ; null : navigator.keyboard absent, comme
+// sur Safari et Firefox.
+async function carteClavier(page, disposition) {
+  await page.addInitScript((d) => {
+    let valeur;
+    if (d === 'azerty') {
+      const m = new Map([['KeyQ', 'a'], ['KeyW', 'z'], ['KeyE', 'e'], ['KeyR', 'r'], ['KeyA', 'q'], ['KeyS', 's'], ['KeyZ', 'w'], ['KeyX', 'x'], ['KeyM', ','], ['Semicolon', 'm'], ['KeyN', 'n']]);
+      valeur = { getLayoutMap: () => Promise.resolve(m) };
+    }
+    Object.defineProperty(Navigator.prototype, 'keyboard', { configurable: true, get: () => valeur });
+  }, disposition);
 }
 // Clic au centre d'un élément (mode actif), saisie du texte, Entrée pour enregistrer.
 async function addPin(page, selector, text) {
@@ -82,4 +118,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, SHORTCUT, clearStorage, stored, activate, deactivate, addPin, drag };
+module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, MONTRER, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag };

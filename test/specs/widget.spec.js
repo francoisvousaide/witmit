@@ -29,28 +29,29 @@ for (const P of PAGES) {
     });
 
     test('1. le widget s’installe seul : style + interface injectés, une seule fois', async ({ page }) => {
-      for (const id of ['cmStyles', 'cmFrame', 'cmPill', 'cmPanel', 'cmStatus', 'cmToggleBtn', 'cmPanelBtn', 'cmCount']) {
+      for (const id of ['cmStyles', 'cmFrame', 'cmPill', 'cmPanel', 'cmStatus', 'cmToggleBtn', 'cmPanelBtn', 'cmCount', 'cmNewBtn']) {
         await expect(page.locator('#' + id), id).toHaveCount(1);
       }
       await expect(page.locator('.cm-fab')).toHaveCount(P.hasFab ? 1 : 0);
       await expect(page.locator('#cmToggleBtn')).toBeVisible();
     });
 
-    test('2. bouton 💬 : active/désactive le mode (cadre + pastille)', async ({ page }) => {
+    test('2. bouton du mode : active/désactive (halo + bandeau)', async ({ page }) => {
       await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
       await H.activate(page);
       await expect(page.locator('#cmFrame')).toHaveClass(/show/);
       await expect(page.locator('#cmPill')).toBeVisible();
-      await expect(page.locator('#cmToggleBtn .cm-btn-on')).toBeVisible();
+      await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('#cmPanelBtn')).toHaveAttribute('aria-expanded', 'false');
       await H.deactivate(page);
       await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
       await expect(page.locator('#cmPill')).toBeHidden();
     });
 
     test('3. raccourci clavier propre à la plateforme', async ({ page }) => {
-      await page.keyboard.press(H.SHORTCUT);
+      await page.keyboard.press(H.ANNOTER);
       await expect(page.locator('body')).toHaveClass(/cm-active/);
-      await page.keyboard.press(H.SHORTCUT);
+      await page.keyboard.press(H.ANNOTER);
       await expect(page.locator('body')).not.toHaveClass(/cm-active/);
     });
 
@@ -263,12 +264,20 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
     });
 
-    test('11b. ouvrir le tiroir abandonne une bulle non enregistrée', async ({ page }) => {
+    test('11b. ouvrir le tiroir abandonne une bulle non enregistrée (après confirmation)', async ({ page }) => {
       await H.activate(page);
       const box = await H.visibleBox(page, P.pinTarget);
       await page.mouse.click(box.x + 5, box.y + 5);
       await page.locator('.cm-popup textarea').fill('pas enregistré');
+      // Le texte n'est pas parti : le bouton witmit demande d'abord (Léa 3.9) ; refuser ne change rien.
+      const messages = [];
+      page.once('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
       await page.locator('#cmPanelBtn').click();
+      await expect(page.locator('.cm-popup textarea')).toHaveValue('pas enregistré');
+      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+      page.once('dialog', (d) => { messages.push(d.message()); d.accept(); });
+      await page.locator('#cmPanelBtn').click();
+      expect(messages).toEqual(["fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.", "fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu."]);
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
       await expect(page.locator('.cm-popup')).toHaveCount(0);
       await expect(page.locator('.cm-box-editing')).toHaveCount(0);
