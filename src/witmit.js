@@ -232,8 +232,9 @@
   /* Halo du mode annotation (fiche Bandeau) : trait jaune de 3 px au bord de l'écran, filet sombre de 1 px
      juste à l'intérieur (il cerne le jaune sur le clair et disparaît de lui-même sur le sombre), lueur
      courte. Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
-     ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. */
-  .cm-frame { position:fixed; inset:0; z-index:895; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; }
+     ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. Elle est
+     posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
+  .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; }
   .cm-frame.show { visibility:visible; opacity:1; }
   .cm-frame::before, .cm-frame::after { content:''; position:absolute; inset:0; pointer-events:none; border:0 solid transparent; }
   .cm-frame::before { box-shadow: inset 0 0 0 3px var(--wm-accent), inset 0 0 0 4px var(--wm-halo-filet), inset 0 0 10px 2px var(--wm-halo-lueur-courte); }
@@ -331,8 +332,8 @@
   .cm-popup .cm-zone { cursor:move; touch-action:none; font-family:var(--wm-font-titre); font-size:12px; font-weight:700; color:var(--wm-ink); margin-bottom:6px; max-height:48px; overflow-y:auto; }
   .cm-popup textarea { width:100%; min-height:70px; resize:vertical; border:1px solid var(--wm-line); border-radius:8px; padding:8px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; color:var(--wm-ink); background:var(--wm-surface-raised); margin-bottom:8px; box-sizing:border-box; }
   .cm-popup .cm-cat-row { display:flex; align-items:center; gap:6px; margin:-2px 0 8px; }
-  .cm-popup .cm-cat { flex:1; font-family:var(--wm-font-outil); font-size:12px; color:var(--wm-ink); background:var(--wm-face-touche); border:1px solid var(--wm-line); border-radius:7px; padding:5px 6px; }
-  .cm-popup .cm-cat-auto { font-family:var(--wm-font-outil); font-size:12px; font-weight:500; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); padding:1px 6px; }
+  .cm-popup .cm-cat { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; font-family:var(--wm-font-outil); font-size:12px; color:var(--wm-ink); background:var(--wm-face-touche); border:1px solid var(--wm-line); border-radius:7px; padding:5px 6px; }
+  .cm-popup .cm-cat-auto { flex-shrink:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:500; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); padding:1px 6px; }
   .cm-popup .cm-popup-actions { display:flex; gap:8px; justify-content:flex-end; }
   .cm-popup button { font-family:var(--wm-font-outil); font-size:12px; font-weight:500; border-radius:7px; padding:6px 12px; border:1px solid transparent; cursor:pointer; background:transparent; color:var(--wm-ink); }
   .cm-popup .cm-cancel { background:transparent; color:var(--wm-ink-soft); }
@@ -359,7 +360,8 @@
   .cm-panel-item { display:flex; gap:8px; padding:9px 8px; border-radius:9px; }
   .cm-panel-item:hover { background:var(--wm-surface-raised); }
   .cm-panel-item.cm-current { background:var(--wm-surface-raised); box-shadow:inset 3px 0 0 var(--wm-ink); }
-  .cm-panel-item.cm-current .num { background:var(--wm-ink); color:var(--wm-surface-raised); border-color:var(--wm-ink); }
+  .cm-panel-item.cm-current .num { background:var(--wm-ink); color:var(--wm-encre-repere-claire); border-color:var(--wm-ink); }
+  body[data-wm-theme="client-sombre"] .cm-panel-item.cm-current .num { color:var(--wm-encre-repere); } /* chiffre dans l'encre de l'autre thème */
   .cm-panel-item .num { flex-shrink:0; width:20px; height:20px; border-radius:var(--wm-radius-numero); background:transparent; border:1px solid var(--wm-line-strong); color:var(--wm-ink); font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; font-family:var(--wm-font-outil); margin-top:1px; }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
   .cm-panel-item .zone { font-size:10.5px; color:var(--wm-ink-soft); font-weight:600; margin-bottom:2px; }
@@ -1588,9 +1590,9 @@
     ta.addEventListener('blur', function () { finish(true); });
   }
 
-  /* Après un ENREGISTREMENT : le repère du commentaire reste en teal ~1 s, puis repasse à l'orange
+  /* Après un ENREGISTREMENT : le repère du commentaire reste à l'état « actif » ~1 s, puis revient au repos
      en fondu avec une onde — on voit ce qu'on vient de commenter (rien de tel pour Annuler/Échap). Les éléments sont créés
-     directement en teal (flashId) pour que l'effet soit net même si les repères sont redessinés. */
+     directement à l'état actif (flashId) pour que l'effet soit net même si les repères sont redessinés. */
   var flashId = null, flashTimer = null;
   function flashSaved(id) {
     clearTimeout(flashTimer);
@@ -2023,7 +2025,7 @@
     hideEditOutline();
     pendingPopup.remove();
     pendingPopup = null;
-    setFocused(null); // Annuler / Échap : retour à l'orange immédiat (l'effet teal → orange est réservé à l'enregistrement)
+    setFocused(null); // Annuler / Échap : retour au repos immédiat (l'effet « actif » puis repos est réservé à l'enregistrement)
   }
 
   /* ---------- placement de la bulle : jamais par-dessus ce qu'elle commente ----------

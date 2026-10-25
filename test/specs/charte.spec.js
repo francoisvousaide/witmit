@@ -291,6 +291,43 @@ test.describe('Halo du mode annotation', () => {
     expect(bordure).toEqual(['3px', 'solid', '3px']);
   });
 
+  test('12b. le halo passe sous toutes les couches de witmit (liste, boutons, repères, fenêtre, bandeau)', async ({ page }) => {
+    await page.goto(H.fileUrl('generic-dashboard.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Sous le halo');
+    await page.locator('.cm-pin').click(); // fenêtre ouverte, cadre d'édition affiché
+    await expect(page.locator('.cm-popup')).toBeVisible();
+    const z = await page.evaluate(() => {
+      const zi = (sel) => { const el = document.querySelector(sel); return el ? parseInt(getComputedStyle(el).zIndex, 10) : null; };
+      // les liens d'une sélection multiple n'existent qu'avec plusieurs éléments : témoin le temps de la mesure
+      let temoin = null;
+      if (!document.getElementById('cmLinks')) { temoin = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); temoin.id = 'cmLinks'; document.body.appendChild(temoin); }
+      const liens = zi('#cmLinks');
+      if (temoin) temoin.remove();
+      return { halo: zi('#cmFrame'), couches: { liste: zi('#cmPanel'), boutons: zi('.cm-fab'), epingle: zi('.cm-pin'), liens, cadre: zi('.cm-box'), fenetre: zi('.cm-popup'), bandeau: zi('#cmPill'), toast: zi('#cmStatus') } };
+    });
+    for (const [nom, v] of Object.entries(z.couches)) {
+      expect(v, nom).not.toBeNull();
+      expect(z.halo, `halo sous ${nom}`).toBeLessThan(v);
+    }
+    expect(z.halo).toBeGreaterThan(300); // reste au-dessus d'une barre de navigation de site (TellUs : 300)
+    // liste ouverte en mode actif : au bord droit de l'écran, c'est la liste qui est dessus
+    await page.keyboard.press('Escape');
+    await page.locator('#cmPanelBtn').click();
+    await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+    await expect.poll(() => page.evaluate(() => Math.round(document.getElementById('cmPanel').getBoundingClientRect().right - window.innerWidth))).toBe(0); // glissement fini
+    const dessus = await page.evaluate(() => {
+      const panel = document.getElementById('cmPanel');
+      const frame = document.getElementById('cmFrame');
+      frame.style.pointerEvents = 'auto';            // le temps de la mesure : le halo devient « touchable »
+      const el = document.elementFromPoint(window.innerWidth - 2, window.innerHeight / 2);
+      frame.style.pointerEvents = '';
+      return panel.contains(el);
+    });
+    expect(dessus).toBe(true);
+  });
+
   test('12. le halo ne prend aucun clic', async ({ page }) => {
     await page.goto(H.fileUrl('tellus-accueil.html'));
     await H.clearStorage(page); await page.reload();
@@ -307,4 +344,39 @@ test.describe('Halo du mode annotation', () => {
     await page.mouse.click(4, 28);
     await expect(page.locator('.cm-popup textarea')).toBeVisible();
   });
+});
+
+test('13. liste : le numéro du retour sélectionné est lisible (encre de l’autre thème)', async ({ page }) => {
+  for (const [nom, fond, chiffre] of [['tellus-accueil.html', 'rgb(246, 243, 238)', 'rgb(20, 20, 18)'], ['generic-dashboard.html', 'rgb(20, 20, 18)', 'rgb(246, 243, 238)']]) {
+    await page.goto(H.fileUrl(nom));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await H.addPin(page, nom === 'tellus-accueil.html' ? '.mcard.active .mcard-title' : 'tbody tr:first-child td:nth-child(2)', 'Numéro');
+    await H.deactivate(page);
+    await page.locator('#cmPanelBtn').click();
+    await page.locator('.cm-panel-item .body').first().click();
+    await expect(page.locator('.cm-panel-item').first()).toHaveClass(/cm-current/);
+    const num = await page.locator('.cm-panel-item.cm-current .num').evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+    expect(num, nom).toEqual([fond, chiffre]);
+  }
+});
+
+test('14. fenêtre : la rangée de la catégorie, puce « auto » comprise, tient dans la fenêtre', async ({ page }) => {
+  for (const nom of ['planche-charte.html', 'generic-dashboard.html', 'tellus-accueil.html']) {
+    await page.goto(H.fileUrl(nom));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await page.mouse.click(300, 400);
+    const ta = page.locator('.cm-popup textarea');
+    await expect(ta).toBeVisible();
+    await ta.fill('Le bouton est trop petit et le texte déborde un peu');
+    const r = await page.evaluate(() => {
+      const b = (sel) => document.querySelector(sel).getBoundingClientRect();
+      return { popup: b('.cm-popup'), cat: b('.cm-cat'), auto: b('.cm-cat-auto') };
+    });
+    for (const k of ['cat', 'auto']) {
+      expect(r[k].left, `${nom} ${k}`).toBeGreaterThanOrEqual(r.popup.left);
+      expect(r[k].right, `${nom} ${k}`).toBeLessThanOrEqual(r.popup.right);
+    }
+  }
 });
