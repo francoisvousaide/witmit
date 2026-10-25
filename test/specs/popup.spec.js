@@ -240,26 +240,46 @@ test('titre selon le type de cible ; tête-poignée, élément visé sur une lig
   await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveText('champ Nom du client');
 });
 
-test('champ : anneau de la charte au focus, aucune règle de focus de la page hôte, pas de poignée rognée', async ({ page }) => {
+test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la charte ; rien du focus de la page hôte', async ({ page }) => {
   await page.goto(H.fileUrl('tellus-accueil.html'));          // la page pose « :focus-visible { box-shadow } »
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
   const b = await H.visibleBox(page, '.mcard.active .mcard-title');
-  await page.mouse.click(b.x + 5, b.y + 5);
+  await page.mouse.click(b.x + 5, b.y + 5);                   // fenêtre ouverte par un clic souris
   const ta = page.locator('.cm-popup textarea');
   await expect(ta).toBeFocused();
-  const st = await ta.evaluate((el) => {
+  const etat = () => ta.evaluate((el) => {
     const cs = getComputedStyle(el), anneau = getComputedStyle(el.parentNode, '::after');
-    return { ombre: cs.boxShadow, contour: cs.outlineStyle, resize: cs.resize, police: cs.fontFamily, coupe: cs.clipPath, anneau: anneau.content, anneauClip: anneau.clipPath };
+    const t = document.createElement('span'); t.style.color = getComputedStyle(el).getPropertyValue('--wm-line-strong'); el.parentNode.appendChild(t);
+    const fort = getComputedStyle(t).color; t.remove();
+    return { ombre: cs.boxShadow, contour: cs.outlineStyle, resize: cs.resize, police: cs.fontFamily, coupe: cs.clipPath,
+      trait: cs.borderTopColor, fort, anneau: anneau.content, anneauClip: anneau.clipPath };
   });
-  expect(st.ombre).toBe('none');
+  // 1. Après le clic : seulement le trait line-strong (fiche Etats : jamais d'anneau au clic souris).
+  let st = await etat();
+  expect(st.anneau).toBe('none');
+  expect(st.trait).toBe(st.fort);
+  expect(st.ombre).toBe('none');                               // aucune ombre de focus de la page hôte
   expect(st.contour).toBe('none');
-  expect(st.resize).toBe('none');
+  expect(st.resize).toBe('none');                              // pas de poignée rognée par le coin coupé
   expect(st.police).toContain('Syne');
   expect(st.coupe).toContain('polygon');
-  expect(st.anneau).not.toBe('none');                          // l'anneau de la charte (fiche Etats), qui suit les coins
+  await ta.pressSequentially('du texte');                      // taper ne fait pas apparaître l'anneau
+  expect((await etat()).anneau).toBe('none');
+  // 2. Tab vers la catégorie, puis maj+Tab vers le champ : l'anneau de la charte, qui suit les coins.
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.cm-popup .cm-cat')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(ta).toBeFocused();
+  st = await etat();
+  expect(st.anneau).not.toBe('none');
   expect(st.anneauClip).toContain('polygon');
-  // Le champ grandit avec le texte au lieu d'une poignée
+  expect(st.ombre).toBe('none');
+  // 3. Un nouveau clic dans le champ retire l'anneau.
+  const r = await ta.boundingBox();
+  await page.mouse.click(r.x + 20, r.y + 20);
+  expect((await etat()).anneau).toBe('none');
+  // Le champ grandit avec le texte au lieu d'une poignée.
   const h0 = (await ta.boundingBox()).height;
   await ta.fill('une ligne\nune autre\nencore une\net une quatrième\net une cinquième');
   expect((await ta.boundingBox()).height).toBeGreaterThan(h0);

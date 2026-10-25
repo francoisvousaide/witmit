@@ -387,15 +387,18 @@
   .cm-ui textarea:focus, .cm-ui textarea:focus-visible, .cm-ui input:focus, .cm-ui input:focus-visible, .cm-ui select:focus, .cm-ui select:focus-visible { box-shadow:none; }
 
   /* Focus clavier (fiche Etats), seulement en :focus-visible. Forme coupée : anneau qui suit les coins,
-     tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. */
+     tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. Un champ, lui, est toujours
+     « :focus-visible » pour Chromium, même après un clic ou un focus posé par le script : son anneau ne
+     s'affiche que si le focus vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul
+     son trait passe à line-strong. */
   .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus, .cm-ui .wm-texte:focus { outline:none; }
-  .cm-ui .wm-touche:focus-visible::after, .cm-ui .wm-champ:has(> textarea:focus-visible)::after {
+  .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after {
     content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
   .cm-ui .wm-cercle:focus-visible, .cm-ui .wm-texte:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   @media (forced-colors:active) {
     .wm-contour polygon, .wm-contour path { stroke:CanvasText; }
     .cm-ui .wm-touche::before { border-color:ButtonText; }
-    .cm-ui .wm-touche:focus-visible::after, .cm-ui .wm-champ:has(> textarea:focus-visible)::after { background:Highlight; }
+    .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { background:Highlight; }
   }
 
   /* Voyant (F8) : disque net de 7 px à coordonnées entières, sans ombre ni halo ; sur fond clair (bouton
@@ -914,6 +917,17 @@
   // ne s'affiche un instant, et aucune police n'est téléchargée avant la révélation.
   if (CONFIG.mode === 'live') document.body.classList.add('cm-concealed');
   injectUI();
+  /* Modalité du focus (fiche Etats, « seulement au clavier ») : drapeau data-wm-clavier sur <body>, posé par une
+     touche de déplacement (Tab ; flèches, début, fin, pages hors d'un champ de saisie, où elles déplacent le
+     curseur) et retiré au premier appui du pointeur. Il ne sert qu'à l'anneau de focus des champs de witmit. */
+  (function modaliteFocus() {
+    var DEPLACEMENT = /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/;
+    document.addEventListener('keydown', function (e) {
+      var t = e.target, champ = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      if (e.key === 'Tab' || (DEPLACEMENT.test(e.key) && !champ)) document.body.setAttribute('data-wm-clavier', '');
+    }, true);
+    document.addEventListener('pointerdown', function () { document.body.removeAttribute('data-wm-clavier'); }, true);
+  })();
   renderAuthor();
   initTheme();
 
