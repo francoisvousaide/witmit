@@ -117,6 +117,62 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
     return { w: r.width, h: r.height, gauche: touche(r.left - 9.5, cy), droite: touche(r.right + 9.5, cy), haut: touche(cx, r.top - 9.5), bas: touche(cx, r.bottom + 9.5), loin: touche(r.left - 14, cy) };
   });
   expect(e).toEqual({ w: 24, h: 24, gauche: true, droite: true, haut: true, bas: true, loin: false });
+  // Bandeau (fiche Bandeau) : poignée de 20 × 44 px dans un bandeau qu'on attrape partout hors de sa touche (la zone
+  // qu'on peut saisir fait donc au moins 44 × 44 px depuis la poignée) ; « terminer » : face de 32 px, zone de 44 px.
+  const b = await page.evaluate(() => {
+    const pill = document.getElementById('cmPill'), poignee = pill.querySelector('.wm-poignee'), fin = pill.querySelector('.wm-terminer');
+    const rp = poignee.getBoundingClientRect(), rf = fin.getBoundingClientRect(), face = getComputedStyle(fin, '::before');
+    const saisissable = (x, y) => { const el = document.elementFromPoint(x, y); return !!(el && pill.contains(el) && !el.closest('button')); };
+    const touche = (x, y) => { const el = document.elementFromPoint(x, y); return !!(el && el.closest('.wm-terminer') === fin); };
+    return {
+      poignee: [rp.width, rp.height], saisie44: saisissable(rp.left + 1, rp.top + 1) && saisissable(rp.left + 43, rp.top + 1) && saisissable(rp.left + 1, rp.top + 43) && saisissable(rp.left + 43, rp.top + 43),
+      terminer: rf.height, face: rf.height - parseFloat(face.top) - parseFloat(face.bottom), largeur: rf.width >= 44,
+      haut: touche(rf.left + rf.width / 2, rf.top + 1), bas: touche(rf.left + rf.width / 2, rf.bottom - 1)
+    };
+  });
+  expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 32, largeur: true, haut: true, bas: true });
+});
+
+test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 900 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
+  await H.activate(page);
+  const pill = page.locator('#cmPill');
+  await expect(pill).toHaveAttribute('aria-label', 'witmit : mode annotation');
+  await expect(pill.locator('.wm-bandeau-mode')).toHaveText('annotation');
+  await expect(pill.locator('.wm-bandeau-mode .wm-voyant')).toHaveCount(1);       // le voyant jamais sans le mot
+  const multi = H.IS_MAC ? 'cmd+clic : plusieurs' : 'ctrl+clic : plusieurs';
+  await expect(pill.locator('.wm-gestes')).toHaveText('clic : élément · ' + multi + ' · glisser : zone · maj+glisser : texte');
+  await expect(pill.locator('.wm-poignee')).toHaveAttribute('title', 'glisse pour déplacer le bandeau');
+  await expect(pill.locator('.wm-terminer')).toHaveText('termineréchap');
+  await expect(pill.locator('.wm-terminer')).toHaveAttribute('title', "terminer l'annotation · échap ou " + (H.IS_MAC ? '⌥+A' : 'alt+A'));
+  // 1 280 px : une ligne de 44 px, centrée, à 12 px sous le haut (pas de barre de navigation sur cette page)
+  const ecartAuCentre = () => page.evaluate(() => { const p = document.getElementById('cmPill').getBoundingClientRect(); return Math.round(Math.abs(p.left + p.width / 2 - document.documentElement.clientWidth / 2)); });
+  await expect.poll(ecartAuCentre).toBeLessThanOrEqual(1);
+  let r = await pill.boundingBox();
+  expect(r.height).toBe(44);
+  expect(r.y).toBe(12);
+  // 900 px : deux lignes, chaque geste entier sur sa ligne
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect(pill).toHaveClass(/wm-deux-lignes/);
+  r = await pill.boundingBox();
+  expect(r.height).toBeGreaterThan(60);
+  expect(r.x).toBeGreaterThanOrEqual(8);
+  expect(r.x + r.width).toBeLessThanOrEqual(892);
+  const gestesEntiers = await pill.locator('.wm-geste').evaluateAll((gs) => gs.every((g) => new Set([...g.getClientRects()].map((q) => Math.round(q.top))).size === 1));
+  expect(gestesEntiers).toBe(true);
+  // Liste ouverte en mode actif (1 280 px) : le bandeau se centre sur la page restante, à gauche de la liste
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await page.waitForTimeout(400);
+  const place = await page.evaluate(() => {
+    const p = document.getElementById('cmPill').getBoundingClientRect(), l = document.getElementById('cmPanel').getBoundingClientRect();
+    return { droiteBandeau: p.right, gaucheListe: l.left, centre: p.left + p.width / 2, milieuLibre: l.left / 2 };
+  });
+  expect(place.droiteBandeau).toBeLessThanOrEqual(place.gaucheListe);
+  expect(Math.abs(place.centre - place.milieuLibre)).toBeLessThanOrEqual(8);
+  // Liste refermée : il revient au centre de l'écran
+  await page.locator('#cmPanelBtn').click();
+  await expect.poll(ecartAuCentre).toBeLessThanOrEqual(1);
 });
 
 test('5. Échap : la fenêtre, puis la liste, puis le mode ; à la fin, les deux boutons relâchés', async ({ page }) => {
@@ -189,6 +245,42 @@ test('6. touche « nouveau retour » : raccourci N annoncé ; elle ferme la list
 });
 
 // ---------- Lot 4 : largeur de la fenêtre de saisie (M1). Le tiroir pleine largeur vient au lot 5. ----------
+
+test('10. messages passagers : role="status", un échec reste au moins 6 s, sur plusieurs lignes, sans dépasser 90vw', async ({ page }) => {
+  test.setTimeout(30000);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.reload();
+  const toast = page.locator('#cmStatus');
+  await expect(toast).toHaveAttribute('role', 'status');
+  await expect(toast).toHaveAttribute('aria-live', 'polite');
+  // Un échec (maquette sans adresse d'envoi : « envoyer par email » refusé) : icône WarningCircle en signal, phrase à l'encre.
+  await H.activate(page);
+  await H.addPin(page, CIBLE, 'Retour');
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  const depart = Date.now();
+  await page.evaluate(() => document.querySelector('#cmReportFoot .wm-touche:last-child').click());
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
+  const m = await toast.evaluate((el) => {
+    const r = el.getBoundingClientRect(), t = el.querySelector('.wm-toast-texte'), ic = el.querySelector('svg[data-icone="WarningCircle"]');
+    return { largeur: r.width, vw: document.documentElement.clientWidth, lignes: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)),
+      icone: ic ? getComputedStyle(ic).color : null, signal: getComputedStyle(el).getPropertyValue('--wm-signal').trim(), encre: getComputedStyle(t).color === getComputedStyle(el).color };
+  });
+  expect(m.largeur).toBeLessThanOrEqual(m.vw * 0.9 + 0.5);
+  expect(m.lignes).toBeGreaterThan(1);
+  expect(m.icone).not.toBeNull();
+  expect(m.encre).toBe(true);
+  // un message réussi qui arrive pendant l'échec ne l'efface pas avant ses 6 s
+  await page.evaluate(() => document.querySelector('#cmReportFoot .wm-touche').click());   // « télécharger » : message réussi
+  await expect(toast).toHaveText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
+  await page.waitForTimeout(Math.max(0, 5600 - (Date.now() - depart)));
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
+  // puis le message réussi prend sa place (icône Check)
+  await expect(toast).toContainText('téléchargé', { timeout: 3000 });
+  await expect(toast.locator('svg[data-icone="Check"]')).toHaveCount(1);
+});
 
 test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, catégories dépliées comprises', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });

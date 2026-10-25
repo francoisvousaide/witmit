@@ -76,7 +76,7 @@ test('4. échec (quota) : le ticket reste en local ⚠️, renvoyé à l’ouver
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Ticket refusé');
   await expect.poll(async () => ((await ticket(page)).sync || {}).state, { timeout: 15000 }).toBe('error');
   expect((await ticket(page)).sync.error).toBe('trop de tickets');
-  await expect(page.locator('#cmStatus')).toContainText('Envoi impossible');
+  await expect(page.locator('#cmStatus')).toHaveText("envoi impossible : trop d'envois d'un coup. ton retour est gardé ici ; réessaie dans quelques minutes.");
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();   // ouvrir le tiroir = nouvel essai
   await waitSent(page);
@@ -180,4 +180,104 @@ test('10. un 409 « déjà pris en charge » prouve que le retour est chez le gu
   await H.deactivate(page);
   await page.evaluate(() => document.getElementById('cmPanel').classList.add('show'));   // la liste, sans relancer l'envoi
   await expect(page.locator('.cm-panel-item .del')).toHaveCount(0);
+});
+
+// Raisons d'échec en clair (Léa 3.11) et fin du renvoi automatique après un refus définitif (décision E1 de Tom).
+const CIBLES = ['tbody tr:nth-child(1) td:nth-child(2)', 'tbody tr:nth-child(2) td:nth-child(2)', 'tbody tr:nth-child(3) td:nth-child(2)', 'tbody tr:nth-child(1) td:nth-child(4)', 'tbody tr:nth-child(2) td:nth-child(4)'];
+const etatEnvoi = async (page, i) => ((await ticket(page, i)).sync || {}).state;
+
+test('11. raisons en clair (429, 409, 413, 500, puis hors ligne) ; la raison brute seulement dans la console', async ({ page }) => {
+  test.setTimeout(45000);
+  const consoleTextes = [];
+  page.on('console', (m) => consoleTextes.push(m.text()));
+  const toast = page.locator('#cmStatus');
+  const cas = [
+    [{ status: 429, erreur: 'trop de tickets, réessaie plus tard' }, "envoi impossible : trop d'envois d'un coup. ton retour est gardé ici ; réessaie dans quelques minutes."],
+    [{ status: 409, erreur: 'ticket déjà pris en charge, plus modifiable' }, "envoi impossible : l'équipe l'a déjà pris en compte. ta modification ne partira pas ; dis-la à l'équipe avec « répondre » quand elle t'aura écrit."],
+    [{ status: 413, erreur: 'texte trop long' }, "envoi impossible : ton retour dépasse 5 000 caractères. il ne repartira pas tel quel : raccourcis-le, il repartira dès que tu l'auras modifié."],
+    [{ status: 500, erreur: 'enregistrement impossible' }, 'envoi impossible : le service witmit ne répond pas. ton retour est gardé ici et repartira tout seul.'],
+  ];
+  await H.activate(page);
+  for (let i = 0; i < cas.length; i++) {
+    const [refus, phrase] = cas[i];
+    state.failNext = refus;
+    await H.addPin(page, CIBLES[i], 'Retour ' + (i + 1));
+    await expect.poll(() => etatEnvoi(page, i), { timeout: 15000 }).toBe('error');
+    await expect(toast).toHaveText(phrase);
+    await expect(toast).toHaveAttribute('role', 'status');
+    await expect(toast.locator('svg[data-icone="WarningCircle"]')).toHaveCount(1);
+    expect(consoleTextes.some((t) => t.includes(refus.erreur)), 'raison brute dans la console : ' + refus.erreur).toBe(true);
+  }
+  // hors ligne : la coupure réseau
+  await H.horsLigne(page, state, true);
+  await H.addPin(page, CIBLES[4], 'Retour hors ligne');
+  await expect.poll(() => etatEnvoi(page, 4), { timeout: 15000 }).toBe('error');
+  await expect(toast).toHaveText('envoi impossible : pas de connexion. ton retour est gardé ici et repartira tout seul.');
+  // (on reste hors ligne : au retour de la connexion, les retours en 429 et en 500 repartiraient — test 14)
+  // la raison brute n'est jamais à l'écran : ni dans les textes, ni dans les info-bulles
+  await H.deactivate(page);
+  await page.evaluate(() => document.getElementById('cmPanel').classList.add('show'));   // la liste, sans relancer l'envoi
+  const ecran = await page.evaluate(() => [...document.querySelectorAll('.cm-ui, .cm-ui *')].map((el) => (el.getAttribute('title') || '') + ' ' + (el.childNodes.length === 1 && el.firstChild.nodeType === 3 ? el.textContent : '')).join(' | '));
+  for (const [refus] of cas) expect(ecran).not.toContain(refus.erreur);
+  expect(ecran).not.toMatch(/failed to fetch|internet_disconnected/i);
+  await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-sync-error')).toHaveAttribute('title', "trop d'envois d'un coup. clique pour réessayer.");
+  await expect(page.locator('.cm-panel-item').nth(2).locator('.cm-sync-error')).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
+  await expect(page.locator('.cm-panel-item').nth(4).locator('.cm-sync-error')).toHaveAttribute('title', 'pas de connexion. clique pour réessayer.');
+});
+
+test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture de la liste, ni au chargement ; il repart une fois modifié', async ({ page }) => {
+  test.setTimeout(45000);
+  await H.activate(page);
+  state.failNext = { status: 413, erreur: 'texte trop long' };
+  await H.addPin(page, CIBLES[0], 'Un retour trop long');
+  await expect.poll(() => etatEnvoi(page, 0), { timeout: 15000 }).toBe('error');
+  state.failNext = { status: 409, erreur: 'identifiant déjà pris' };
+  await H.addPin(page, CIBLES[1], 'Un identifiant déjà pris');
+  await expect.poll(() => etatEnvoi(page, 1), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : le service witmit ne répond pas.');   // pas de « repartira » : il ne repart pas
+  expect(state.posts).toHaveLength(2);
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();                       // ouvrir la liste : aucun nouvel essai
+  await page.waitForTimeout(2500);
+  expect(state.posts).toHaveLength(2);
+  // « à renvoyer » n'est plus un bouton : son info-bulle donne la raison, sans « clique pour réessayer »
+  const marque = page.locator('.cm-panel-item').nth(0).locator('.cm-sync-error');
+  await expect(marque).toHaveText('à renvoyer');
+  expect(await marque.evaluate((el) => el.tagName)).toBe('SPAN');
+  await expect(marque).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
+  await page.reload();                                              // au chargement non plus
+  await page.waitForTimeout(2500);
+  expect(state.posts).toHaveLength(2);
+  // modifié par l'auteur : il repart
+  await H.activate(page);
+  await page.locator('.cm-pin').first().click();
+  await page.locator('.cm-popup textarea').fill('Un retour raccourci');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await waitSent(page, 0);
+  expect(state.posts).toHaveLength(3);
+  expect(state.posts[2].body.texte).toBe('Un retour raccourci');
+});
+
+test('13. un dépôt en 500 est renvoyé (le guichet n’a rien enregistré) : à l’ouverture de la liste', async ({ page }) => {
+  state.failNext = { status: 500, erreur: 'enregistrement impossible' };
+  await H.activate(page);
+  await H.addPin(page, CIBLES[0], 'Retour en 500');
+  await expect.poll(() => etatEnvoi(page, 0), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : le service witmit ne répond pas. ton retour est gardé ici et repartira tout seul.');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await waitSent(page, 0);
+  expect(state.posts).toHaveLength(2);
+  expect(state.posts[1].body.id_local).toBe(state.posts[0].body.id_local);   // même identifiant : pas de doublon au guichet
+});
+
+test('14. renvoi au retour de la connexion, sans geste de l’auteur', async ({ page }) => {
+  await H.activate(page);
+  await H.horsLigne(page, state, true);
+  await H.addPin(page, CIBLES[0], 'Écrit hors ligne');
+  await expect.poll(() => etatEnvoi(page, 0), { timeout: 15000 }).toBe('error');
+  await H.horsLigne(page, state, false);                          // l'évènement « online » relance l'envoi
+  await waitSent(page, 0);
+  expect(state.posts).toHaveLength(1);
+  await expect(page.locator('#cmStatus')).toHaveText("retour envoyé à l'équipe.", { timeout: 10000 });   // après les 6 s de l'échec
 });

@@ -79,9 +79,9 @@ test('2. ⌥ deux fois cache : tout se ferme et s’oublie, le message de masqua
   await expect(toast).toBeVisible();
   await expect(toast).toHaveClass(/wm-toast-masquage/);
   await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.");
-  await page.waitForTimeout(3000);
-  await expect(toast).toBeVisible();                                   // lisible toute sa durée
-  await expect(toast).toBeHidden({ timeout: 4000 });
+  await page.waitForTimeout(5000);
+  await expect(toast).toBeVisible();                                   // lisible toute sa durée : 6 s, comme un échec (Léa)
+  await expect(toast).toBeHidden({ timeout: 3000 });
   // Fenêtre au texte non parti : la confirmation s'affiche ; la refuser ne cache rien.
   await H.doubleAlt(page);
   await H.activate(page);

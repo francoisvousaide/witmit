@@ -99,6 +99,12 @@ async function retourColle(page, lignes) {
   await page.locator('#cmFeedbackBox textarea').fill(lignes.join('\n'));
   await page.locator('#cmFeedbackBox').getByRole('button', { name: 'appliquer' }).click();
 }
+// Coupure réseau simulée : le faux guichet ne répond plus (requêtes interrompues) et le navigateur passe hors
+// ligne ; au retour, il repasse en ligne, ce qui déclenche l'évènement « online » dans la page.
+async function horsLigne(page, state, coupe) {
+  state.horsLigne = coupe;
+  await page.context().setOffline(coupe);
+}
 // Accepte la prochaine confirmation du navigateur (Playwright les refuse d'office) et renvoie son texte.
 function accepterConfirmation(page) {
   return new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.accept(); resolve(m); }));
@@ -111,6 +117,7 @@ function mockSupabase(page, state) {
   return page.route('https://witmit.test/**', async (route, req) => {
     const url = new URL(req.url());
     const json = (status, body) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(body) });
+    if (state.horsLigne) return route.abort('internetdisconnected');   // coupure réseau : fetch échoue (« Failed to fetch »)
     if (req.method() === 'OPTIONS') return json(200, {});
     if (url.pathname === '/auth/v1/signup') { state.signups++; return json(200, { access_token: 'jeton-A', refresh_token: 'refresh-A', expires_in: 3600, user: { id: 'uid-A', is_anonymous: true } }); }
     if (url.pathname.endsWith('/submit-annotation/challenge')) {
@@ -137,4 +144,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation };
+module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne };

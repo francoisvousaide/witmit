@@ -167,7 +167,7 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   await page.evaluate(() => window.cmClearAll());
   expect(await question).toBe("effacer le retour pas encore parti de cette page ? c'est définitif. tes retours envoyés restent.");
   expect((await H.stored(page, KEY)).map((c) => c.id)).toEqual([recu.id]);
-  await expect(page.locator('#cmStatus')).toContainText('retours pas encore partis effacés.');
+  await expect(page.locator('#cmStatus')).toContainText('retours pas encore partis effacés.', { timeout: 10000 });   // après les 6 s du message d'échec de l'envoi refusé
   await page.evaluate(() => window.cmClearSite());                        // plus rien de supprimable : rien, sans question
   expect((await H.stored(page, KEY)).map((c) => c.id)).toEqual([recu.id]);
   await expect(page.locator('#cmClearPageBtn')).toBeHidden();

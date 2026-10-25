@@ -113,7 +113,7 @@ test('5. refus du guichet : le message est gardé ⚠️, renvoyé au clic ; aba
   await expect(page.locator('#cmStatus')).toContainText('ton message est gardé');
   const attente = page.locator('.cm-msg-pending');
   await expect(attente).toContainText('Premier essai');
-  await expect(attente.locator('.cm-sync-error')).toHaveAttribute('title', /ce ticket n’est pas le tien/);
+  await expect(attente.locator('.cm-sync-error')).toHaveAttribute('title', 'le service witmit ne répond pas. clique pour réessayer.');   // la raison en clair (Léa 3.11), plus la raison brute
   await attente.locator('.cm-sync-error').click();           // nouvel essai : cette fois accepté
   await expect(attente).toHaveCount(0);
   await expect(page.locator('.cm-msg').nth(1)).toContainText('Premier essai');
@@ -275,4 +275,70 @@ test('11. les touches sous le fil tiennent dans leur face à 380 px (« ça ne c
     });
     expect(r, sel).toEqual({ taille: '12px', gauche: true, droite: true, deborde: false });
   }
+});
+
+// Décision E1 de Tom : une réponse ou une réouverture en 500 n'est jamais renvoyée (elle a pu être publiée sur
+// GitHub : un renvoi ferait un doublon) ; seul « × abandonner » reste. 409 et 413 ne repartent pas non plus.
+async function repondre(page, texte, rouvrir = false) {
+  await page.locator(rouvrir ? '.cm-reopen-btn' : '.cm-reply-btn').click();
+  await page.locator('.cm-inline-reply').fill(texte);
+  await page.locator('.cm-inline-reply').press('Enter');
+}
+const etatReponse = async (page, i = 0) => (((await ticket(page)).replies[i] || {}).sync || {}).state;
+
+test('12. réponse en 500 « publiée mais non enregistrée », puis réouverture en 500 : jamais renvoyées, seul × abandonner reste', async ({ page }) => {
+  test.setTimeout(40000);
+  await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
+  state.failReply = { status: 500, erreur: 'message publié sur GitHub mais non enregistré dans witmit' };
+  await repondre(page, 'Arrivé, mais pas gardé');
+  await expect.poll(() => etatReponse(page), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText("ton message est bien arrivé à l'équipe, mais witmit n'a pas pu le garder dans ce fil. il ne sera pas renvoyé : × le retire d'ici.");
+  const attente = page.locator('.cm-msg-pending');
+  const marque = attente.locator('.cm-sync-error');
+  expect(await marque.evaluate((el) => el.tagName)).toBe('SPAN');   // plus un bouton de renvoi
+  await expect(marque).toHaveAttribute('title', "ton message est bien arrivé à l'équipe, mais witmit n'a pas pu le garder dans ce fil. il ne sera pas renvoyé : × le retire d'ici.");
+  await expect(attente.locator('button')).toHaveCount(1);            // seul « × abandonner »
+  await expect(attente.locator('.cm-msg-drop')).toBeVisible();
+  await marque.click();                                              // un clic sur la marque ne renvoie rien
+  await rouvrirTiroir(page);                                         // ni l'ouverture de la liste
+  await page.waitForTimeout(2000);
+  expect(state.replies).toHaveLength(1);
+  // la réouverture, en 500 d'une autre sorte
+  state.failReply = { status: 500, erreur: 'erreur interne' };
+  await repondre(page, 'Toujours décalé', true);
+  await expect.poll(() => etatReponse(page, 1), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText("envoi impossible : witmit ne sait pas si ton message est parti. il ne sera pas renvoyé, pour éviter un doublon : × le retire d'ici ; réécris-le plus tard si l'équipe ne t'a pas répondu.");
+  await rouvrirTiroir(page);
+  await page.waitForTimeout(2000);
+  expect(state.replies).toHaveLength(2);
+  await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(1)).toHaveAttribute('title', 'witmit ne sait pas si ton message est parti.');
+  // × abandonner : le message part de la liste, sans jamais repartir au guichet
+  page.once('dialog', (d) => d.accept());
+  await page.locator('.cm-msg-pending .cm-msg-drop').first().click();
+  await expect(page.locator('.cm-msg-pending')).toHaveCount(1);
+  expect(state.replies).toHaveLength(2);
+});
+
+test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien ne repart tout seul', async ({ page }) => {
+  test.setTimeout(40000);
+  await ticketEnvoye(page, { statut: 'en_cours', messages: [EQUIPE] });
+  state.failReply = { status: 413, erreur: 'message trop long (2000 caractères max)' };
+  await repondre(page, 'Un message trop long');
+  await expect.poll(() => etatReponse(page), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : ton message dépasse 2 000 caractères. il ne repartira pas : abandonne-le (×) et écris-en un plus court.');
+  await expect(page.locator('.cm-msg-pending .cm-sync-error')).toHaveAttribute('title', 'ton message dépasse 2 000 caractères.');
+  await rouvrirTiroir(page);
+  await page.waitForTimeout(2000);
+  expect(state.replies).toHaveLength(1);
+  // le serveur dit résolu ; la réouverture est refusée en 409 (« pas terminé » : le serveur a changé d'avis entre-temps)
+  state.rows[0].statut = 'resolu';
+  await rouvrirTiroir(page);
+  await expect(page.locator('.cm-reopen-btn')).toBeVisible();
+  state.failReply = { status: 409, erreur: 'seul un ticket résolu ou répondu peut être rouvert' };
+  await repondre(page, 'Rouvre-le', true);
+  await expect.poll(() => etatReponse(page, 1), { timeout: 15000 }).toBe('error');
+  await expect(page.locator('#cmStatus')).toHaveText("envoi impossible : ce retour n'est pas terminé. ton message ne repartira pas : abandonne-le (×) et écris-le avec « répondre ».");
+  await page.reload();                                               // ni au chargement
+  await page.waitForTimeout(2500);
+  expect(state.replies).toHaveLength(2);
 });

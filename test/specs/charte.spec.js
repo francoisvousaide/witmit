@@ -251,6 +251,28 @@ test.describe('Halo du mode annotation', () => {
     expect(releves['tellus-accueil.html']).toEqual(releves['generic-dashboard.html']); // aucune variante de thème
   });
 
+  test('9b. fondu de 200 ms sur l’opacité du halo, à l’apparition et à la disparition (caché par visibility)', async ({ page }) => {
+    await page.goto(H.fileUrl('planche-charte.html'));
+    // Transitions CSS en cours sur #cmFrame, lues dans le même instant que le changement de mode.
+    const basculer = (on) => page.evaluate((on) => {
+      const el = document.getElementById('cmFrame');
+      window.cmToggle(on);
+      const tr = document.getAnimations().filter((a) => a.effect && a.effect.target === el && a.transitionProperty)
+        .map((a) => ({ prop: a.transitionProperty, duree: a.effect.getTiming().duration, delai: a.effect.getTiming().delay }));
+      return { tr, visibilite: getComputedStyle(el).visibility, display: getComputedStyle(el).display };
+    }, on);
+    const entree = await basculer(true);
+    expect(entree.tr.find((t) => t.prop === 'opacity'), JSON.stringify(entree)).toMatchObject({ duree: 200 });
+    expect(entree.visibilite).toBe('visible');                        // visible dès le premier instant du fondu
+    await expect.poll(() => page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    const sortie = await basculer(false);
+    expect(sortie.tr.find((t) => t.prop === 'opacity'), JSON.stringify(sortie)).toMatchObject({ duree: 200 });
+    expect(sortie.visibilite).toBe('visible');                        // le fondu de sortie se joue…
+    expect(sortie.display).not.toBe('none');                          // …parce que la couche n'est pas cachée par display
+    await expect.poll(() => page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).visibility)).toBe('hidden');
+    expect(await page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+  });
+
   test('10. le halo respire par l’opacité seule, en 4 s', async ({ page }) => {
     await page.goto(H.fileUrl('planche-charte.html'));
     await H.activate(page);
@@ -284,6 +306,14 @@ test.describe('Halo du mode annotation', () => {
     expect(etat.opaciteApres).toBe('0.5');
     expect(etat.opaciteCadre).toBe('1');
     expect(etat.bord).toContain('rgb(255, 242, 0)');
+    // disparition sans fondu non plus : caché dans l'instant (Léa 48)
+    const sortie = await page.evaluate(() => {
+      const el = document.getElementById('cmFrame');
+      window.cmToggle(false);
+      return { visibilite: getComputedStyle(el).visibility, opacite: getComputedStyle(el).opacity, transitions: document.getAnimations().filter((a) => a.effect && a.effect.target === el).length };
+    });
+    expect(sortie).toEqual({ visibilite: 'hidden', opacite: '0', transitions: 0 });
+    await page.evaluate(() => window.cmToggle(true));
     await page.emulateMedia({ reducedMotion: 'no-preference', forcedColors: 'active' });
     const bordure = await page.locator('#cmFrame').evaluate((el) => {
       const s = getComputedStyle(el, '::before');
@@ -341,6 +371,9 @@ test.describe('Halo du mode annotation', () => {
       });
     });
     for (const t of touches) expect(t).not.toBe('cmFrame');
+    // pendant le fondu d'apparition non plus
+    const pendantFondu = await page.evaluate(() => { window.cmToggle(false); window.cmToggle(true); const el = document.elementFromPoint(3, window.innerHeight / 2); return el ? (el.id || el.tagName) : null; });
+    expect(pendantFondu).not.toBe('cmFrame');
     // un clic à 4 px du bord gauche, sur la barre de navigation du site, ouvre la fenêtre de saisie
     await page.mouse.click(4, 28);
     await expect(page.locator('.cm-popup textarea')).toBeVisible();
@@ -742,6 +775,9 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   // Échap ferme la fenêtre et rend le focus à l'épingle qui l'avait ouverte (comme la visionneuse).
   await page.keyboard.press('Escape');
   await expect(page.locator('.cm-popup')).toHaveCount(0);
+  await expect(page.locator('.cm-pin').nth(1)).toBeFocused();
+  // …et le garde après le redessin des repères que la fermeture déclenche (~600 ms plus tard).
+  await page.waitForTimeout(900);
   await expect(page.locator('.cm-pin').nth(1)).toBeFocused();
 });
 

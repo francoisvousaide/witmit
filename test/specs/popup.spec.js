@@ -204,7 +204,7 @@ test('titre selon le type de cible ; tête-poignée, élément visé sur une lig
   await expect(page.locator('.cm-popup .cm-aide-multi')).toBeHidden();
   await page.locator('.cm-popup .cm-fermer').click();       // la croix ferme comme échap
   await expect(page.locator('.cm-popup')).toHaveCount(0);
-  await clic('nav a:first-child');
+  await clic('nav a:last-child');                         // (le premier lien est sous le bandeau du mode, posé en haut de cette page sans --nav-h)
   await expect(titre(page)).toHaveText('Ton retour sur ce lien');
   await page.keyboard.press('Escape');
   await clic('.kpi-tile:nth-child(1) .kpi-value');

@@ -216,6 +216,11 @@
   var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
   var REPERE_DOUBLE_ALT = '<span class="wm-repere-double"><span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>' : 'alt') +
     '</span><span>deux fois</span></span>';
+  // Gestes du bandeau (Léa 3.2 ; fiche Bandeau) : ⌘ en icône Command (« ctrl » hors Mac) et « maj » en mot, chacun
+  // dans le petit carré ; chaque « geste : effet » ne se coupe jamais. Aucun geste tactile.
+  var REPERE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>';
+  var GESTES_HTML = '<span class="wm-geste"><b>clic</b> : élément</span> · <span class="wm-geste">' + REPERE_MULTI + '+<b>clic</b> : plusieurs</span> · ' +
+    '<span class="wm-geste"><b>glisser</b> : zone</span> · <span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
 
   var CSS = `
   /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
@@ -497,13 +502,16 @@
      courte. Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
      ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. Elle est
      posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
-  .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; }
-  .cm-frame.show { visibility:visible; opacity:1; }
+  /* Apparition et disparition en fondu de 200 ms sur l'opacité de la couche ; cachée par visibility (pas display)
+     pour que le fondu de sortie se joue (F11). La couche n'est le parent d'aucun verre : son opacité ne coupe aucun flou. */
+  .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; transition:opacity 200ms ease, visibility 0s linear 200ms; }
+  .cm-frame.show { visibility:visible; opacity:1; transition:opacity 200ms ease, visibility 0s linear 0s; }
   .cm-frame::before, .cm-frame::after { content:''; position:absolute; inset:0; pointer-events:none; border:0 solid transparent; }
   .cm-frame::before { box-shadow: inset 0 0 0 3px var(--wm-accent), inset 0 0 0 4px var(--wm-halo-filet), inset 0 0 10px 2px var(--wm-halo-lueur-courte); }
   .cm-frame::after { box-shadow: inset 0 0 26px 6px var(--wm-halo-lueur); opacity:0; animation: wmHaloSouffle 4s ease-in-out infinite; }
   @keyframes wmHaloSouffle { 0%, 100% { opacity:0; } 50% { opacity:1; } }
   @media (prefers-reduced-motion:reduce) {
+    .cm-frame, .cm-frame.show { transition:none; }   /* aucun fondu (Léa 48) */
     .cm-frame::after { animation:none; opacity:.5; }
   }
   @media (forced-colors:active) {
@@ -511,13 +519,37 @@
     .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
   }
 
-  /* Pastille d'état — flotte sous la navbar par défaut, ne la recouvre jamais, et peut être
-     déplacée n'importe où sur la page (comme les panneaux des maquettes) si elle gêne la lecture.
-     Aspect intermédiaire : verre aux jetons, sans aplat (bandeau habillé au lot 7). */
-  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:500; font-size:12px; text-align:center; min-height:44px; padding:6px 22px 6px 18px; display:none; align-items:center; gap:12px; white-space:nowrap; cursor:default; touch-action:none; }
-  .cm-pill.show { display:flex; }
-  .cm-pill.cm-dragging .cm-drag-handle { opacity:1; }
-  .cm-pill .cm-drag-handle { display:inline-flex; opacity:.65; line-height:1; color:var(--wm-ink-soft); }
+  /* Bandeau du mode annotation (fiche Bandeau ; Léa 3.2) : fenêtre de verre de 44 px, thème inverse du site,
+     coins witmit (habiller), centrée à 12 px sous la barre de navigation, déplaçable par sa poignée (position
+     gardée). Placement et passage sur deux lignes : placerBandeau() (mesure réelle : s'il ne tient pas sur une
+     ligne dans la place libre, à côté de la liste ouverte comprise). */
+  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:400; font-size:12px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
+  .cm-pill.show { display:block; }
+  .cm-pill .wm-bandeau-corps { position:relative; display:flex; align-items:center; gap:8px; height:44px; padding:0 22px 0 18px; }
+  .cm-pill .wm-poignee { display:inline-flex; align-items:center; justify-content:center; flex:none; width:20px; height:44px; color:var(--wm-ink-soft); }
+  .cm-pill.cm-dragging .wm-poignee { color:var(--wm-ink); }
+  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:600; color:var(--wm-ink); }
+  .cm-pill .wm-bandeau-mode .wm-voyant { flex:none; }
+  .cm-pill .wm-filet { flex:none; width:1px; height:20px; background:var(--wm-line); }
+  .cm-pill .wm-gestes { color:var(--wm-ink-soft); }
+  .cm-pill .wm-gestes b { font-weight:500; color:var(--wm-ink); }
+  .cm-pill .wm-geste { white-space:nowrap; }
+  .cm-pill .wm-gestes .wm-repere { display:inline-flex; vertical-align:middle; margin:0 1px; }
+  .cm-pill .wm-gestes .wm-repere svg.wm-icone { vertical-align:0; }
+  /* « terminer » : touche principale compacte de 32 px ; le bouton fait 44 px de haut (zone cliquable), la face
+     et son contour de focus restent à 32 px. */
+  .cm-ui.cm-pill .wm-terminer { flex:none; height:44px; }
+  .cm-ui.cm-pill .wm-terminer::before { top:6px; bottom:6px; }
+  .cm-ui.cm-pill .wm-terminer:focus-visible::after { top:2px; bottom:2px; }
+  /* Deux lignes : ligne 1 poignée, voyant, « annotation », « terminer » ; ligne 2 les gestes, à la ligne entre
+     deux gestes seulement. */
+  .cm-pill.wm-deux-lignes { white-space:normal; }
+  .cm-pill.wm-deux-lignes .wm-bandeau-corps { display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:"poignee mode . terminer" "gestes gestes gestes gestes"; column-gap:8px; height:auto; padding:0 22px 14px 14px; }
+  .cm-pill.wm-deux-lignes .wm-poignee { grid-area:poignee; }
+  .cm-pill.wm-deux-lignes .wm-bandeau-mode { grid-area:mode; }
+  .cm-pill.wm-deux-lignes .wm-filet { display:none; }
+  .cm-pill.wm-deux-lignes .wm-terminer { grid-area:terminer; }
+  .cm-pill.wm-deux-lignes .wm-gestes { grid-area:gestes; padding-left:6px; line-height:24px; }
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
      Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141412 sur fond
@@ -777,6 +809,7 @@
   .cm-ui button.cm-sync-error { position:relative; cursor:pointer; }
   .cm-ui button.cm-sync-error::before { content:''; position:absolute; left:0; right:0; top:-13px; bottom:-13px; }
   .cm-ui .cm-sync-error b { text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
+  .cm-ui .cm-sync-error.wm-sans-renvoi b { text-decoration:none; }   /* refus définitif : pas un bouton, pas de soulignement */
   .cm-ui .cm-sync-error:focus { outline:none; }
   .cm-ui .cm-sync-error:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   /* Détails techniques : repli en texte seul ; ouvert, zone en creux de 160 px au plus, 12 px. */
@@ -898,19 +931,22 @@
   .cm-status.show { visibility:visible; transition-delay:0s; }
   .cm-status > * { opacity:0; transition:opacity 200ms ease; }
   .cm-status.show > * { opacity:1; }
-  .cm-status > .wm-contenu { position:relative; display:block; }
+  .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
+  .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
+  @media (max-width:480px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
   @media (prefers-reduced-motion:reduce) { .cm-status, .cm-status > * { transition:none; } }
-  @media (max-width:700px) {
-    .cm-pill { max-width:92vw; white-space:normal; text-align:left; }
-  }
 `;
   var HTML = `
 <div class="cm-frame cm-ui" id="cmFrame"></div>
 
-<div class="cm-pill cm-ui" id="cmPill" title="Glisse la pastille pour la déplacer">
-  <span class="cm-drag-handle" aria-hidden="true">${icone('DotsSixVertical', 14)}</span>
-  Clic = élément · ⌘/Ctrl+clic = plusieurs · Glisser = zone · Maj+glisser = texte
-  <button class="wm-touche wm-petite" onclick="cmTerminer()">Terminer</button>
+<div class="cm-pill cm-ui" id="cmPill" role="region" aria-label="witmit : mode annotation">
+  <div class="wm-bandeau-corps">
+    <span class="cm-drag-handle wm-poignee" title="glisse pour déplacer le bandeau">${icone('DotsSixVertical', 16)}</span>
+    <span class="wm-bandeau-mode"><span class="wm-voyant" aria-hidden="true"></span>annotation</span>
+    <span class="wm-filet" aria-hidden="true"></span>
+    <span class="wm-gestes">${GESTES_HTML}</span>
+    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer<span class="wm-repere" aria-hidden="true">échap</span></button>
+  </div>
 </div>
 
 <div class="cm-panel cm-ui" id="cmPanel" role="region" aria-label="witmit : tes retours sur cette page">
@@ -953,7 +989,7 @@
   </div>
 </div>
 
-<div class="cm-status cm-ui" id="cmStatus"></div>
+<div class="cm-status cm-ui" id="cmStatus" role="status" aria-live="polite" aria-atomic="true"></div>
 `;
   /* Signe du bouton witmit (décision L1) : la plume PenNib, provisoire tant que le logo B1 n'est pas
      publiable. Le remplacer = changer cette seule ligne. */
@@ -1249,7 +1285,7 @@
     on = on !== false;
     try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
     closePopup(true); cmToggle(false); cmTogglePanel(false);
-    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 4000 });
+    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000 });   // 6 s, comme un échec (Léa)
     applyReveal(on);
   };
   function readUrlSwitch() {
@@ -1361,6 +1397,46 @@
       });
   }
   function sendComment(c) { return postGuichet('', payloadFor(c)); }
+  /* Raisons d'échec en clair (Léa 3.11) et renvoi (décision E1 de Tom). Entrée : l'erreur reçue, ou ce qui en
+     est gardé sur le retour ({ status, message }) ; message = true pour un message du fil (réponse, réouverture).
+     Sortie : { raison, suite, renvoi, toast }. Plus de renvoi automatique après 409 et 413, sur le dépôt comme
+     sur la réponse ; une réponse ou une réouverture en 500 n'est jamais renvoyée (elle a pu être publiée sur
+     GitHub : un renvoi ferait un doublon) ; un dépôt en 500, un 429, une coupure réseau repartent. */
+  function raisonEchec(err, message) {
+    var st = err && err.status, brut = String((err && (err.message || err.error)) || '');
+    var ton = message ? 'ton message' : 'ton retour';
+    function r(raison, suite, renvoi) { return { raison: raison, suite: suite, renvoi: renvoi, toast: 'envoi impossible : ' + raison + '.' + (suite ? ' ' + suite : '') }; }
+    if (!st && (/failed to fetch|networkerror|load failed|network|internet/i.test(brut) || navigator.onLine === false)) return r('pas de connexion', ton + ' est gardé ici et repartira tout seul.', true);
+    if (st === 429 && /par jour/.test(brut)) return r('5 messages par jour au plus sur un même retour', 'ton message est gardé ici ; réessaie demain.', true);
+    if (st === 429) return r("trop d'envois d'un coup", ton + ' est gardé ici ; réessaie dans quelques minutes.', true);
+    if (st === 502 && message) return r("l'équipe ne peut pas recevoir de message pour l'instant", 'ton message est gardé ici et repartira tout seul.', true);
+    if (st === 409 && /pris en charge/.test(brut)) return r("l'équipe l'a déjà pris en compte", "ta modification ne partira pas ; dis-la à l'équipe avec « répondre » quand elle t'aura écrit.", false);
+    if (st === 413 && /capture/.test(brut)) return r('la capture de la zone est trop lourde', 'il ne repartira pas tel quel : ouvre le retour et réduis le cadre, il repartira avec une capture plus légère.', false);
+    if (st === 413 && message) return r('ton message dépasse 2\u00a0000 caractères', 'il ne repartira pas : abandonne-le (×) et écris-en un plus court.', false);
+    if (st === 413 && /texte trop long/.test(brut)) return r('ton retour dépasse 5\u00a0000 caractères', "il ne repartira pas tel quel : raccourcis-le, il repartira dès que tu l'auras modifié.", false);
+    if (st === 409 && message && /rouvert/.test(brut)) return r("ce retour n'est pas terminé", 'ton message ne repartira pas : abandonne-le (×) et écris-le avec « répondre ».', false);
+    if (st === 409 && message && /suivi/.test(brut)) return r("ce retour n'a pas de suivi par l'équipe", "impossible d'y répondre ici : abandonne ce message (×).", false);
+    if (st === 500 && message && /publié/.test(brut)) {
+      var arrive = "ton message est bien arrivé à l'équipe, mais witmit n'a pas pu le garder dans ce fil. il ne sera pas renvoyé : × le retire d'ici.";
+      return { raison: arrive.replace(/\.$/, ''), suite: '', renvoi: false, toast: arrive, arrive: true };
+    }
+    if (st === 500 && message) return r('witmit ne sait pas si ton message est parti', "il ne sera pas renvoyé, pour éviter un doublon : × le retire d'ici ; réécris-le plus tard si l'équipe ne t'a pas répondu.", false);
+    // Autre 409 ou 413 (identifiant déjà pris, bloc technique trop gros…) : pas de renvoi (E1), donc pas de « repartira ».
+    if (st === 409 || st === 413) return r('le service witmit ne répond pas', '', false);
+    return r('le service witmit ne répond pas', ton + ' est gardé ici et repartira tout seul.', true);
+  }
+  // Ce que garde un retour ou un message refusé : la raison brute (console et diagnostic), le code, le renvoi permis.
+  function noterEchec(err, message) {
+    var e = raisonEchec(err, message);
+    console.warn('witmit : envoi impossible —', (err && err.status) || 'réseau', (err && err.message) || err);   // la raison brute, jamais à l'écran (Léa 3.11)
+    return { sync: { state: 'error', error: (err && err.message) || 'erreur', status: (err && err.status) || undefined, renvoi: e.renvoi, at: new Date().toISOString() }, echec: e };
+  }
+  function renvoiPermis(sync) { return !(sync && sync.state === 'error' && sync.renvoi === false); }
+  // Info-bulle de « à renvoyer » (Léa 3.5) : la raison en clair ; « clique pour réessayer » seulement si le renvoi est permis.
+  function titreARenvoyer(sync, message) {
+    var e = raisonEchec({ status: sync.status, message: sync.error }, message);
+    return e.raison + (e.renvoi ? '. clique pour réessayer.' : '.');
+  }
   // Point d'entrée : file d'attente, un ticket à la fois ; résultat noté sur le ticket et dans la liste.
   function scheduleSync(c) {
     if (!SYNC || !c || !isEditable(c)) return;
@@ -1373,11 +1449,12 @@
       return sendComment(live).then(function (data) {
         live.sync = { state: 'sent', id: data.id, statut: data.statut, at: new Date().toISOString() };
         poserRecu(live);                                       // C9 : reçu par witmit, une fois pour toutes
-        cmStatus('Ticket envoyé');
+        cmStatus("retour envoyé à l'équipe.", { type: 'fait' });
       }).catch(function (err) {
-        live.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
-        if (err && err.status === 409) poserRecu(live);        // « déjà pris en charge » : le retour est chez le guichet (C9)
-        cmStatus('Envoi impossible (' + live.sync.error + ') — le ticket est gardé en local, nouvel essai plus tard');
+        var n = noterEchec(err, false);
+        live.sync = n.sync;
+        if (err && err.status === 409 && /pris en charge/.test(err.message || '')) poserRecu(live);   // « déjà pris en charge » : le retour est chez le guichet (C9)
+        cmStatus(n.echec.toast, { type: 'echec' });
       }).then(function () { persist(); renderList(); });
     });
   }
@@ -1400,31 +1477,35 @@
           live.status = 'pris_en_compte'; live.sync.statut = 'en_cours'; delete live.resolvedAt; delete live.resolvedBy; delete live.repondu;
           pushHistory(live, { date: new Date().toISOString(), status: 'pris_en_compte', source: 'moi', message: 'rouvert' });
         }
-        cmStatus(data.avertissement ? 'Message envoyé — mais ' + data.avertissement.replace(/^message envoyé à l'équipe, mais /, '') : (data.rouvert ? 'Ticket rouvert, l’équipe est prévenue' : 'Réponse envoyée'));
+        if (data.avertissement) cmStatus("message envoyé à l'équipe, mais le retour n'a pas pu être rouvert. réessaie « rouvrir » plus tard.", { type: 'echec' });
+        else cmStatus(data.rouvert ? "retour rouvert, l'équipe est prévenue." : "réponse envoyée à l'équipe.", { type: 'fait' });
       }).catch(function (err) {
-        lr.sync = { state: 'error', error: (err && err.message) || 'erreur', at: new Date().toISOString() };
-        cmStatus('Envoi impossible (' + lr.sync.error + ') — ton message est gardé, nouvel essai plus tard');
+        var n = noterEchec(err, true);
+        lr.sync = n.sync;
+        // « bien arrivé, mais pas gardé dans le fil » n'est pas un échec pour l'auteur : pas d'icône d'échec, mais 6 s pour le lire.
+        cmStatus(n.echec.toast, n.echec.arrive ? { duree: 6000 } : { type: 'echec' });
       }).then(function () { persist(); renderList(); renderMarkers(); });
     });
   }
-  window.cmRetryReply = function (id, rid) { var c = findComment(id), r = c && findReply(c, rid); if (r) { r.sync = null; scheduleReply(c, r); } };
+  window.cmRetryReply = function (id, rid) { var c = findComment(id), r = c && findReply(c, rid); if (r && renvoiPermis(r.sync)) { r.sync = null; scheduleReply(c, r); } };
   window.cmDropReply = function (id, rid) {
     var c = findComment(id), r = c && findReply(c, rid);
     if (!r || (r.sync && r.sync.state === 'pending') || !confirm("abandonner ce message ? il n'est pas parti et sera effacé.")) return;
     c.replies = c.replies.filter(function (x) { return x !== r; });
     persist(); renderList();
-    cmStatus('message abandonné.');
+    cmStatus('message abandonné.', { type: 'fait' });
   };
-  // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir et au chargement.
+  // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir, au chargement et au
+  // retour de la connexion ; jamais ce qu'un refus définitif retient (E1 : 409, 413, réponse en 500).
   function flushPending() {
     if (!SYNC) return;
     allComments.forEach(function (c) {
       (c.replies || []).forEach(function (r) {
-        if (!r.sync || r.sync.state === 'error') scheduleReply(c, r);
+        if (!r.sync || (r.sync.state === 'error' && renvoiPermis(r.sync))) scheduleReply(c, r);
         else if (r.sync.state === 'pending' && Date.now() - Date.parse(r.sync.at) > 120000) { r.sync = null; scheduleReply(c, r); }
       });
       if (!isEditable(c)) return;
-      if (!c.sync || c.sync.state === 'error') scheduleSync(c);
+      if (!c.sync || (c.sync.state === 'error' && renvoiPermis(c.sync))) scheduleSync(c);
       else if (c.sync.state === 'pending' && Date.now() - Date.parse(c.sync.at) > 120000) { c.sync = null; scheduleSync(c); } // envoi interrompu (page fermée)
     });
   }
@@ -1495,9 +1576,13 @@
     if (!SYNC || !c.sync) return SYNC && isEditable(c) ? '<span class="cm-sync-chip" title="pas encore parti : il partira tout seul">' + icone('CloudArrowUp', 14) + '<b>à envoyer</b></span>' : '';
     if (c.sync.state === 'sent') return '<span class="cm-sync-chip cm-sync-sent" title="reçu par witmit le ' + cmEsc(frDate(c.sync.at)) + '">' + icone('CloudCheck', 14) + '<b>envoyé</b></span>';
     if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + '<b>envoi en cours…</b></span>';
-    return '<button type="button" class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(c.sync.error || 'erreur') + '. clique pour réessayer.">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
+    // Refus définitif (E1) : la marque reste, mais ce n'est plus un bouton ; le retour repart quand on le modifie.
+    if (!renvoiPermis(c.sync)) return '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></span>';
+    return '<button type="button" class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
   }
-  window.cmRetrySync = function (id) { var c = findComment(id); if (c) { c.sync = null; scheduleSync(c); } };
+  window.cmRetrySync = function (id) { var c = findComment(id); if (c && renvoiPermis(c.sync)) { c.sync = null; scheduleSync(c); } };
+  // Au retour de la connexion, ce qui attendait repart (E1).
+  window.addEventListener('online', function () { flushPending(); });
 
   var DRAG_THRESHOLD = 10; // px avant de considérer que c'est un glisser plutôt qu'un clic
   var CLICK_DELAY = 250;   // ms d'attente d'un éventuel double-clic avant d'ouvrir la bulle du clic simple
@@ -1745,6 +1830,10 @@
   }
 
   function renderMarkers() {
+    // L'épingle qui a le focus (rendu par Échap, ou atteinte au clavier) le retrouve après le redessin, qui
+    // recrée toutes les épingles (sans quoi le focus tombe sur la page).
+    var actif = document.activeElement;
+    var focusPin = actif && actif.classList && actif.classList.contains('cm-pin') && !actif.classList.contains('cm-pin-secondary') ? actif.dataset.id : null;
     // Un encadré en cours d'ajustement (poignées visibles) est conservé tel quel : le redessiner ferait
     // "lâcher" la souris en plein glisser.
     var old = document.querySelectorAll('.cm-pin, .cm-box.cm-box-saved:not(.cm-box-editable), #cmLinks');
@@ -1867,6 +1956,10 @@
     for (var k = 0; k < pins.length; k++) {
       pins[k].onmouseenter = function () { glow(this.dataset.id, true); };
       pins[k].onmouseleave = function () { glow(this.dataset.id, false); };
+    }
+    if (focusPin) {
+      var rendue = document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + focusPin + '"]');
+      if (rendue) { try { rendue.focus({ preventScroll: true }); } catch (e) { rendue.focus(); } }
     }
   }
   function glow(id, on) {
@@ -2091,7 +2184,7 @@
     c.status = 'resolu'; c.resolvedAt = new Date().toISOString(); c.resolvedBy = 'moi';
     pushHistory(c, { date: c.resolvedAt, status: 'resolu', source: 'moi' });
     persist(); renderList(); renderMarkers();
-    cmStatus('marqué résolu par toi.' + (LIVE ? " l'équipe n'est pas prévenue." : ''));
+    cmStatus('marqué résolu par toi.' + (LIVE ? " l'équipe n'est pas prévenue." : ''), { type: 'fait' });
   };
   /* Rouvrir un retour signalé pas encore pris en compte : redevient nouveau, modifiable ; le prochain
      rapport le renverra avec la mention « remplace la version du … » */
@@ -2102,7 +2195,7 @@
     c.status = 'nouveau'; delete c.signaledAt;
     pushHistory(c, { date: new Date().toISOString(), status: 'nouveau', source: 'moi', message: 'rouvert' });
     persist(); renderList(); renderMarkers();
-    cmStatus('rouvert : tu peux le modifier, il repartira dans le prochain rapport.');
+    cmStatus('rouvert : tu peux le modifier, il repartira dans le prochain rapport.', { type: 'fait' });
   };
   window.cmToggleHideDone = function () {
     try { localStorage.setItem(HIDE_DONE_KEY, hideDone() ? '0' : '1'); } catch (e) {}
@@ -2141,8 +2234,11 @@
     });
     (c.replies || []).forEach(function (r) {
       var err = r.sync && r.sync.state === 'error';
+      // Refus définitif ou réponse en 500 (E1) : plus de bouton de renvoi, seul « × abandonner » reste.
       var marque = err
-        ? '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(r.sync.error) + '. clique pour réessayer.">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>' +
+        ? (renvoiPermis(r.sync)
+            ? '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>'
+            : '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></span>') +
           '<button type="button" class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="abandonner ce message" aria-label="abandonner ce message">' + icone('X', 12) + '</button>'
         : '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + 'envoi en cours…</span>';
       var qui = r.rouvrir ? icone('ArrowCounterClockwise', 14) + '<b>tu rouvres ce retour</b>' : icone('ArrowBendDownRight', 14) + '<b>toi</b>';
@@ -2332,7 +2428,7 @@
     (c.replies = c.replies || []).push({ date: new Date().toISOString(), text: text });
     pushHistory(c, { date: new Date().toISOString(), status: 'complement', source: 'moi', message: 'réponse : ' + text });
     persist(); renderList(); renderMarkers();
-    cmStatus('réponse enregistrée : elle partira dans le prochain rapport.');
+    cmStatus('réponse enregistrée : elle partira dans le prochain rapport.', { type: 'fait' });
     return true;
   }
   /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ coupé, puis
@@ -2410,7 +2506,7 @@
       if (finished) return;
       finished = true;
       var v = ta.value.trim();
-      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.'); c.sync = null; scheduleSync(c); }
+      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.', { type: SYNC ? 'encours' : 'fait' }); c.sync = null; scheduleSync(c); }
       // On remet le texte en place SANS redessiner la liste : un clic en cours sur un autre item
       // (qui a provoqué ce blur) doit atteindre sa cible.
       var div = document.createElement('div');
@@ -2512,7 +2608,7 @@
     if (!window.confirm(question)) return;
     var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
     effacerRetours(ids);
-    cmStatus(SYNC ? 'retours pas encore partis effacés.' : 'retours de cette page effacés.');
+    cmStatus(SYNC ? 'retours pas encore partis effacés.' : 'retours de cette page effacés.', { type: 'fait' });
   };
   /* Vide le stockage PARTAGÉ (toutes les pages/fichiers du site, pas seulement celle-ci) —
      utile pour repartir propre quand d'anciens fichiers de test (noms différents) ont laissé
@@ -2530,7 +2626,7 @@
     if (!window.confirm(question)) return;
     var ids = {}; cibles.forEach(function (c) { ids[c.id] = true; });
     effacerRetours(ids);
-    cmStatus(SYNC ? 'retours pas encore partis du site effacés.' : 'tous les retours du site sont effacés.');
+    cmStatus(SYNC ? 'retours pas encore partis du site effacés.' : 'tous les retours du site sont effacés.', { type: 'fait' });
   };
 
   /* ---------- détection de zone : générique, valable sur n'importe quelle page ----------
@@ -3202,7 +3298,7 @@
         if (desc) { ex.zone = desc.label; ex.anchor = desc.anchor; ex.fallback = meta.box; (function (c2, bx) { setTimeout(function () { captureFor(c2, bx, function () { c2.sync = null; scheduleSync(c2); }); }, 60); })(ex, meta.box); }
         if (multi) { ex.zone = multi.zone; ex.anchor = multi.anchor; ex.fallback = multi.fallback; ex.targets = multi.targets; }
         if (desc || multi) { var prev = ex.tech || {}; ex.tech = captureTech(ex); ex.tech.date = prev.date || ex.tech.date; ex.tech.consoleErrors = prev.consoleErrors || []; }
-        cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.');
+        cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.', { type: SYNC ? 'encours' : 'fait' });
         if (!desc) { ex.sync = null; scheduleSync(ex); } // encadré ajusté : renvoyé après la nouvelle capture
       } else {
         var id = uid();
@@ -3224,7 +3320,7 @@
         c.tech = captureTech(c);
         if (AUTHOR) c.author = AUTHOR;   // l'auteur du moment, gravé sur le ticket
         allComments.push(c);
-        cmStatus('Commentaire enregistré');
+        cmStatus(SYNC ? 'retour enregistré, envoi en cours.' : 'retour enregistré.', { type: SYNC ? 'encours' : 'fait' });
         if (meta.type === 'box') { if (meta.boxEl) meta.boxEl.classList.remove('cm-box-editable'); setTimeout(function () { captureFor(c, c.fallback, function () { scheduleSync(c); }); }, 60); }
         else scheduleSync(c);
       }
@@ -3421,7 +3517,7 @@
     showEditOutline(meta.targets.map(function (t) { return t.el; }));
     majTete(pendingPopup, meta, multiLabel(meta.targets));
     tracerContour(pendingPopup);
-    cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés — ' + MULTI_KEY + '+clic pour en ajouter ou retirer' : '1 élément sélectionné');
+    cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés · ' + (MULTI_KEY === '⌘' ? '⌘' : 'ctrl') + '+clic pour en ajouter ou en retirer' : '1 élément sélectionné');
   }
 
   function openTextPopup(range, e) {
@@ -3530,6 +3626,7 @@
     document.body.classList.toggle('cm-active', active);
     document.getElementById('cmFrame').classList.toggle('show', active);
     document.getElementById('cmPill').classList.toggle('show', active);
+    placerBandeau();
     // Les repères ne se dessinent qu'en mode annotation : les épingles sont replacées d'après la page telle
     // qu'elle est maintenant (elle a pu bouger pendant que les repères étaient cachés).
     if (active) renderMarkers();
@@ -3575,6 +3672,7 @@
     var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
     if (CONFIG.drawer === 'push') pushPage(show && !etroit ? panel.offsetWidth : 0);
     placerBoutons();
+    placerBandeau();
     majBoutons();
   };
   function placerBoutons() {
@@ -3660,29 +3758,52 @@
     swallowClick = active && !inUi(e.target);
   }, true);
 
-  /* ---------- pastille d'état déplaçable (comme les panneaux des maquettes) ---------- */
+  /* ---------- bandeau du mode annotation : place, deux lignes, déplacement (fiche Bandeau) ----------
+     Centré sur la place libre, à 12 px sous la barre de navigation (CSS). Liste ouverte (au-dessus de 480 px), la
+     place libre s'arrête à la liste : le bandeau se centre à sa gauche et ne la recouvre pas, comme les deux
+     boutons qui passent à sa gauche (relecture du lot 1). S'il ne tient pas sur une ligne dans cette place, il
+     passe sur deux lignes. Déplacé par la poignée, il garde sa position (witmit_pill_pos), ramenée dans la place
+     libre sans l'écraser. */
+  var PILL_POS_KEY = 'witmit_pill_pos';
+  var posBandeau = null;
+  try {
+    var posLue = JSON.parse(localStorage.getItem(PILL_POS_KEY) || 'null');
+    if (posLue && typeof posLue.left === 'number' && typeof posLue.top === 'number') posBandeau = posLue;
+  } catch (e) {}
+  function placeLibreBandeau() {
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var panel = document.getElementById('cmPanel');
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    var libre = vw;
+    if (listeOuverte() && !etroit && panel) libre = vw - panel.offsetWidth - 8;
+    return libre < 360 ? vw : libre;   // trop peu de place à côté de la liste : par-dessus, comme avant
+  }
+  function placerBandeau() {
+    var pill = document.getElementById('cmPill');
+    if (!pill || !pill.classList.contains('show')) return;
+    var libre = placeLibreBandeau();
+    pill.style.maxWidth = (libre - 16) + 'px';
+    pill.classList.remove('wm-deux-lignes');
+    pill.style.left = '0px'; pill.style.transform = 'none';
+    var deux = pill.offsetWidth > libre - 32;
+    pill.classList.toggle('wm-deux-lignes', deux);
+    var w = pill.offsetWidth, h = pill.offsetHeight;
+    var left, top = null;
+    if (posBandeau) {
+      left = Math.max(4, Math.min(posBandeau.left, libre - w - 4));
+      top = Math.max(4, Math.min(posBandeau.top, window.innerHeight - h - 4));
+    } else left = Math.max(8, Math.round((libre - w) / 2));
+    pill.style.left = left + 'px';
+    pill.style.top = top === null ? '' : top + 'px';
+  }
+  window.addEventListener('resize', placerBandeau);
+  // Les polices de witmit arrivent après coup (chargement paresseux) : la largeur du bandeau change.
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', placerBandeau);
+
   (function initPillDrag() {
     var pill = document.getElementById('cmPill');
     if (!pill) return;
-    var PILL_POS_KEY = 'witmit_pill_pos';
     var dragOffset = null;
-
-    function applyPos(left, top) {
-      left = Math.max(4, Math.min(left, window.innerWidth - pill.offsetWidth - 4));
-      top = Math.max(4, Math.min(top, window.innerHeight - pill.offsetHeight - 4));
-      pill.style.left = left + 'px';
-      pill.style.top = top + 'px';
-      pill.style.transform = 'none';
-    }
-    try {
-      var saved = JSON.parse(localStorage.getItem(PILL_POS_KEY) || 'null');
-      if (saved && typeof saved.left === 'number' && typeof saved.top === 'number') {
-        pill.classList.add('show');
-        applyPos(saved.left, saved.top);
-        pill.classList.remove('show');
-      }
-    } catch (e) {}
-
     pill.addEventListener('pointerdown', function (e) {
       if (e.target.closest && e.target.closest('button')) return;
       var rect = pill.getBoundingClientRect();
@@ -3693,16 +3814,17 @@
     });
     pill.addEventListener('pointermove', function (e) {
       if (!dragOffset) return;
-      applyPos(e.clientX - dragOffset.x, e.clientY - dragOffset.y);
+      var left = Math.max(4, Math.min(e.clientX - dragOffset.x, window.innerWidth - pill.offsetWidth - 4));
+      var top = Math.max(4, Math.min(e.clientY - dragOffset.y, window.innerHeight - pill.offsetHeight - 4));
+      pill.style.left = left + 'px'; pill.style.top = top + 'px'; pill.style.transform = 'none';
     });
-    function endDrag(e) {
+    function endDrag() {
       if (!dragOffset) return;
       dragOffset = null;
       pill.classList.remove('cm-dragging');
-      try {
-        var r = pill.getBoundingClientRect();
-        localStorage.setItem(PILL_POS_KEY, JSON.stringify({ left: r.left, top: r.top }));
-      } catch (err) {}
+      var r = pill.getBoundingClientRect();
+      posBandeau = { left: r.left, top: r.top };
+      try { localStorage.setItem(PILL_POS_KEY, JSON.stringify(posBandeau)); } catch (err) {}
     }
     pill.addEventListener('pointerup', endDrag);
     pill.addEventListener('pointercancel', endDrag);
@@ -3822,22 +3944,42 @@
 
   var statusTimer = null;
   var masquageTimer = null;
-  /* Message passager. opts.duree : durée d'affichage (2,4 s par défaut) ; opts.masquage : le message de
-     masquage, seul exempté du masquage de witmit (classe wm-toast-masquage), jusqu'à la fin de son fondu. */
+  var attenteTimer = null, toastEnAttente = null, echecJusqua = 0;
+  var ICONE_TOAST = { fait: ['Check'], encours: ['CircleNotch', 'wm-tourne'], echec: ['WarningCircle', 'wm-signal'] };
+  /* Message passager (fiche Etats ; Léa 3.9). opts.type : 'fait' (Check), 'encours' (CircleNotch), 'echec'
+     (WarningCircle en signal, la phrase reste à l'encre) ; sans type : simple renseignement, sans icône.
+     Durée : 2,4 s ; un échec reste au moins 6 s (opts.duree pour une autre durée). Un échec n'est pas effacé
+     avant la fin de ses 6 s par un message qui n'en est pas un (« capture impossible » ne doit pas disparaître
+     sous « retour envoyé ») : ce message attend la fin de l'échec. opts.masquage : le message de masquage,
+     seul exempté du masquage de witmit (classe wm-toast-masquage), jusqu'à la fin de son fondu. */
   function cmStatus(msg, opts) {
     opts = opts || {};
+    var echec = opts.type === 'echec';
+    var maintenant = Date.now();
+    if (!echec && !opts.masquage && maintenant < echecJusqua) {
+      toastEnAttente = [msg, opts];
+      clearTimeout(attenteTimer);
+      attenteTimer = setTimeout(function () { var a = toastEnAttente; toastEnAttente = null; if (a) cmStatus(a[0], a[1]); }, echecJusqua - maintenant + 20);
+      return;
+    }
+    var duree = opts.duree || (echec ? 6000 : 2400);
+    echecJusqua = echec ? maintenant + duree : 0;
+    if (echec || opts.masquage) { clearTimeout(attenteTimer); toastEnAttente = null; }   // un message plus ancien que l'échec ne revient pas après lui
     var el = document.getElementById('cmStatus');
     var txt = el.querySelector(':scope > .wm-contenu');
     if (!txt) { txt = document.createElement('span'); txt.className = 'wm-contenu'; el.appendChild(txt); }
-    txt.textContent = msg;
+    var ic = ICONE_TOAST[opts.type];
+    txt.innerHTML = (ic ? icone(ic[0], 16, ic[1]) : '') + '<span class="wm-toast-texte"></span>';
+    txt.lastChild.textContent = msg;
     clearTimeout(masquageTimer);
     el.classList.toggle('wm-toast-masquage', !!opts.masquage);
+    el.classList.toggle('wm-toast-echec', echec);
     el.classList.add('show');
     clearTimeout(statusTimer);
     statusTimer = setTimeout(function () {
       el.classList.remove('show');
       if (opts.masquage) masquageTimer = setTimeout(function () { el.classList.remove('wm-toast-masquage'); }, 250);
-    }, opts.duree || 2400);
+    }, duree);
   }
 
   /* ---------- capture d'écran d'un encadré ----------
@@ -3898,7 +4040,7 @@
   }
   function captureFor(c, box, done) {
     if (!CONFIG.capture || !box) { if (done) done(); return; }
-    cmStatus('Capture de la zone…');
+    cmStatus('capture de la zone…', { type: 'encours' });
     capturesEnCours[c.id] = true; renderList();
     captureBox(box).then(function (img) {
       var live = findComment(c.id);
@@ -3906,9 +4048,10 @@
       live.shot = { dataUrl: img.dataUrl, width: img.width, height: img.height, at: new Date().toISOString() };
       enforceImageBudget();
       persist(); renderList();
-      cmStatus('Capture enregistrée (' + Math.round(img.dataUrl.length / 1024) + ' Ko)');
+      cmStatus('capture enregistrée (' + Math.round(img.dataUrl.length / 1024) + ' ko).', { type: 'fait' });
     }).catch(function (err) {
-      cmStatus('Capture impossible (' + (err && err.message || 'erreur') + ') — le commentaire est bien enregistré');
+      console.warn('witmit : capture impossible —', (err && err.message) || err);   // la raison brute, jamais à l'écran (Léa 3.11)
+      cmStatus('capture impossible : ton retour est bien enregistré, sans image.', { type: 'echec' });
     }).then(function () { delete capturesEnCours[c.id]; renderList(); if (done) done(); });
   }
   /* Visionneuse (fiche Visionneuse ; Léa 3.9) : une fenêtre witmit centrée, sans voile ; la capture en grand.
@@ -4088,24 +4231,24 @@
     a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-    cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.');
+    cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.', { type: 'fait' });
   };
   window.cmCopy = function () {
     var r = prepareReport();
     if (!r) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(r.md).then(function () {
-        cmStatus('rapport ' + r.id + ' copié' + (r.marked ? ' · ' + signales(r.marked) : '') + '. colle-le à Claude.');
-      }).catch(function () { cmStatus('copie impossible : utilise « télécharger ».'); });
-    } else cmStatus('ce navigateur ne permet pas la copie : utilise « télécharger ».');
+        cmStatus('rapport ' + r.id + ' copié' + (r.marked ? ' · ' + signales(r.marked) : '') + '. colle-le à Claude.', { type: 'fait' });
+      }).catch(function () { cmStatus('copie impossible : utilise « télécharger ».', { type: 'echec' }); });
+    } else cmStatus('ce navigateur ne permet pas la copie : utilise « télécharger ».', { type: 'echec' });
   };
   window.cmSendMail = function () {
-    if (!EMAIL_TO) { cmStatus('aucune adresse d\'envoi prévue pour ce site : utilise « télécharger » ou « copier ».'); return; }
+    if (!EMAIL_TO) { cmStatus('aucune adresse d\'envoi prévue pour ce site : utilise « télécharger » ou « copier ».', { type: 'echec' }); return; }
     var r = prepareReport();
     if (!r) return;
     var subject = CONFIG.project + ' — Rapport de retours ' + r.id + ' (' + r.items.length + ')';
     var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(r.md);
-    if (mailto.length > 1900) { cmStatus('rapport trop long pour un email : utilise « télécharger » ou « copier ».'); return; }
+    if (mailto.length > 1900) { cmStatus('rapport trop long pour un email : utilise « télécharger » ou « copier ».', { type: 'echec' }); return; }
     window.location.href = mailto;
   };
 
@@ -4155,7 +4298,7 @@
     var res = applyFeedback(box.querySelector('textarea').value);
     box.hidden = true;
     var acc = function (n, un, plusieurs) { return n + ' ' + (n > 1 ? plusieurs : un); };
-    cmStatus(acc(res.applied, 'retour mis à jour', 'retours mis à jour') + (res.unknown ? ' · ' + acc(res.unknown, 'identifiant inconnu', 'identifiants inconnus') : '') + (res.ignored ? ' · ' + acc(res.ignored, 'ligne ignorée', 'lignes ignorées') : ''));
+    cmStatus(acc(res.applied, 'retour mis à jour', 'retours mis à jour') + (res.unknown ? ' · ' + acc(res.unknown, 'identifiant inconnu', 'identifiants inconnus') : '') + (res.ignored ? ' · ' + acc(res.ignored, 'ligne ignorée', 'lignes ignorées') : ''), { type: 'fait' });
   };
 
   document.addEventListener('mousedown', onMouseDown, true);

@@ -30,7 +30,7 @@ test.describe('Capture (Kiosque)', () => {
     expect(shot.width).toBeLessThanOrEqual(800);
     expect(Math.abs(shot.width / shot.height - (b.width + 12) / (b.height + 12))).toBeLessThan(0.1); // mêmes proportions
     expect(await page.evaluate(() => !!window.html2canvas)).toBe(true);
-    await expect(page.locator('#cmStatus')).toContainText('Capture enregistrée');
+    await expect(page.locator('#cmStatus')).toContainText('capture enregistrée (');
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
