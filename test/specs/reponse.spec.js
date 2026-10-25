@@ -236,3 +236,43 @@ test('9. voyant : allumé par un message de l’équipe, éteint après lecture 
   await expect(voyant).toBeHidden();                                         // pas de vague de points jaunes
   expect((await ticket(page)).vuLe).toBeTruthy();
 });
+
+test('10. « masquer les terminés » coché : un retour résolu par l’équipe reste affiché avec « nouveau », puis le voyant s’éteint à la fermeture', async ({ page }) => {
+  const voyant = page.locator('#cmPanelBtn #cmCount');
+  const witmit = page.locator('#cmPanelBtn');
+  await ticketEnvoye(page, { statut: 'nouveau' });
+  await page.waitForTimeout(800);
+  await page.locator('#cmPanel .cm-hide-done').click();                     // case cochée
+  await expect(page.locator('#cmPanel .cm-hide-done')).toHaveAttribute('aria-checked', 'true');
+  await witmit.click();
+  state.rows[0].statut = 'resolu';
+  state.rows[0].messages = [{ de: 'equipe', texte: 'Corrigé', rouvre: false, cree_le: '2026-09-28T10:00:00Z' }];
+  await witmit.click();                                                     // relecture : l'équipe a résolu
+  await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveText('nouveau', { timeout: 15000 });
+  await expect(page.locator('.cm-panel-item')).toHaveCount(1);              // affiché malgré le filtre
+  await expect(page.locator('.cm-panel-item .cm-status-chip')).toHaveText('résolu');
+  await expect(voyant).toBeVisible();
+  await witmit.click();                                                     // fermée après l'avoir vu : éteint
+  await expect(voyant).toBeHidden();
+  await expect(witmit).toHaveAccessibleName('witmit');
+  await witmit.click();                                                     // à l'ouverture suivante, le filtre le cache
+  await page.waitForTimeout(800);
+  await expect(page.locator('.cm-panel-item')).toHaveCount(0);
+  await expect(page.locator('.cm-panel-empty')).toHaveText('tous les retours de cette page sont terminés.');
+  await expect(voyant).toBeHidden();
+});
+
+test('11. les touches sous le fil tiennent dans leur face à 380 px (« ça ne convient pas ? rouvrir »)', async ({ page }) => {
+  await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
+  await expect(page.locator('.cm-reopen-btn')).toBeVisible({ timeout: 15000 });
+  for (const sel of ['.cm-reopen-btn', '.cm-reply-btn']) {
+    const r = await page.locator(sel).evaluate((b) => {
+      const face = b.getBoundingClientRect();
+      const kids = Array.from(b.querySelectorAll('svg, *')).concat([b]).map((k) => k.getBoundingClientRect());
+      const range = document.createRange(); range.selectNodeContents(b);
+      const txt = range.getBoundingClientRect();
+      return { taille: getComputedStyle(b).fontSize, gauche: Math.min(txt.left, ...kids.map((k) => k.left)) >= face.left - 0.5, droite: txt.right <= face.right + 0.5, deborde: b.scrollWidth > b.clientWidth };
+    });
+    expect(r, sel).toEqual({ taille: '12px', gauche: true, droite: true, deborde: false });
+  }
+});

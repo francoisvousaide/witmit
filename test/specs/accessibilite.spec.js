@@ -214,6 +214,23 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
   expect(t.left).toBeLessThanOrEqual(0.5);
   expect(t.right).toBeGreaterThanOrEqual(t.vw - 0.5);
   expect(t.marge).toBe('');                                            // la page n'est pas poussée
+  // La fin de la liste défile au-dessus des deux boutons (règle M1, « seule la liste défile ») : marge basse de 76 px,
+  // et la dernière ligne, une fois la liste au bout, n'est couverte par aucun bouton.
+  await page.locator('#cmPanelBtn').click();
+  await page.evaluate(() => {
+    const now = new Date().toISOString();
+    localStorage.setItem('witmit_kiosque_v1', JSON.stringify(Array.from({ length: 8 }, (_, i) => ({ id: 'l' + i, type: 'pin', status: 'nouveau', page: 'generic-dashboard.html', zone: 'Cellule ' + i, text: 'Retour ' + i, date: now, vuLe: now, category: 'a-classer', fallback: { x: 40, y: 40 } }))));
+  });
+  await page.reload();
+  await page.locator('#cmPanelBtn').click();
+  await page.waitForTimeout(400);
+  const bas = await page.evaluate(() => {
+    const l = document.getElementById('cmList'); l.scrollTop = l.scrollHeight;
+    const fab = document.querySelector('.cm-fab').getBoundingClientRect();
+    const dernier = l.querySelector('.cm-panel-item:last-child').getBoundingClientRect();
+    return { marge: getComputedStyle(l).paddingBottom, couvert: dernier.bottom > fab.top && dernier.top < fab.bottom };
+  });
+  expect(bas).toEqual({ marge: '76px', couvert: false });
   // Sur ordinateur, la fenêtre fait 380 px, le tiroir aussi.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));

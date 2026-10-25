@@ -105,7 +105,8 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await expect(page.locator('.cm-panel-empty')).toHaveText("aucun retour sur cette page pour l'instant.");
   await expect(page.locator('#cmPanel button', { hasText: 'nouveau retour' })).toHaveCount(1);
   await expect(page.locator('#cmNewAide')).toBeVisible();
-  await expect(page.locator('#cmNewAide')).toHaveText(/^ou (⌥|alt)\+A, de n'importe où sur la page\.$/);
+  await expect(page.locator('#cmNewAide')).toHaveText(/^ou (option|alt)\+A, de n'importe où sur la page\.$/);
+  if (H.IS_MAC) await expect(page.locator('#cmNewAide .wm-repere svg[data-icone="Option"]')).toHaveCount(1);   // ⌥ en icône, dans son carré
   // Live : « masquer witmit » en minuscules, avec son repère et l'info-bulle qui dit comment revenir.
   await page.goto(H.fileUrl('generic-dashboard-live.html') + '?witmit=on');
   await page.locator('#cmPanelBtn').click();

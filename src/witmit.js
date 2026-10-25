@@ -211,6 +211,8 @@
   var RACC_MONTRER = IS_MAC ? '⌥+W' : 'alt+W';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
   // Repère « ⌥+W » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono ne l'a pas).
+  // Repère « ⌥+A » de l'aide de l'état vide : même carré, lu « option+A » par un lecteur d'écran ; « alt+A » hors Mac.
+  var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
   var REPERE_MONTRER = '<span class="wm-repere" aria-hidden="true">' + (IS_MAC ? icone('Option', 12) + '+W' : 'alt+W') + '</span>';
 
   var CSS = `
@@ -667,6 +669,7 @@
   .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
   /* La liste : 12 px des bords ; une ligne = numéro, corps, actions (12 px d'écart). */
   .cm-panel-list { flex:1; min-height:0; overflow-y:auto; padding:4px 12px; }
+  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) */
   .cm-panel-item { position:relative; isolation:isolate; display:flex; gap:12px; padding:12px 8px; border-bottom:1px solid var(--wm-line); }
   .cm-panel-item:last-child { border-bottom:0; }
   .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:transparent; pointer-events:none; }
@@ -751,7 +754,7 @@
   .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-panel-item .cm-msg-drop { margin-left:2px; }
   .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
-  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:13px; }
+  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:12px; }   /* 12 px, comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 380 px */
   /* Champ de réponse : libellé, champ, puis « annuler » à gauche et la touche secondaire à droite. */
   .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
   .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
@@ -793,6 +796,7 @@
   .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
   .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-new .cm-new-aide[hidden] { display:none; }
+  .cm-panel-new .cm-new-aide .wm-repere { margin:0 1px; vertical-align:baseline; }
 
   /* Visionneuse (fiche Visionneuse) : fenêtre witmit centrée, sans voile ; le site reste visible autour.
      .cm-lightbox ne prend aucun clic (le clic à côté atteint la page, où il ferme la visionneuse). */
@@ -870,7 +874,7 @@
     </div>
     <div class="cm-panel-foot cm-panel-new">
       <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour<span class="wm-repere" aria-hidden="true">N</span></button>
-      <div class="cm-new-aide" id="cmNewAide" hidden>ou ${RACC_ANNOTER}, de n'importe où sur la page.</div>
+      <div class="cm-new-aide" id="cmNewAide" hidden>ou ${REPERE_ANNOTER}, de n'importe où sur la page.</div>
     </div>
   </div>
 </div>
@@ -1887,8 +1891,7 @@
   function marquerVus() {
     var now = new Date().toISOString(), n = 0;
     pageComments().forEach(function (c) {
-      if (hideDone() && isDone(c)) return;            // caché par le filtre : pas vu
-      if (aDuNouveau(c)) { c.vuLe = now; n++; }
+      if (aDuNouveau(c)) { c.vuLe = now; n++; }       // affiché dans la liste, même terminé (voir renderList) : vu
     });
     if (n) { persist(); renderList(); }
   }
@@ -2109,7 +2112,9 @@
     }
     var html = '';
     pc.forEach(function (c, i) {
-      if (hideDone() && isDone(c)) return;
+      // « masquer les terminés » cache un retour terminé, sauf s'il a du nouveau : il reste affiché avec « nouveau »
+      // jusqu'à la fermeture de la liste, où il compte comme vu ; le filtre le cache à l'ouverture suivante (C5).
+      if (hideDone() && isDone(c) && !aDuNouveau(c)) return;
       html += ligneHtml(c, i);
     });
     if (!html) html = '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';

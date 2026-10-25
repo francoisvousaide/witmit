@@ -174,6 +174,9 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('#cmCount')).toHaveAttribute('data-zero', '0');               // l'équipe a écrit : voyant allumé (C5)
     await expect(page.locator('.cm-panel-empty')).toHaveCount(0);
     await page.locator('.cm-hide-done').click();
+    // L'équipe vient de les résoudre : ils restent affichés avec « nouveau » jusqu'à la fermeture de la liste (C5).
+    await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(2);
+    await page.locator('#cmPanelBtn').click(); await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-empty')).toHaveText('tous les retours de cette page sont terminés.');
   });
 
