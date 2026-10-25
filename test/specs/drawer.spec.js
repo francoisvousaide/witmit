@@ -112,8 +112,13 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await page.locator('#cmPanelBtn').click();
   const masquer = page.locator('#cmHideBtn');
   await expect(masquer).toHaveText(/^masquer witmit/);
-  await expect(masquer).toHaveAttribute('title', /^cacher witmit sur ce site\. pour le retrouver : (⌥|alt)\+W, ou \?witmit=on dans l'adresse$/);
+  await expect(masquer).toHaveAttribute('title', /^cacher witmit sur ce site\. pour le retrouver : (⌥|alt) deux fois, ou \?witmit=on dans l'adresse$/);
   await expect(masquer.locator('.wm-repere')).toBeVisible();
+  // Repère « ⌥ deux fois » : ⌥ en icône dans son carré, « deux fois » à côté ; nom accessible « option deux fois ».
+  await expect(masquer.locator('.wm-repere-double')).toHaveText(/^(option|alt)deux fois$/);
+  if (H.IS_MAC) await expect(masquer.locator('.wm-repere svg[data-icone="Option"]')).toHaveCount(1);
+  await expect(masquer).toHaveAccessibleName(H.IS_MAC ? 'masquer witmit option deux fois' : 'masquer witmit alt deux fois');
+  await expect(masquer).not.toHaveAttribute('aria-keyshortcuts', /.*/);
   await masquer.click();
   await expect(page.locator('#cmStatus')).toContainText('witmit est masqué. pour le retrouver :');
 });

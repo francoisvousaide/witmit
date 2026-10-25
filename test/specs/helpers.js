@@ -7,10 +7,16 @@ const PAGES_DIR = path.resolve(__dirname, '..', 'pages');
 const fileUrl = (name) => 'file://' + path.join(PAGES_DIR, name);
 
 const IS_MAC = process.platform === 'darwin';
-// Raccourcis (K1) : ⌥+A / alt+A lance et arrête le mode annotation ; ⌥+W / alt+W montre et cache witmit (live).
-// Playwright tape la lettre de base avec alt (« a », « w »), comme Windows et Linux.
+// Raccourcis (K1) : ⌥+A / alt+A lance et arrête le mode annotation ; ⌥ deux fois / alt deux fois montre et cache
+// witmit (live ; décision de François du 25/10 après-midi). Playwright tape la lettre de base avec alt (« a »),
+// comme Windows et Linux.
 const ANNOTER = 'Alt+KeyA';
-const MONTRER = 'Alt+KeyW';
+// Deux appuis sur alt seule, chacun relâché ; « pause » : millisecondes entre les deux (witmit : moins de 400).
+async function doubleAlt(page, pause = 0) {
+  await page.keyboard.press('Alt');
+  if (pause) await page.waitForTimeout(pause);
+  await page.keyboard.press('Alt');
+}
 
 async function clearStorage(page) {
   await page.evaluate(() => localStorage.clear());
@@ -31,9 +37,9 @@ async function deactivate(page) {
   await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
 }
-// Live : ⌥+W montre witmit (les deux boutons, liste fermée).
+// Live : ⌥ deux fois montre witmit (les deux boutons, liste fermée).
 async function montrer(page) {
-  await page.keyboard.press(MONTRER);
+  await doubleAlt(page);
   await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
   await expect(page.locator('#cmToggleBtn')).toBeVisible();
 }
@@ -131,4 +137,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, MONTRER, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation };
+module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation };

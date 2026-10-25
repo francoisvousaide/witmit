@@ -3,7 +3,7 @@
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Polices (dossier witmit-polices/ à côté de ce fichier) : Tektur, Martian Mono, Syne et Doto, SIL Open Font License 1.1.
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
- * Raccourcis : ⌥+W / alt+W montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
+ * Raccourcis : ⌥ deux fois / alt deux fois montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Marine' }) · identify(null) — voir plus bas.
  *
  * Icônes : tracés de Phosphor Icons, graisse Regular (@phosphor-icons/core 2.1.1), recopiés dans l'objet ICONES.
@@ -40,7 +40,7 @@
      - data-project : nom du projet (clé de stockage + titre du rapport) — obligatoire en pratique
      - data-email   : destinataire du bouton « Envoyer » (facultatif)
     - data-mode    : "mock" (défaut : tout reste dans le navigateur, boutons visibles) ou "live" (site en
-                     production : widget invisible par défaut, révélé par ⌥+W / alt+W ou ?witmit=on) */
+                     production : widget invisible par défaut, révélé par ⌥ deux fois / alt deux fois ou ?witmit=on) */
   var SCRIPT_EL = document.currentScript || document.querySelector('script[data-project]');
   var CONFIG = {
     project: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-project')) || 'witmit',
@@ -208,12 +208,14 @@
   var IS_MAC = /Mac|iPhone|iPod|iPad/i.test(
     (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || ''
   );
-  var RACC_MONTRER = IS_MAC ? '⌥+W' : 'alt+W';
+  var RACC_DOUBLE_ALT = IS_MAC ? '⌥ deux fois' : 'alt deux fois';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
-  // Repère « ⌥+W » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono ne l'a pas).
+  // Repère « ⌥ deux fois » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono
+  // ne l'a pas), suivie de « deux fois » hors du carré ; lu « option deux fois » par un lecteur d'écran ; « alt deux fois » hors Mac.
   // Repère « ⌥+A » de l'aide de l'état vide : même carré, lu « option+A » par un lecteur d'écran ; « alt+A » hors Mac.
   var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
-  var REPERE_MONTRER = '<span class="wm-repere" aria-hidden="true">' + (IS_MAC ? icone('Option', 12) + '+W' : 'alt+W') + '</span>';
+  var REPERE_DOUBLE_ALT = '<span class="wm-repere-double"><span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>' : 'alt') +
+    '</span><span>deux fois</span></span>';
 
   var CSS = `
   /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
@@ -664,6 +666,9 @@
   .cm-ui .cm-filtre:focus { outline:none; }
   .cm-ui .cm-filtre:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-ui .cm-filtre .wm-repere { margin-left:2px; }
+  /* « ⌥ deux fois » : le carré de la touche, puis « deux fois » collé à lui. */
+  .cm-ui .wm-repere-double { display:inline-flex; align-items:center; gap:4px; }
+  .cm-ui .wm-repere-double .wm-repere { margin-left:0; }
   .cm-ui .wm-case { position:relative; flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-repere); color:var(--wm-ink); background:transparent; }
   .cm-ui .wm-case .wm-icone { display:none; }
   .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
@@ -851,7 +856,7 @@
     <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
     <div class="cm-panel-filtres">
       <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
-      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_MONTRER}, ou ?witmit=on dans l'adresse" aria-keyshortcuts="Alt+W" hidden>${icone('EyeSlash', 14)}masquer witmit${REPERE_MONTRER}</button>
+      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit${REPERE_DOUBLE_ALT}</button>
     </div>
   </div>
   <div class="cm-panel-list" id="cmList"></div>
@@ -1152,7 +1157,7 @@
   var EMAIL_TO = CONFIG.email;
 
   /* ---------- mode live : widget invisible par défaut sur un site en production ----------
-     Révélé par le raccourci (⌥+W / alt+W) ou par ?witmit=on dans l'URL, mémorisé dans le navigateur
+     Révélé par le raccourci (⌥ deux fois / alt deux fois) ou par ?witmit=on dans l'URL, mémorisé dans le navigateur
      (clé REVEAL_KEY) ; ?witmit=off ou le bouton « Masquer witmit » du tiroir le cache et oublie.
      Le paramètre d'URL est retiré aussitôt pour ne pas traîner dans les liens copiés. */
   var REVEAL_KEY = 'witmit_' + CONFIG.project + '_reveal';
@@ -1167,15 +1172,15 @@
     var hideBtn = document.getElementById('cmHideBtn');
     if (hideBtn) hideBtn.hidden = !LIVE;
   }
-  /* Montrer (⌥+W, ?witmit=on) : seuls les deux boutons apparaissent — liste fermée, mode éteint, aucune
-     fenêtre (K1). Cacher (⌥+W, « masquer witmit ») : tout se ferme et s'oublie, après un message qui dit
+  /* Montrer (⌥ deux fois, ?witmit=on) : seuls les deux boutons apparaissent — liste fermée, mode éteint, aucune
+     fenêtre (K1). Cacher (⌥ deux fois, « masquer witmit ») : tout se ferme et s'oublie, après un message qui dit
      comment revenir ; ce message reste lisible malgré le masquage (Léa 45). */
   window.cmReveal = function (on) {
     if (!LIVE) return;
     on = on !== false;
     try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
     closePopup(true); cmToggle(false); cmTogglePanel(false);
-    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_MONTRER + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 4000 });
+    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 4000 });
     applyReveal(on);
   };
   function readUrlSwitch() {
@@ -3296,7 +3301,7 @@
     return !!(texte && texte !== avant) || !!(rep && rep.value.trim());
   }
   /* Confirmation de Léa (3.9, décision 34) quand un geste qui vise autre chose ferme une fenêtre au texte
-     non parti : bouton witmit, bouton du mode, ⌥+A, ⌥+W, « terminer », clic sur un autre élément pendant
+     non parti : bouton witmit, bouton du mode, ⌥+A, ⌥ deux fois, « terminer », clic sur un autre élément pendant
      la saisie (décision d'Enzo du 25/10). Jamais pour échap ni « annuler ». */
   function confirmerAbandon() {
     return !fenetreModifiee() || window.confirm("fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.");
@@ -3523,15 +3528,15 @@
   })();
 
   /* ---------- raccourcis (K1 à K6) ----------
-     ⌥+W / alt+W (live) montre et cache witmit ; ⌥+A / alt+A lance et arrête le mode annotation (witmit
+     ⌥ deux fois / alt deux fois (live) montre et cache witmit (décision de François du 25/10 après-midi, à
+     la place de l'ancien raccourci avec la lettre W, voisin de ⌘+W qui ferme l'onglet) ; ⌥+A / alt+A lance et arrête le mode annotation (witmit
      caché : rien, la touche reste au site) ; N, liste ouverte, ferme la liste et lance le mode ; Échap ferme
-     une couche à la fois. On lit la LETTRE produite par la touche (e.key), pas sa position : sur un clavier
-     AZERTY, la position « KeyA » est celle du Q. Sur Mac, ⌥ change la lettre : table ci-dessous ; un
+     une couche à la fois. Pour ⌥+A, on lit la LETTRE produite par la touche (e.key), pas sa position : sur un
+     clavier AZERTY, la position « KeyA » est celle du Q. Sur Mac, ⌥ change la lettre : table ci-dessous ; un
      caractère relevé en plus s'ajoute en une ligne. Repli par la position (e.code) seulement si e.key n'est
      pas une lettre (symbole hors table, touche morte). Jamais pendant la saisie dans un champ, du site ou
-     de witmit ; preventDefault seulement quand witmit agit, jamais stopPropagation. */
+     de witmit ; preventDefault seulement quand witmit agit (jamais sur alt seule), jamais stopPropagation. */
   var LETTRES = {
-    w: ['w', '∑', '‹'],   // Windows/Linux · Mac QWERTY (⌥+W) · Mac AZERTY (⌥+W, relevé sur une machine le 25/10)
     a: ['a', 'å', 'æ']    // Windows/Linux · Mac QWERTY (⌥+A) · Mac AZERTY (⌥+A : « Æ », relevé le 25/10, ou « æ » ; comparé en minuscules)
   };
   var CARTE = null;       // position → lettre de base de la touche (navigateurs Chromium : Chrome, Edge…)
@@ -3543,8 +3548,8 @@
     var k = (e.key || '').toLowerCase();
     for (var l in LETTRES) if (LETTRES[l].indexOf(k) >= 0) return l;
     if (k.length === 1 && k.toUpperCase() !== k) return null;        // une autre lettre (Ω, Â, œ) : une autre touche
-    if (CARTE) { var b = CARTE.get(e.code); return b === 'w' || b === 'a' ? b : null; }
-    if (k === 'dead' || k === 'unidentified') return { KeyW: 'w', KeyZ: 'w', KeyA: 'a', KeyQ: 'a' }[e.code] || null;
+    if (CARTE) { var b = CARTE.get(e.code); return b === 'a' ? b : null; }
+    if (k === 'dead' || k === 'unidentified') return { KeyA: 'a', KeyQ: 'a' }[e.code] || null;
     return null;
   }
   // La saisie : l'élément qui a vraiment reçu la touche (composedPath : un champ dans un shadow DOM compte).
@@ -3555,7 +3560,42 @@
     if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return true;
     return /^(textbox|searchbox|combobox)$/.test(el.getAttribute('role') || '');
   }
+  /* Double ⌥ : deux appuis sur alt seule (e.key 'Alt' ; 'AltGraph' exclu), chacun relâché, sans autre touche
+     ni clic entre les deux, en moins de DOUBLE_ALT_MS du premier appui au second ; l'effet part au second
+     relâchement. Annulé par : une autre touche (⌥+A tapé deux fois ne fait donc rien ici), ctrl, ⌘ ou maj
+     avec alt (ctrl+alt = AltGr sous Windows), une touche maintenue (e.repeat), un appui dans un champ, un
+     clic, la perte du focus de la fenêtre. Aucun preventDefault : sous Windows, alt sert aussi au menu du
+     navigateur. */
+  var DOUBLE_ALT_MS = 400;
+  var altAppui = null;    // appui sur alt en cours : { t: heure du keydown, net: aucune autre touche depuis }
+  var altPremier = 0;     // heure du premier appui net et relâché ; 0 : aucun en attente
+  function annulerDoubleAlt() { altPremier = 0; if (altAppui) altAppui.net = false; }
+  function altSeule(e) { return e.key === 'Alt' && !e.ctrlKey && !e.metaKey && !e.shiftKey; }
+  function suivreDoubleAlt(e) {
+    if (e.key !== 'Alt' || e.repeat || e.isComposing || !altSeule(e) || enSaisie(e)) { annulerDoubleAlt(); return; }
+    if (altPremier && e.timeStamp - altPremier >= DOUBLE_ALT_MS) altPremier = 0;
+    altAppui = { t: e.timeStamp, net: true };
+  }
+  document.addEventListener('keyup', function (e) {
+    if (e.key !== 'Alt') return;
+    var appui = altAppui;
+    altAppui = null;
+    if (!appui || !appui.net || !altSeule(e)) { altPremier = 0; return; }
+    if (altPremier && appui.t - altPremier < DOUBLE_ALT_MS) { altPremier = 0; basculerWitmit(); }
+    else altPremier = appui.t;
+  });
+  window.addEventListener('pointerdown', annulerDoubleAlt, true);
+  window.addEventListener('blur', function () { altAppui = null; altPremier = 0; });
+  // Montrer ou cacher (live), comme « masquer witmit » et ?witmit=on ; en maquette, rien (Léa 44).
+  function basculerWitmit() {
+    if (!LIVE) return;
+    var cache = document.body.classList.contains('cm-concealed');
+    if (!cache && !confirmerAbandon()) return;
+    cmReveal(cache);
+  }
   document.addEventListener('keydown', function (e) {
+    suivreDoubleAlt(e);
+    if (e.key === 'Alt') return;                                      // alt seule : rien d'autre, touche laissée au navigateur
     if (e.isComposing) return;
     // Échap, de la couche la plus proche à la plus lointaine : la fenêtre, la visionneuse, la liste, le mode.
     // (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce champ, sans aller plus loin.)
@@ -3577,12 +3617,7 @@
     }
     if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;   // alt seule (ctrl+alt = AltGr sous Windows)
     var lettre = lettreDuRaccourci(e);
-    if (lettre === 'w') {
-      if (!LIVE) return;                                              // maquette : witmit toujours visible (Léa 44)
-      if (!cache && !confirmerAbandon()) { e.preventDefault(); return; }
-      e.preventDefault();
-      cmReveal(cache);
-    } else if (lettre === 'a') {
+    if (lettre === 'a') {
       if (cache) return;                                              // witmit caché : la touche reste au site (Léa 43)
       e.preventDefault();
       cmToggle();

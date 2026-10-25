@@ -1,5 +1,5 @@
 // Mode live (data-mode="live") : le widget est invisible par défaut sur un site en production,
-// révélé par Alt+W (⌥+W) ou ?witmit=on (mémorisé), re-caché par Alt+W, le bouton du tiroir ou ?witmit=off.
+// révélé par alt deux fois (⌥ deux fois) ou ?witmit=on (mémorisé), re-caché par alt deux fois, le bouton du tiroir ou ?witmit=off.
 // Alt+A (⌥+A) ne révèle plus : il lance le mode annotation (raccourcis.spec).
 const { test, expect } = require('@playwright/test');
 const H = require('./helpers');
@@ -23,8 +23,8 @@ test('1. caché par défaut : interface injectée mais aucune couche visible', a
   expect(await revealed(page)).toBeNull();
 });
 
-test('2. Alt+W révèle witmit : les deux boutons, liste fermée, mode éteint ; mémorisé', async ({ page }) => {
-  await page.keyboard.press(H.MONTRER);
+test('2. alt deux fois révèle witmit : les deux boutons, liste fermée, mode éteint ; mémorisé', async ({ page }) => {
+  await H.doubleAlt(page);
   await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
   await expect(page.locator('#cmToggleBtn')).toBeVisible();
   await expect(page.locator('#cmPanelBtn')).toBeVisible();
@@ -37,11 +37,11 @@ test('2. Alt+W révèle witmit : les deux boutons, liste fermée, mode éteint ;
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
 });
 
-test('3. Alt+W ignoré pendant la saisie dans un champ : le widget reste caché', async ({ page }) => {
+test('3. alt deux fois ignoré pendant la saisie dans un champ : le widget reste caché', async ({ page }) => {
   await page.locator('#tabBtnForm').click();
   const input = page.locator('input[type="text"], input:not([type]), textarea').first();
   await input.click();
-  await page.keyboard.press(H.MONTRER);
+  await H.doubleAlt(page);
   await expect(page.locator('body')).toHaveClass(/cm-concealed/);
 });
 
@@ -93,8 +93,8 @@ test('7. les commentaires existants restent stockés mais invisibles tant que le
   expect(data).toHaveLength(1);
   await expect(page.locator('.cm-pin')).toBeHidden();
   await expect(page.locator('.cm-box-saved').first()).toBeHidden();
-  // Re-révélé (Alt+W), puis le mode lancé : le repère est de nouveau là
-  await page.keyboard.press(H.MONTRER);
+  // Re-révélé (alt deux fois), puis le mode lancé : le repère est de nouveau là
+  await H.doubleAlt(page);
   await H.activate(page);
   await expect(page.locator('.cm-pin').first()).toBeVisible();
 });
