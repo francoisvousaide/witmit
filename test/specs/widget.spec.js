@@ -29,28 +29,29 @@ for (const P of PAGES) {
     });
 
     test('1. le widget s’installe seul : style + interface injectés, une seule fois', async ({ page }) => {
-      for (const id of ['cmStyles', 'cmFrame', 'cmPill', 'cmPanel', 'cmStatus', 'cmToggleBtn', 'cmPanelBtn', 'cmCount']) {
+      for (const id of ['cmStyles', 'cmFrame', 'cmPill', 'cmPanel', 'cmStatus', 'cmToggleBtn', 'cmPanelBtn', 'cmCount', 'cmNewBtn']) {
         await expect(page.locator('#' + id), id).toHaveCount(1);
       }
       await expect(page.locator('.cm-fab')).toHaveCount(P.hasFab ? 1 : 0);
       await expect(page.locator('#cmToggleBtn')).toBeVisible();
     });
 
-    test('2. bouton 💬 : active/désactive le mode (cadre + pastille)', async ({ page }) => {
+    test('2. bouton du mode : active/désactive (halo + bandeau)', async ({ page }) => {
       await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
       await H.activate(page);
       await expect(page.locator('#cmFrame')).toHaveClass(/show/);
       await expect(page.locator('#cmPill')).toBeVisible();
-      await expect(page.locator('#cmToggleBtn .cm-btn-on')).toBeVisible();
+      await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('#cmPanelBtn')).toHaveAttribute('aria-expanded', 'false');
       await H.deactivate(page);
       await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
       await expect(page.locator('#cmPill')).toBeHidden();
     });
 
     test('3. raccourci clavier propre à la plateforme', async ({ page }) => {
-      await page.keyboard.press(H.SHORTCUT);
+      await page.keyboard.press(H.ANNOTER);
       await expect(page.locator('body')).toHaveClass(/cm-active/);
-      await page.keyboard.press(H.SHORTCUT);
+      await page.keyboard.press(H.ANNOTER);
       await expect(page.locator('body')).not.toHaveClass(/cm-active/);
     });
 
@@ -72,7 +73,8 @@ for (const P of PAGES) {
       expect(data[0].anchor.path).toBeTruthy();       // chemin DOM stable, pas des pixels bruts
       expect(data[0].anchor.relX).toBeGreaterThanOrEqual(0);
       expect(data[0].anchor.relX).toBeLessThanOrEqual(1);
-      await expect(page.locator('#cmCount')).toHaveText('1');
+      await expect(page.locator('#cmPanelSub')).toContainText('1 à suivre');          // le nombre « à suivre » (Léa 2.1)
+      await expect(page.locator('#cmCount')).toHaveAttribute('data-zero', '1');       // voyant : ton propre retour n'est pas du nouveau (C5)
     });
 
     test('5. Annuler / clic ailleurs → rien n’est enregistré', async ({ page }) => {
@@ -132,18 +134,30 @@ for (const P of PAGES) {
     test('9. la pastille reste accrochée à son élément après redimensionnement', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Ancrage');
-      const before = await page.locator(P.pinTarget).first().boundingBox();
-      const pinBefore = await page.locator('.cm-pin').boundingBox();
+      // Ancrage F6 (fiche Reperes) : bord droit de l'épingle aligné sur le cadre de l'élément (16 px de marge),
+      // bord bas 22 px au-dessus de l'élément (6 px au-dessus du cadre), ou 22 px sous lui faute de place en haut.
+      const ancrage = async () => {
+        const cible = await page.locator(P.pinTarget).first().boundingBox();
+        const el = await page.locator('.cm-box-outline').boundingBox();   // boîte de l'élément visé
+        const pin = await page.locator('.cm-pin').boundingBox();
+        const dessous = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-dessous'));
+        return {
+          droite: Math.abs((pin.x + pin.width) - (el.x + el.width + 16)),
+          bas: dessous ? Math.abs(pin.y - (el.y + el.height + 22)) : Math.abs((pin.y + pin.height) - (el.y - 22)),
+          surLaCible: Math.abs((el.x + el.width) - (cible.x + cible.width)) < 30 && Math.abs(el.y - cible.y) < 30,
+          hauteur: pin.height
+        };
+      };
+      const avant = await ancrage();
       await page.setViewportSize({ width: 820, height: 700 });
       await page.waitForTimeout(400); // le recalcul est différé de 150 ms
-      const after = await page.locator(P.pinTarget).first().boundingBox();
-      const pinAfter = await page.locator('.cm-pin').boundingBox();
-      // Point d'ancrage = coin haut-droit de l'élément visé, avant comme après.
-      const dxBefore = Math.abs((pinBefore.x + pinBefore.width / 2) - (before.x + before.width));
-      const dxAfter = Math.abs((pinAfter.x + pinAfter.width / 2) - (after.x + after.width));
-      expect(dxBefore).toBeLessThan(30);
-      expect(dxAfter).toBeLessThan(30);
-      expect(Math.abs(pinAfter.y - after.y)).toBeLessThan(30);
+      const apres = await ancrage();
+      for (const a of [avant, apres]) {
+        expect(a.droite).toBeLessThan(2);
+        expect(a.bas).toBeLessThan(2);
+        expect(a.surLaCible).toBe(true);
+        expect(a.hauteur).toBe(24);
+      }
     });
 
     test('10. les commentaires survivent au rechargement de la page (pastille, contour, surlignage)', async ({ page }) => {
@@ -156,7 +170,7 @@ for (const P of PAGES) {
       await page.locator('.cm-popup textarea').press('Enter');
       const quoteBefore = await page.locator('mark.cm-highlight').allInnerTexts();
       await page.reload();
-      await expect(page.locator('#cmCount')).toHaveText('2');
+      await expect(page.locator('#cmPanelSub')).toContainText('2 à suivre');
       await H.activate(page);
       await expect(page.locator('.cm-pin')).toHaveCount(2);
       await expect(page.locator('.cm-box-outline')).toHaveCount(1);      // contour de la pastille
@@ -196,7 +210,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-panel-item .txt')).toHaveText('Modifié depuis la liste');
       expect((await H.stored(page, P.key))[0].text).toBe('Modifié depuis la liste');
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);           // toujours sélectionné
-      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();      // fermer le tiroir → fin de sélection
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="fermer"]').click();      // fermer le tiroir → fin de sélection
       await expect(page.locator('.cm-pin')).not.toHaveClass(/cm-focus/);
       await page.locator('#cmPanelBtn').click();
       await page.mouse.click(30, 400); // clic en dehors → le bloc se referme…
@@ -249,7 +263,7 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin').nth(1)).toHaveClass(/cm-focus/);
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
       // fermer une bulle par Échap ou Annuler : retour à l'orange immédiat (pas d'effet, réservé à l'enregistrement)
-      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="Fermer"]').click();
+      await page.locator('#cmPanel .cm-panel-head-row button[aria-label="fermer"]').click();
       await page.locator('.cm-pin').nth(0).click();
       await page.keyboard.press('Escape');
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
@@ -263,12 +277,20 @@ for (const P of PAGES) {
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/, { timeout: 3000 });
     });
 
-    test('11b. ouvrir le tiroir abandonne une bulle non enregistrée', async ({ page }) => {
+    test('11b. ouvrir le tiroir abandonne une bulle non enregistrée (après confirmation)', async ({ page }) => {
       await H.activate(page);
       const box = await H.visibleBox(page, P.pinTarget);
       await page.mouse.click(box.x + 5, box.y + 5);
       await page.locator('.cm-popup textarea').fill('pas enregistré');
+      // Le texte n'est pas parti : le bouton witmit demande d'abord (Léa 3.9) ; refuser ne change rien.
+      const messages = [];
+      page.once('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
       await page.locator('#cmPanelBtn').click();
+      await expect(page.locator('.cm-popup textarea')).toHaveValue('pas enregistré');
+      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+      page.once('dialog', (d) => { messages.push(d.message()); d.accept(); });
+      await page.locator('#cmPanelBtn').click();
+      expect(messages).toEqual(["fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.", "fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu."]);
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
       await expect(page.locator('.cm-popup')).toHaveCount(0);
       await expect(page.locator('.cm-box-editing')).toHaveCount(0);
@@ -334,7 +356,9 @@ for (const P of PAGES) {
       await H.addPin(page, P.pinTarget, 'À effacer');
       await H.deactivate(page);
       await page.locator('#cmPanelBtn').click();
-      await page.locator('.cm-panel-foot button', { hasText: 'Effacer (page)' }).click();
+      const question = H.accepterConfirmation(page);                       // « effacer (page) » demande confirmation (Léa 3.9)
+      await page.locator('.cm-panel-foot button', { hasText: 'effacer (page)' }).click();
+      expect(await question).toBe("effacer le retour de cette page ? c'est définitif.");
       await expect(page.locator('.cm-pin')).toHaveCount(0);
       expect(await H.stored(page, P.key)).toHaveLength(0);
       // Vider tout : refuser la confirmation ne supprime rien
@@ -342,25 +366,36 @@ for (const P of PAGES) {
       await page.reload();
       await page.locator('#cmPanelBtn').click();
       page.once('dialog', (d) => d.dismiss());
-      await page.locator('.cm-panel-foot button', { hasText: 'Vider tout' }).click();
+      await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();
       expect(await H.stored(page, P.key)).toHaveLength(1);
-      page.once('dialog', (d) => d.accept());
-      await page.locator('.cm-panel-foot button', { hasText: 'Vider tout' }).click();
-      await expect(page.locator('#cmStatus')).toContainText('supprimés');
+      const q2 = H.accepterConfirmation(page);
+      await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();
+      expect(await q2).toBe("effacer le retour du site ? c'est définitif.");
+      await expect(page.locator('#cmStatus')).toContainText('tous les retours du site sont effacés.');
       expect(await H.stored(page, P.key)).toHaveLength(0);
     });
 
-    test('16. couleurs : la pastille est orange même sans variables CSS TellUs', async ({ page }) => {
+    test('16. couleurs : épingle, verre et encre aux jetons de witmit, que la page ait ses variables CSS ou non', async ({ page }) => {
+      // Jetons de la charte (design system, tokens.css) : le verre prend l'inverse du fond de la page.
+      const JETONS = {
+        'client-sombre': { verre: 'rgba(20, 19, 17, 0.66)', encre: 'rgb(246, 243, 238)' },
+        'client-clair': { verre: 'rgba(236, 232, 224, 0.6)', encre: 'rgb(20, 20, 18)' }
+      };
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
-      await page.waitForTimeout(1800); // laisse passer l'effet teal "vient d'être commenté"
-      const pinBg = await page.locator('.cm-pin').evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(pinBg).toBe('rgb(252, 128, 5)');
+      await page.waitForTimeout(1800); // laisse passer l'effet « vient d'être commenté »
+      // Épingle (fiches Epingle et Reperes) : face en verre des fenêtres choisie d'après le fond derrière elle,
+      // champagne et chiffre encre sur fond clair, graphite et chiffre blanc cassé sur fond sombre.
+      const pin = await page.locator('.cm-pin').evaluate((el) => ({ fond: getComputedStyle(el).backgroundColor, chiffre: getComputedStyle(el).color, sombre: el.classList.contains('wm-sur-sombre') }));
+      expect(pin.fond).toBe(pin.sombre ? JETONS['client-sombre'].verre : JETONS['client-clair'].verre);
+      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].encre : JETONS['client-clair'].encre);
+      const t = await page.getAttribute('body', 'data-wm-theme');
+      expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();
-      const popupBg = await page.locator('.cm-popup').evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(popupBg).toBe('rgb(255, 255, 255)');
+      const popupBg = await page.locator('.cm-popup .wm-verre').evaluate((el) => getComputedStyle(el).backgroundColor); // couche de verre (F2)
+      expect(popupBg).toBe(JETONS[t].verre);
       const popupText = await page.locator('.cm-popup textarea').evaluate((el) => getComputedStyle(el).color);
-      expect(popupText).toBe('rgb(26, 25, 23)');
+      expect(popupText).toBe(JETONS[t].encre);
     });
   });
 }

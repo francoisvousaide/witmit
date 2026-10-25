@@ -1,0 +1,23 @@
+Polices de witmit — servies depuis le même endroit que witmit.js, jamais depuis un service tiers.
+
+witmit les cherche à l'adresse new URL('witmit-polices/', <adresse de witmit.js>).
+Le site hôte peut changer cette adresse avec data-fonts="<adresse du dossier>" sur la balise <script>,
+ou couper le chargement avec data-fonts="none" (polices du système à la place).
+Une police n'est téléchargée qu'au premier texte de witmit qui l'utilise.
+
+Origine : paquets npm @fontsource, récupérés par « npm pack » (aucune dépendance ajoutée au projet).
+Les fichiers .woff2 sont copiés tels quels, sans modification, depuis le dossier files/ de chaque paquet.
+
+| Famille      | Paquet                          | Fichiers gardés                                   |
+| ------------ | ------------------------------- | ------------------------------------------------- |
+| Tektur       | @fontsource/tektur 5.3.0        | latin et latin-ext, graisses 500 et 700           |
+| Martian Mono | @fontsource/martian-mono 5.3.0  | latin et latin-ext, graisses 400, 500 et 600      |
+| Syne         | @fontsource/syne 5.3.0          | latin et latin-ext, graisses 400 et 500           |
+| Doto         | @fontsource/doto 5.3.0          | latin seul, graisse 900                           |
+
+Le sous-ensemble latin couvre le français (œ, Œ, guillemets « », apostrophe ’, €). Le latin-ext n'est
+téléchargé que si un caractère de cette plage s'affiche (unicode-range).
+
+Licence : SIL Open Font License 1.1 pour les quatre familles. Le texte de chaque licence, copié depuis
+le fichier LICENSE de son paquet, est dans OFL-tektur.txt, OFL-martian-mono.txt, OFL-syne.txt et OFL-doto.txt.
+Ces fichiers doivent accompagner les polices partout où elles sont copiées.

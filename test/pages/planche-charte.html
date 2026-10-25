@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planche de la charte witmit</title>
+<!-- Planche de contrôle de la charte « Objet » : complétée à chaque lot de la course d'habillage.
+     Une moitié claire, une moitié sombre, une image vive, et une touche de thème sur le modèle de
+     ThemeToggle.tsx (TellUs) : data-theme sur <html>, le fond du site bascule, witmit doit suivre seul.
+     Aucune ressource extérieure : polices du système, image dessinée en SVG dans la page. -->
+<style>
+  :root { --nav-h: 56px; }
+  html[data-theme="light"] { --fond: #f6f1ea; --texte: #1d1b18; --barre: #e8e1d6; }
+  html[data-theme="dark"]  { --fond: #14161a; --texte: #ece8e1; --barre: #0c0d10; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Georgia, 'Times New Roman', serif; background: var(--fond); color: var(--texte); transition: background-color 200ms ease, color 200ms ease; }
+  .barre { position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); display: flex; align-items: center; gap: 16px; padding: 0 20px; background: var(--barre); z-index: 300; }
+  .barre h1 { font-size: 18px; margin: 0; }
+  .barre .droite { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  #themeBtn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(127,127,127,.5); background: rgba(127,127,127,.15); color: inherit; cursor: pointer; font-size: 14px; }
+  .page { padding: calc(var(--nav-h) + 24px) 24px 120px; }
+  .intro { max-width: 760px; margin: 0 0 24px; line-height: 1.6; }
+  .moities { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 10px; overflow: hidden; }
+  .moitie { padding: 28px; min-height: 520px; }
+  .moitie-claire { background: #f6f1ea; color: #1d1b18; }
+  .moitie-sombre { background: #14161a; color: #ece8e1; }
+  .moitie h2 { margin: 0 0 12px; font-size: 22px; }
+  .moitie p { line-height: 1.6; max-width: 46ch; }
+  .carte { margin: 16px 0; padding: 16px; border-radius: 8px; border: 1px solid rgba(127,127,127,.35); }
+  .moitie-claire .carte { background: #ffffff; }
+  .moitie-sombre .carte { background: #22252b; }
+  .bouton-site { display: inline-block; padding: 8px 14px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .image-vive { display: block; width: 100%; height: 220px; margin-top: 16px; border-radius: 8px; }
+  /* Lot 6 : un petit élément du site (moins de 24 px), pour vérifier qu'il ne garde que les deux coins. */
+  .pastille-site { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 10px; border-radius: 50%; border: 1px solid currentColor; font: 600 11px/1 system-ui, sans-serif; vertical-align: middle; }
+  @media (max-width: 760px) { .moities { grid-template-columns: 1fr; } }
+  /* Lot 2 : spécimens de witmit posés sur le site (fenêtre habillée, touches, icônes, focus). Ils portent la
+     classe cm-ui : witmit les dessine avec son vrai code (window.witmit._planche) et ne les annote pas. */
+  .specimens { position: relative; margin-top: 28px; padding: 36px 28px 40px; border-radius: 10px; overflow: hidden;
+    background: linear-gradient(90deg, #f6f1ea 0 50%, #14161a 50% 100%); }
+  .specimens .rayures { position: absolute; inset: 0; background:
+    repeating-linear-gradient(0deg, transparent 0 22px, rgba(127,127,127,.28) 22px 23px),
+    radial-gradient(circle at 30% 60%, #ff1f8e 0 70px, transparent 71px), radial-gradient(circle at 70% 35%, #00b7ff 0 80px, transparent 81px); pointer-events: none; }
+  .specimens h2 { position: relative; margin: 0 0 18px; font-size: 22px; color: #1d1b18; }
+  .specimens .rangee { position: relative; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .wm-specimen { position: relative; width: 380px; padding: 14px 24px 20px 22px; }
+  .wm-specimen .titre { font-family: var(--wm-font-titre); font-size: 15px; font-weight: 700; line-height: 1.3; margin: 0 0 12px; }
+  .wm-specimen .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+  .wm-specimen .lib { width: 100%; font-size: 12px; color: var(--wm-ink-soft); margin: 0 0 2px; }
+  .wm-specimen .grille { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px; color: var(--wm-ink-soft); }
+  .wm-specimen .grille span { display: flex; align-items: center; gap: 8px; color: var(--wm-ink); }
+  .wm-specimen .grille small { font-size: 12px; color: var(--wm-ink-soft); }
+  /* Lot 3 : les deux boutons ronds, en métal sombre (site clair) et clair (site sombre), dans leurs trois états. */
+  .boutons { position: relative; margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 10px; overflow: hidden; }
+  .boutons .fond { padding: 28px 24px 32px; }
+  .boutons .fond-clair { background: #f6f1ea; color: #1d1b18; }
+  .boutons .fond-sombre { background: #14161a; color: #ece8e1; }
+  .boutons h2 { margin: 0 0 18px; font-size: 22px; }
+  .boutons .etats { display: flex; flex-wrap: wrap; gap: 28px; }
+  .boutons .etat { display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 13px; text-align: center; }
+  .boutons .paire { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+<header class="barre">
+  <h1>Planche de la charte</h1>
+  <div class="droite">
+    <span id="themeNom">thème clair</span>
+    <button type="button" id="themeBtn" aria-label="Passer en mode sombre">🌙</button>
+  </div>
+</header>
+
+<main class="page">
+  <p class="intro">Cette page sert de témoin à l'habillage de witmit. Le fond du site suit la touche ronde en haut à droite ; witmit doit prendre l'inverse tout seul : verre graphite sur un site clair, verre champagne sur un site sombre.</p>
+
+  <div class="moities">
+    <section class="moitie moitie-claire" id="moitieClaire">
+      <h2>Moitié claire</h2>
+      <p>Un paragraphe de texte courant, assez long pour y poser un passage souligné, une épingle ou un cadre de zone, et voir comment les repères se lisent sur un fond clair.</p>
+      <div class="carte" id="carteClaire">
+        <strong>Carte claire</strong>
+        <p>Un élément de taille moyenne, à viser d'un clic.</p>
+        <button type="button" class="bouton-site" id="boutonClair">Bouton du site</button><span class="pastille-site" id="petitClair" title="information">i</span>
+      </div>
+    </section>
+    <section class="moitie moitie-sombre" id="moitieSombre">
+      <h2>Moitié sombre</h2>
+      <p>Le même texte sur un fond sombre : les repères doivent y rester lisibles, et le verre de witmit laisser deviner ce qu'il recouvre.</p>
+      <div class="carte" id="carteSombre">
+        <strong>Carte sombre</strong>
+        <p>Un élément de taille moyenne, à viser d'un clic.</p>
+        <button type="button" class="bouton-site" id="boutonSombre">Bouton du site</button><span class="pastille-site" id="petitSombre" title="information">i</span>
+      </div>
+      <svg class="image-vive" id="imageVive" viewBox="0 0 600 220" preserveAspectRatio="none" role="img" aria-label="Image vive">
+        <defs>
+          <linearGradient id="vif1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ff1f8e"/>
+            <stop offset=".35" stop-color="#7b2cff"/>
+            <stop offset=".7" stop-color="#00b7ff"/>
+            <stop offset="1" stop-color="#14e06b"/>
+          </linearGradient>
+          <radialGradient id="vif2" cx=".75" cy=".3" r=".5">
+            <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/>
+            <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <rect width="600" height="220" fill="url(#vif1)"/>
+        <rect width="600" height="220" fill="url(#vif2)"/>
+        <circle cx="120" cy="150" r="60" fill="#1a1aff" opacity=".7"/>
+        <circle cx="300" cy="70" r="42" fill="#ff00c8" opacity=".6"/>
+      </svg>
+    </section>
+  </div>
+
+  <section class="specimens" id="specimens">
+    <div class="rayures"></div>
+    <h2>Fenêtres, touches, icônes et focus</h2>
+    <div class="rangee">
+      <div class="cm-ui wm-specimen" id="specimenTouches"></div>
+      <div class="cm-ui wm-specimen" id="specimenIcones" style="width:480px"></div>
+    </div>
+  </section>
+
+  <section class="boutons" id="specimensBoutons">
+    <div class="fond fond-clair"><h2>Boutons sur un site clair</h2><div class="etats" id="boutonsSurClair"></div></div>
+    <div class="fond fond-sombre"><h2>Boutons sur un site sombre</h2><div class="etats" id="boutonsSurSombre"></div></div>
+  </section>
+</main>
+
+<script>
+  // Même mécanique que ThemeToggle.tsx de TellUs : data-theme sur <html>, rien d'autre.
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var d = document.documentElement;
+    var suivant = d.dataset.theme === 'dark' ? 'light' : 'dark';
+    d.dataset.theme = suivant;
+    this.textContent = suivant === 'dark' ? '☀️' : '🌙';
+    this.setAttribute('aria-label', suivant === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
+    document.getElementById('themeNom').textContent = suivant === 'dark' ? 'thème sombre' : 'thème clair';
+  });
+</script>
+<script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"></script>
+<script>
+  // Spécimens du lot 2, dessinés avec le vrai code de witmit (habiller, icônes).
+  (function () {
+    var P = window.witmit && window.witmit._planche;
+    if (!P) return;
+    var i = P.icone;
+    var t = document.getElementById('specimenTouches');
+    t.innerHTML =
+      '<p class="titre">Ton retour sur ce bouton</p>' +
+      '<div class="ligne"><span class="lib">principale · secondaire · annuler</span>' +
+        '<button type="button" class="wm-touche wm-principale" id="specPrincipale">envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche" id="specSecondaire">' + i('Bug', 16) + 'bug fonctionnel</button>' +
+        '<button type="button" class="wm-texte" id="specAnnuler">annuler</button></div>' +
+      '<div class="ligne"><span class="lib">désactivé · petite · enfoncée</span>' +
+        '<button type="button" class="wm-touche wm-principale" id="specDesactivee" disabled>envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche wm-petite" id="specPetite">terminer</button>' +
+        '<button type="button" class="wm-touche" aria-pressed="true" id="specEnfoncee">' + i('Tag', 16) + 'à classer</button></div>' +
+      '<div class="ligne"><span class="lib">icônes cerclées · désactivée · voyant</span>' +
+        '<button type="button" class="wm-cercle" aria-label="fermer" title="fermer" id="specFermer">' + i('X', 14) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="supprimer ce retour" title="supprimer ce retour" id="specSupprimer">' + i('Trash', 15) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="marquer résolu" title="marquer résolu" id="specResolu">' + i('Check', 15) + '</button>' +
+        '<button type="button" class="wm-cercle" aria-label="supprimer (indisponible)" disabled id="specCercleOff">' + i('Trash', 15) + '</button>' +
+        '<span class="wm-voyant" title="voyant" id="specVoyant">nouveau</span></div>' +
+      '<div class="ligne"><span class="lib">champ (coupe de 6 px)</span>' +
+        '<span class="wm-champ" style="width:100%"><textarea class="wm-specimen-champ" id="specChamp" rows="2" style="width:100%;min-height:64px;resize:none;padding:9px 12px;border:1px solid var(--wm-line);background:var(--wm-surface-raised);font:500 14px/1.45 var(--wm-font-voix);color:var(--wm-ink)">Le bouton est trop petit</textarea></span></div>' +
+      '<div class="ligne" style="margin:0"><span class="lib">raccourcis</span>' +
+        '<span class="wm-repere">' + i('Command', 12) + '</span><span class="wm-repere">' + i('Option', 12) + '</span><span class="wm-repere">N</span><span class="wm-repere">échap</span></div>';
+    P.habiller(t);
+    var g = document.getElementById('specimenIcones');
+    g.innerHTML = '<p class="titre">Icônes (Phosphor Regular)</p><div class="grille">' +
+      P.icones.map(function (n) { return '<span>' + i(n, 16) + '<small>' + n + '</small></span>'; }).join('') + '</div>';
+    P.habiller(g);
+    // Lot 3 : spécimens des deux boutons (au repos avec du nouveau, mode actif, liste ouverte), métal forcé.
+    function paire(metal, modeActif, listeOuverte, nouveau) {
+      return '<div class="paire cm-ui">' +
+        '<button type="button" class="wm-bouton wm-bouton-mode ' + metal + '" aria-label="mode annotation" aria-pressed="' + modeActif + '">' + i('CrosshairSimple', 20) + '</button>' +
+        '<button type="button" class="wm-bouton wm-bouton-witmit ' + metal + '" aria-label="' + (nouveau ? 'witmit, 2 nouveaux retours' : 'witmit') + '" aria-expanded="' + listeOuverte + '">' +
+          '<span class="wm-signe">' + P.signe + '</span>' + (nouveau ? '<span class="cm-count-badge" data-zero="0" aria-hidden="true">2</span>' : '') + '</button></div>';
+    }
+    function etats(metal) {
+      return '<div class="etat">' + paire(metal, false, false, true) + '<span>au repos, du nouveau<br><b>les deux levés</b></span></div>' +
+        '<div class="etat">' + paire(metal, true, false, false) + '<span>mode annotation<br><b>viseur enfoncé</b></span></div>' +
+        '<div class="etat">' + paire(metal, false, true, false) + '<span>liste ouverte<br><b>witmit enfoncé</b></span></div>';
+    }
+    document.getElementById('boutonsSurClair').innerHTML = etats('wm-metal-sombre');
+    document.getElementById('boutonsSurSombre').innerHTML = etats('wm-metal-clair');
+  })();
+</script>
+</body>
+</html>

@@ -25,7 +25,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');
     await shiftClick(page, 'tbody tr:nth-child(2) td:nth-child(4)');
     await expect(page.locator('.cm-box-editing')).toHaveCount(3);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('📍 3 éléments — 1 240 €, 37, En retard');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('3 éléments : 1 240 €, 37, En retard');
     await page.locator('.cm-popup textarea').fill('Ces trois chiffres doivent utiliser la même police');
     await page.locator('.cm-popup textarea').press('Enter');
     await expect(page.locator('.cm-box-outline')).toHaveCount(3);
@@ -34,7 +34,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await expect(page.locator('.cm-pin.cm-pin-secondary').first()).toHaveText('1');
     const data = await H.stored(page, KEY);
     expect(data).toHaveLength(1);
-    expect(data[0].zone).toBe('3 éléments — 1 240 €, 37, En retard');
+    expect(data[0].zone).toBe('3 éléments : 1 240 €, 37, En retard');
     expect(data[0].targets).toHaveLength(3);
     expect(data[0].targets[2].label).toBe('En retard');
     await expect(page.locator('#cmLinks line')).toHaveCount(2); // lignes fines par défaut
@@ -48,7 +48,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await expect(page.locator('.cm-box-editing')).toHaveCount(2);
     await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');
     await expect(page.locator('.cm-box-editing')).toHaveCount(1);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('📍 1 240 €');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('1 240 €');
     await shiftClick(page, '.kpi-tile:nth-child(1) .kpi-value');
     await expect(page.locator('.cm-box-editing')).toHaveCount(1);
   });
@@ -70,7 +70,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await page.locator('.cm-popup textarea').press('Enter');
     const data = await H.stored(page, KEY);
     expect(data[0].targets).toHaveLength(3);
-    expect(data[0].zone).toBe('3 éléments — 1 240 €, 37, 33,5 €');
+    expect(data[0].zone).toBe('3 éléments : 1 240 €, 37, 33,5 €');
     await expect(page.locator('.cm-box-outline')).toHaveCount(3);
   });
 

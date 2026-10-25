@@ -41,7 +41,7 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     const t1 = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
     const t2 = await H.visibleBox(page, '.kpi-tile:nth-child(2)');
     await H.drag(page, t1.x - 4, t1.y - 4, t1.x + t1.width + 4, t1.y + t1.height + 4);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('🔲 Zone encadrée — Chiffre du jour, 1 240 €');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('zone encadrée : Chiffre du jour, 1 240 €');
     await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
     // on tire la poignée "e" (côté droit) jusqu'à couvrir la 2e tuile
     const h = await page.locator('.cm-handle-e').boundingBox();
@@ -52,7 +52,7 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await page.locator('.cm-popup textarea').press('Enter');
     await expect(page.locator('.cm-handle')).toHaveCount(0); // poignées retirées après enregistrement
     const data = await H.stored(page, KEY);
-    expect(data[0].zone).toBe('Zone encadrée — Chiffre du jour, 1 240 €, Commandes (+1)');
+    expect(data[0].zone).toBe('zone encadrée : Chiffre du jour, 1 240 €, Commandes (+1)');
     expect(data[0].fallback.w).toBeGreaterThan(t2.x + t2.width - t1.x - 10);
     // le repère rendu couvre bien les deux tuiles
     const saved = await page.locator('.cm-box-saved').boundingBox();
@@ -138,4 +138,149 @@ test('curseurs : main ouverte sur la poignée de la barre, flèche ailleurs, poi
   expect(await cur('#cmPill')).toBe('default');
   expect(await cur('#cmPill button')).toBe('pointer');
   expect(await cur('#cmToggleBtn')).toBe('pointer');
+});
+
+// ---------- Lot 4 : fenêtre de saisie (fiche Fenetre ; textes de Léa 3.7 et 3.8) ----------
+
+const titre = (page) => page.locator('.cm-popup .cm-titre');
+
+test('« envoyer » / « enregistrer » désactivée tant que le champ est vide ; entrée : une phrase, sans rouge', async ({ page }) => {
+  for (const [nom, touche, phrase] of [['generic-dashboard.html', 'enregistrer', "écris ton retour avant d'enregistrer."],
+                                       ['generic-dashboard-live.html', 'envoyer', "écris ton retour avant d'envoyer."]]) {
+    await page.goto(H.fileUrl(nom));
+    await H.clearStorage(page); await page.reload();
+    if (nom.includes('live')) await H.montrer(page);
+    await H.activate(page);
+    const b = await H.visibleBox(page, 'tbody tr:first-child td:nth-child(2)');
+    await page.mouse.click(b.x + 5, b.y + 5);
+    const ta = page.locator('.cm-popup textarea'), save = page.locator('.cm-popup .cm-save'), refus = page.locator('.cm-popup .cm-refus');
+    await expect(save, nom).toHaveText(touche);
+    await expect(save.locator('svg[data-icone="ArrowElbowDownLeft"]'), nom).toHaveCount(1);
+    await expect(save, nom).toBeDisabled();
+    await expect(refus, nom).toBeHidden();
+    await ta.press('Enter');                                   // rien ne part, la fenêtre reste ouverte
+    await expect(page.locator('.cm-popup'), nom).toHaveCount(1);
+    await expect(refus, nom).toBeVisible();
+    await expect(refus, nom).toHaveText(phrase);
+    await expect(refus.locator('svg[data-icone="Info"]'), nom).toHaveCount(1);
+    const couleurs = await page.evaluate(() => {
+      const r = document.querySelector('.cm-popup .cm-refus'), cs = getComputedStyle(r);
+      const ink = getComputedStyle(document.querySelector('.cm-popup')).getPropertyValue('--wm-ink').trim();
+      const t = document.createElement('span'); t.style.color = ink; r.appendChild(t); const attendu = getComputedStyle(t).color; t.remove();
+      return { texte: cs.color, icone: getComputedStyle(r.querySelector('svg')).color, attendu };
+    });
+    expect(couleurs.texte, nom).toBe(couleurs.attendu);       // encre de la fenêtre, jamais le rouge signal
+    expect(couleurs.icone, nom).toBe(couleurs.attendu);
+    expect(await H.stored(page, nom.includes('live') ? 'witmit_kiosque-live_v1' : KEY), nom).toHaveLength(0);
+    await ta.pressSequentially('x');                           // la phrase disparaît dès la première lettre
+    await expect(refus, nom).toBeHidden();
+    await expect(save, nom).toBeEnabled();
+    await ta.fill('   ');
+    await expect(save, nom).toBeDisabled();                    // des espaces seuls ne comptent pas
+    await page.keyboard.press('Escape');
+  }
+});
+
+test('titre selon le type de cible ; tête-poignée, élément visé sur une ligne, croix « annuler »', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  const clic = async (sel) => { const b = await H.visibleBox(page, sel); await page.mouse.click(b.x + 4, b.y + 4); await expect(page.locator('.cm-popup')).toBeVisible(); };
+  await clic('#tabBtnOrders');
+  await expect(titre(page)).toHaveText('Ton retour sur ce bouton');
+  // tête : poignée entière (info-bulle), élément visé en dessous (poignée, icône du type, libellé complet en info-bulle)
+  await expect(page.locator('.cm-popup .cm-tete')).toHaveAttribute('title', 'glisse pour déplacer la fenêtre');
+  await expect(page.locator('.cm-popup .cm-zone svg')).toHaveCount(2);
+  await expect(page.locator('.cm-popup .cm-zone svg').first()).toHaveAttribute('data-icone', 'DotsSixVertical');
+  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'CursorClick');
+  await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveAttribute('title', 'Commandes');
+  expect(await page.locator('.cm-popup .cm-zone-txt').evaluate((el) => getComputedStyle(el.parentNode).whiteSpace + ' ' + getComputedStyle(el).textOverflow)).toBe('nowrap ellipsis');
+  await expect(page.locator('.cm-popup .cm-fermer')).toHaveAccessibleName('annuler');
+  await expect(page.locator('.cm-popup .cm-libelle').first()).toHaveText('ce que tu as remarqué');
+  await expect(page.locator('.cm-popup textarea')).toHaveAccessibleName('ce que tu as remarqué');
+  await expect(page.locator('.cm-popup textarea')).toHaveAttribute('placeholder', 'ta remarque, ta question ou ta critique… (maj+entrée : nouvelle ligne)');
+  await expect(page.locator('.cm-popup .cm-libelle-cat')).toHaveText('catégorie');
+  await expect(page.locator('.cm-popup .cm-cancel')).toHaveText('annuler');
+  await expect(page.locator('.cm-popup .cm-aide-multi')).toBeHidden();
+  await page.locator('.cm-popup .cm-fermer').click();       // la croix ferme comme échap
+  await expect(page.locator('.cm-popup')).toHaveCount(0);
+  await clic('nav a:last-child');                         // (le premier lien est sous le bandeau du mode, posé en haut de cette page sans --nav-h)
+  await expect(titre(page)).toHaveText('Ton retour sur ce lien');
+  await page.keyboard.press('Escape');
+  await clic('.kpi-tile:nth-child(1) .kpi-value');
+  await expect(titre(page)).toHaveText('Ton retour sur cet élément');
+  // plusieurs éléments (⌘/ctrl+clic sur deux autres) : titre au nombre près, icône SelectionPlus, ligne d'aide
+  const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
+  for (const sel of ['.kpi-tile:nth-child(2) .kpi-value', '.kpi-tile:nth-child(3) .kpi-value']) {
+    const r = await H.visibleBox(page, sel);
+    await page.keyboard.down(MOD); await page.mouse.click(r.x + 5, r.y + 5); await page.keyboard.up(MOD);
+  }
+  await expect(titre(page)).toHaveText('Ton retour sur ces 3 éléments');
+  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'SelectionPlus');
+  await expect(page.locator('.cm-popup .cm-aide-multi')).toBeVisible();
+  await expect(page.locator('.cm-popup .cm-aide-multi')).toHaveText(process.platform === 'darwin' ? 'cmd+clic : ajouter ou retirer un élément' : 'ctrl+clic : ajouter ou retirer un élément');
+  await page.keyboard.press('Escape');
+  // une zone encadrée, un passage de texte
+  const t = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
+  await H.drag(page, t.x - 4, t.y - 4, t.x + t.width + 4, t.y + t.height + 4);
+  await expect(titre(page)).toHaveText('Ton retour sur cette zone');
+  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'BoundingBox');
+  await page.keyboard.press('Escape');
+  const c = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
+  await page.mouse.dblclick(c.x + 12, c.y + c.height / 2);
+  await expect(titre(page)).toHaveText('Ton retour sur ce texte');
+  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'TextT');
+  await page.keyboard.press('Escape');
+  // un champ du site (onglet « Nouvelle commande »)
+  await H.deactivate(page);
+  await page.locator('#tabBtnForm').click();
+  await H.activate(page);
+  await clic('#client');
+  await expect(titre(page)).toHaveText('Ton retour sur ce champ');
+  await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveText('champ Nom du client');
+});
+
+test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la charte ; rien du focus de la page hôte', async ({ page }) => {
+  await page.goto(H.fileUrl('tellus-accueil.html'));          // la page pose « :focus-visible { box-shadow } »
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  const b = await H.visibleBox(page, '.mcard.active .mcard-title');
+  await page.mouse.click(b.x + 5, b.y + 5);                   // fenêtre ouverte par un clic souris
+  const ta = page.locator('.cm-popup textarea');
+  await expect(ta).toBeFocused();
+  const etat = () => ta.evaluate((el) => {
+    const cs = getComputedStyle(el), anneau = getComputedStyle(el.parentNode, '::after');
+    const t = document.createElement('span'); t.style.color = getComputedStyle(el).getPropertyValue('--wm-line-strong'); el.parentNode.appendChild(t);
+    const fort = getComputedStyle(t).color; t.remove();
+    return { ombre: cs.boxShadow, contour: cs.outlineStyle, resize: cs.resize, police: cs.fontFamily, coupe: cs.clipPath,
+      trait: cs.borderTopColor, fort, anneau: anneau.content, anneauClip: anneau.clipPath };
+  });
+  // 1. Après le clic : seulement le trait line-strong (fiche Etats : jamais d'anneau au clic souris).
+  let st = await etat();
+  expect(st.anneau).toBe('none');
+  expect(st.trait).toBe(st.fort);
+  expect(st.ombre).toBe('none');                               // aucune ombre de focus de la page hôte
+  expect(st.contour).toBe('none');
+  expect(st.resize).toBe('none');                              // pas de poignée rognée par le coin coupé
+  expect(st.police).toContain('Syne');
+  expect(st.coupe).toContain('polygon');
+  await ta.pressSequentially('du texte');                      // taper ne fait pas apparaître l'anneau
+  expect((await etat()).anneau).toBe('none');
+  // 2. Tab vers la catégorie, puis maj+Tab vers le champ : l'anneau de la charte, qui suit les coins.
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.cm-popup .cm-cat')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(ta).toBeFocused();
+  st = await etat();
+  expect(st.anneau).not.toBe('none');
+  expect(st.anneauClip).toContain('polygon');
+  expect(st.ombre).toBe('none');
+  // 3. Un nouveau clic dans le champ retire l'anneau.
+  const r = await ta.boundingBox();
+  await page.mouse.click(r.x + 20, r.y + 20);
+  expect((await etat()).anneau).toBe('none');
+  // Le champ grandit avec le texte au lieu d'une poignée.
+  const h0 = (await ta.boundingBox()).height;
+  await ta.fill('une ligne\nune autre\nencore une\net une quatrième\net une cinquième');
+  expect((await ta.boundingBox()).height).toBeGreaterThan(h0);
 });
