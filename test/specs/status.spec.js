@@ -21,6 +21,19 @@ async function copyReport(page, accept) {
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
+test('marquer un seul retour : la confirmation est au singulier, « sans le marquer » (Léa 3.9, accords)', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  await H.addPin(page, '.kpi-tile:nth-child(1) .kpi-value', 'Seul');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  const confirmation = new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.dismiss(); resolve(m); }));
+  await page.locator('.cm-panel-foot button', { hasText: 'copier' }).click();
+  expect(await confirmation).toMatch(/^marquer 1 retour comme signalé dans le rapport R-\d{4}-\d{2}-\d{2}-\d+ \? il ne sera plus modifiable\. annuler : le rapport est créé sans le marquer\.$/);
+  await expect(page.locator('#cmStatus')).toContainText('copié');
+});
+
 test.describe('Cycle de vie (Kiosque)', () => {
   test('✓ = résolu par moi : verrouillé, grisé, compteurs, persistant ; pas de retour arrière', async ({ page }) => {
     await setup(page);

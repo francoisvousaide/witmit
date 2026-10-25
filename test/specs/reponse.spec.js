@@ -312,10 +312,16 @@ test('12. réponse en 500 « publiée mais non enregistrée », puis réouvertur
   await page.waitForTimeout(2000);
   expect(state.replies).toHaveLength(2);
   await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(1)).toHaveAttribute('title', 'witmit ne sait pas si ton message est parti.');
-  // × abandonner : le message part de la liste, sans jamais repartir au guichet
-  page.once('dialog', (d) => d.accept());
+  // × : le message part de la liste, sans jamais repartir au guichet. En 500, il a pu arriver à l'équipe : la
+  // confirmation dit « retirer d'ici », pas « il n'est pas parti » (Léa 3.9 complétée au lot 8).
+  const confirmation = H.accepterConfirmation(page);
   await page.locator('.cm-msg-pending .cm-msg-drop').first().click();
+  expect(await confirmation).toBe("retirer ce message d'ici ? il ne sera pas renvoyé.");
   await expect(page.locator('.cm-msg-pending')).toHaveCount(1);
+  const confirmation2 = H.accepterConfirmation(page);
+  await page.locator('.cm-msg-pending .cm-msg-drop').first().click();
+  expect(await confirmation2).toBe("retirer ce message d'ici ? il ne sera pas renvoyé.");
+  await expect(page.locator('.cm-msg-pending')).toHaveCount(0);
   expect(state.replies).toHaveLength(2);
 });
 
@@ -354,4 +360,9 @@ test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien n
   await rouvrirTiroir(page);
   await page.waitForTimeout(2000);
   expect(state.replies).toHaveLength(3);
+  // × sur un message refusé (413, pas un 500) : la confirmation garde « il n'est pas parti »
+  const confirmation = H.accepterConfirmation(page);
+  await page.locator('.cm-msg-pending .cm-msg-drop').first().click();
+  expect(await confirmation).toBe("abandonner ce message ? il n'est pas parti et sera effacé.");
+  await expect(page.locator('.cm-msg-pending')).toHaveCount(2);
 });

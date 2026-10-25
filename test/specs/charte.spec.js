@@ -807,3 +807,59 @@ test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre n
   expect(chevauche(pop, pin)).toBe(false);
   expect(chevauche(pop, box)).toBe(false);
 });
+
+// Lot 8, relecture de Paula : le message passager ne couvre jamais les deux boutons (fiche BoutonWitmit), et le texte
+// d'aide du champ tient dans le champ (fiche Fenetre, Corps).
+test('27. message passager : jamais sur les deux boutons, liste ouverte (1280, 1100, 900 px) ou fermée (600 px)', async ({ page }) => {
+  test.setTimeout(40000);
+  const seTouchent = () => page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    const s = r('cmStatus'), inter = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    return { mode: inter(s, r('cmToggleBtn')), witmit: inter(s, r('cmPanelBtn')), largeur: s.width, bas: Math.round(innerHeight - s.bottom) };
+  });
+  for (const [w, liste] of [[1280, true], [1100, true], [900, true], [600, false], [1280, false]]) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await page.goto(H.fileUrl('generic-dashboard.html'));
+    await H.clearStorage(page); await page.reload();
+    await page.locator('#cmPanelBtn').click();
+    await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector('#cmReportFoot .wm-touche:last-child').click());   // échec long : pas d'adresse d'envoi
+    if (!liste) { await page.locator('#cmPanelBtn').click(); await page.waitForTimeout(400); }
+    await expect(page.locator('#cmStatus')).toHaveClass(/show/);
+    const t = await seTouchent();
+    expect(t.mode, `${w} px, liste ${liste}`).toBe(false);
+    expect(t.witmit, `${w} px, liste ${liste}`).toBe(false);
+    expect(t.largeur, `${w} px`).toBeGreaterThan(300);                 // message long : plusieurs lignes, pas un mot
+    if (liste) {
+      expect(t.bas, `${w} px`).toBe(84);
+      // centré dans l'espace à gauche de la liste
+      const c = await page.evaluate(() => { const s = document.getElementById('cmStatus').getBoundingClientRect(), p = document.getElementById('cmPanel').getBoundingClientRect(); return { centre: s.left + s.width / 2, libre: document.documentElement.clientWidth - p.width - 8, droite: s.right, liste: p.left }; });
+      expect(Math.abs(c.centre - c.libre / 2), `${w} px`).toBeLessThanOrEqual(1);
+      expect(c.droite, `${w} px`).toBeLessThanOrEqual(c.liste);
+    } else expect(t.bas, `${w} px`).toBe(w <= 680 ? 84 : 20);
+  }
+});
+
+test('28. fenêtre : le texte d’aide du champ vide tient dans le champ, sans être rogné', async ({ page }) => {
+  for (const [nom, cible] of PAGES_LOT2) {
+    await page.goto(H.fileUrl(nom));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, cible);
+    await page.mouse.click(b.x + 4, b.y + 4);
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+    const m = await page.locator('.cm-popup textarea').evaluate((ta) => {
+      const cs = getComputedStyle(ta), ph = getComputedStyle(ta, '::placeholder');
+      const sonde = document.createElement('div');
+      Object.assign(sonde.style, { position: 'absolute', visibility: 'hidden', boxSizing: 'content-box', width: (ta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) + 'px',
+        fontFamily: ph.fontFamily, fontSize: ph.fontSize, lineHeight: ph.lineHeight, fontWeight: ph.fontWeight, letterSpacing: cs.letterSpacing, whiteSpace: 'pre-wrap', overflowWrap: 'break-word' });
+      sonde.textContent = ta.placeholder;
+      document.body.appendChild(sonde);
+      const aide = sonde.getBoundingClientRect().height; sonde.remove();
+      return { aide, place: ta.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), lignes: Math.round(aide / parseFloat(ph.lineHeight)) };
+    });
+    expect(m.lignes, nom).toBeGreaterThan(1);
+    expect(m.aide, nom).toBeLessThanOrEqual(m.place + 0.5);
+    await page.keyboard.press('Escape');
+  }
+});

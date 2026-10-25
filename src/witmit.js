@@ -701,7 +701,7 @@
   /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), Syne 14 px. Sans
      poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
      Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
-  .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:64px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
+  .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
     border:1px solid var(--wm-line); border-radius:0; background:var(--wm-surface-raised); box-shadow:none; outline:none;
     font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
@@ -935,6 +935,9 @@
   .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
   .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
   @media (max-width:480px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
+  /* Entre 481 et 680 px, liste fermée, un message centré atteindrait les deux boutons du coin : il monte aussi à 84 px
+     (fiche BoutonWitmit : les deux boutons restent toujours visibles). Liste ouverte : placerStatus(). */
+  @media (min-width:481px) and (max-width:680px) { .cm-status { bottom:84px; } }
   @media (prefers-reduced-motion:reduce) { .cm-status, .cm-status > * { transition:none; } }
 `;
   var HTML = `
@@ -1498,7 +1501,10 @@
   window.cmRetryReply = function (id, rid) { var c = findComment(id), r = c && findReply(c, rid); if (r && renvoiPermis(r.sync)) { r.sync = null; scheduleReply(c, r); } };
   window.cmDropReply = function (id, rid) {
     var c = findComment(id), r = c && findReply(c, rid);
-    if (!r || (r.sync && r.sync.state === 'pending') || !confirm("abandonner ce message ? il n'est pas parti et sera effacé.")) return;
+    // Message en erreur 500 (réponse ou réouverture) : il a pu arriver à l'équipe et ne sera jamais renvoyé ; « × » le
+    // retire seulement d'ici (Léa 3.9 complétée au lot 8). Les autres gardent « il n'est pas parti ».
+    var en500 = r && r.sync && r.sync.state === 'error' && r.sync.status === 500;
+    if (!r || (r.sync && r.sync.state === 'pending') || !confirm(en500 ? "retirer ce message d'ici ? il ne sera pas renvoyé." : "abandonner ce message ? il n'est pas parti et sera effacé.")) return;
     c.replies = c.replies.filter(function (x) { return x !== r; });
     persist(); renderList();
     cmStatus('message abandonné.', { type: 'fait' });
@@ -3681,6 +3687,7 @@
     if (CONFIG.drawer === 'push') pushPage(show && !etroit ? panel.offsetWidth : 0);
     placerBoutons();
     placerBandeau();
+    placerStatus();
     majBoutons();
   };
   function placerBoutons() {
@@ -3700,6 +3707,20 @@
     fab.classList.add('wm-decale');
   }
   window.addEventListener('resize', placerBoutons);
+  /* Message passager, liste ouverte sur ordinateur : il monte à 84 px du bas (au-dessus des deux boutons, décalés à
+     gauche de la liste) et se centre dans l'espace libre à gauche de la liste, comme le bandeau (placeLibreBandeau).
+     Liste fermée ou écran étroit : la règle CSS (20 px, ou 84 px sous 680 px). */
+  function placerStatus() {
+    var el = document.getElementById('cmStatus');
+    if (!el) return;
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    if (!listeOuverte() || etroit) { el.style.bottom = ''; el.style.left = ''; el.style.maxWidth = ''; return; }
+    var libre = placeLibreBandeau();
+    el.style.bottom = '84px';
+    el.style.left = Math.round(libre / 2) + 'px';
+    el.style.maxWidth = 'min(420px, ' + Math.max(200, libre - 16) + 'px)';
+  }
+  window.addEventListener('resize', placerStatus);
 
   /* ---------- le tiroir POUSSE la page au lieu de la recouvrir ----------
      Une page ne peut pas rétrécir sa propre fenêtre (seule une extension de navigateur le peut) :
@@ -4225,7 +4246,7 @@
     var toMark = items.filter(function (c) { return c.status === 'nouveau' || hasPendingReply(c); }).length;
     var marked = 0;
     if (toMark) {
-      if (window.confirm('marquer ' + (toMark > 1 ? toMark + ' retours comme signalés' : '1 retour comme signalé') + ' dans le rapport ' + id + ' ? ' + (toMark > 1 ? 'ils ne seront plus modifiables' : 'il ne sera plus modifiable') + '. annuler : le rapport est créé sans les marquer.')) marked = markReported(items, id);
+      if (window.confirm('marquer ' + (toMark > 1 ? toMark + ' retours comme signalés' : '1 retour comme signalé') + ' dans le rapport ' + id + ' ? ' + (toMark > 1 ? 'ils ne seront plus modifiables' : 'il ne sera plus modifiable') + '. annuler : le rapport est créé ' + (toMark > 1 ? 'sans les marquer' : 'sans le marquer') + '.')) marked = markReported(items, id);
     }
     return { id: id, md: md, items: items, marked: marked };
   }
