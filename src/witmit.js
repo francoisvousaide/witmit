@@ -587,36 +587,40 @@
   .cm-pill.wm-deux-lignes .wm-gestes { grid-area:gestes; padding-left:6px; line-height:24px; }
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
-     Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141412 sur fond
-     clair, #f6f3ee sur fond sombre (classe wm-sur-sombre posée au dessin). Jamais de couleur de marque ni
-     d'aplat ; le jaune n'apparaît que dans le voyant « nouveau » de l'épingle. Mesures en pixels fixes. Les
+     Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
+     clair, #f4f4f4 sur fond sombre (classe wm-sur-sombre posée au dessin). Jamais d'aplat ; sur le site, seulement
+     cette encre, le gris (ou l'orange) des cadres et le voyant orange « nouveau » de l'épingle. Mesures en pixels fixes. Les
      états se lisent à la matière et au trait : repos, nouveau (voyant), actif (métal, traits pleins), traité
      (pointillés). Ordre des couches inchangé : cadres 820-830, onde 825, liens 835, épingles 840. */
   .cm-pin, .cm-box, .wm-onde, mark.cm-highlight { --wm-encre: var(--wm-encre-repere); --wm-encre-55: var(--wm-encre-repere-55); --wm-encre-inverse: var(--wm-encre-repere-claire); }
   .cm-ui.wm-sur-sombre, mark.cm-highlight.wm-sur-sombre { --wm-encre: var(--wm-encre-repere-claire); --wm-encre-55: var(--wm-encre-repere-claire-55); --wm-encre-inverse: var(--wm-encre-repere); }
 
-  /* Épingle (F6) : touche de verre de 24 px de haut, qui s'élargit avec le numéro ; quatre coins arrondis à
-     6 px (radius-epingle, V2) ; deux petits crochets witmit à l'intérieur, à 3 px du bord, en haut à gauche et
-     en bas à droite (::before : trait de 2 px, coude arrondi de 1,5 px, bras --wm-coin-pin) ; zone cliquable de
-     44 px (::after transparent). Son bord droit s'aligne sur le cadre de l'élément, son bord bas 6 px au-dessus
-     du cadre : le point posé en JS est ce coin bas droit (translate -100 %, -100 %). */
-  .cm-pin { --wm-coin-pin: 6px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:var(--wm-radius-epingle); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
+  /* Épingle (fiche Epingle, V2) : pastille de verre de 24 px de haut, qui s'élargit avec le numéro (marges de
+     7 px) ; quatre coins arrondis à 6 px (radius-epingle) ; deux petits crochets witmit à l'intérieur, à 3 px du
+     bord, en haut à gauche et en bas à droite (::before : trait de 2 px, coude arrondi de 1,5 px, bras
+     --wm-coin-pin) ; zone cliquable de 44 px (::after transparent). Verre des fenêtres (décision a3 de François) :
+     72 % en clair, 70 % en sombre, flou de 40 px, saturation 1,9 ; chiffre et crochets pleins (encre opaque).
+     Place : à cheval sur le coin du cadre, comme la pastille de notification d'une icône d'app : son centre sur
+     le coin. Le point posé en JS est ce coin (haut droit d'habitude, bas gauche faute de place : wm-bas-gauche). */
+  .cm-pin { --wm-coin-pin: 6px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 7px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-50%); border-radius:var(--wm-radius-epingle); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(40px) saturate(1.9); backdrop-filter:blur(40px) saturate(1.9); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
   .cm-pin.wm-sur-sombre { background:var(--wm-epingle-verre-sombre); box-shadow:inset 0 0 0 1px var(--wm-epingle-contour-sombre), var(--wm-ombre-epingle); }
-  .cm-pin.wm-dessous { transform:translate(-100%,0); }            /* pas de place au-dessus : sous le coin bas droit */
-  .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début */
+  .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début (fiche Reperes) */
   .cm-pin > span { position:relative; }
   .cm-pin::before { content:''; position:absolute; inset:3px; pointer-events:none; box-sizing:border-box; background:none; border:2px solid var(--wm-encre); border-radius:1.5px;
     -webkit-mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat;
     mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat; }
   .cm-pin::after { content:''; position:absolute; inset:-10px; }
-  /* Épingles secondaires d'une sélection multiple : 20 px, numéro en 12 px, crochets de 5 px, jamais de voyant. */
+  /* Épingles secondaires d'une sélection multiple : la même pastille réduite à 20 px, chiffre 13 px, crochets de
+     5 px, jamais de voyant (fiche Reperes). */
   .cm-pin.cm-pin-secondary { --wm-coin-pin: 5px; height:20px; min-width:20px; padding:0 5px; }
   .cm-pin.cm-pin-secondary::after { inset:-12px; }
   /* Zone en édition : la fenêtre est déjà ouverte ; la zone élargie de l'épingle ne doit pas couvrir les poignées. */
   body.wm-zone-en-edition .cm-pin::after { pointer-events:none; }
-  /* Nouveau : voyant jaune de 7 px centré sur le coin haut droit ; cerne intérieur sur fond clair, disque plein
-     sur fond sombre ; jamais de halo. */
-  .cm-pin .wm-voyant-epingle { position:absolute; right:-4px; top:-4px; width:7px; height:7px; border-radius:50%; background:var(--wm-accent); border:1.5px solid var(--wm-accent-ring); pointer-events:none; }
+  /* L'épingle de la zone en édition, à cheval sur son coin haut droit, laisse passer la poignée de ce coin. */
+  .cm-pin.wm-sur-poignee, .cm-pin.wm-sur-poignee::after { pointer-events:none; }
+  /* Nouveau : voyant orange de 7 px centré sur le coin haut droit de l'épingle ; cerne intérieur sur fond clair,
+     disque plein sur fond sombre ; jamais de halo. */
+  .cm-pin .wm-voyant-epingle { position:absolute; right:-3.5px; top:-3.5px; width:7px; height:7px; border-radius:50%; background:var(--wm-accent); border:1.5px solid var(--wm-accent-ring); pointer-events:none; }
   .cm-pin.wm-sur-sombre .wm-voyant-epingle { border:0; }
   /* Traité : même face « à plat », contour de 1 px en pointillés (55 %), ni liseré ni ombre, chiffre à pleine encre. */
   .cm-pin.cm-done { box-shadow:none; outline:1px dashed var(--wm-encre-repere-55); outline-offset:-1px; }
@@ -1852,10 +1856,11 @@
   // l'élément, pas dessus) ; derrière une zone encadrée, celui du conteneur qu'elle couvre.
   function fondSombreAutour(el) { return isDarkBehind((el && el.parentElement) || document.body); }
   function fondSombreSous(el) { return isDarkBehind(el || document.body); }
-  // Épingle : le fond juste sous son centre, quand il est à l'écran (une épingle posée 22 px au-dessus d'un élément
-  // peut sortir du bloc sombre qui le contient) ; sinon, comme son cadre.
+  // Épingle : le fond juste sous son centre, quand il est à l'écran (une épingle à cheval sur le coin d'un cadre
+  // peut sortir du bloc sombre qui le contient) ; sinon, comme son cadre. Le centre est le point posé (coin du
+  // cadre), sauf pour un passage de texte (point = coin bas gauche de l'épingle).
   function fondSombreEpingle(pt, h, secours) {
-    var cx = pt.x + (pt.texte ? h / 2 : -h / 2) - window.scrollX, cy = pt.y + (pt.dessous ? h / 2 : -h / 2) - window.scrollY;
+    var cx = pt.x + (pt.texte ? h / 2 : 0) - window.scrollX, cy = pt.y - (pt.texte ? h / 2 : 0) - window.scrollY;
     if (cx >= 0 && cy >= 0 && cx < window.innerWidth && cy < window.innerHeight) {
       var sous = pageElementAt(cx, cy);
       if (sous) return isDarkBehind(sous);
@@ -1884,13 +1889,21 @@
     dimensionnerCadre(box, x, y, w, h);
     document.body.appendChild(box);
   }
-  /* Place de l'épingle (F6) : point = son coin bas droit, aligné sur le bord droit du cadre et 6 px au-dessus
-     de lui ; sans place au-dessus (haut de la page), son coin haut droit 6 px sous le cadre. marge : 16 px pour
-     un élément visé, 0 pour une zone encadrée. */
-  function placeEpingle(r, marge, hauteur) {
-    var droite = r.x + r.w + marge, haut = r.y - marge - 6;
-    if (haut - hauteur < 0) return { x: droite, y: r.y + r.h + marge + 6, dessous: true };
-    return { x: droite, y: haut, dessous: false };
+  /* Place de l'épingle (fiche Epingle, V2) : à cheval sur un coin du cadre, son centre sur le coin. Deux places,
+     sur les coins sans crochet witmit : en haut à droite d'habitude ; en bas à gauche quand il n'y a pas la place
+     en haut à droite, c'est-à-dire quand l'épingle posée là sortirait de la page visible par le haut (haut du
+     document, comme la place « dessous » de 0.2.0) ou par la droite (bord droit de la page, à gauche de la liste
+     quand elle pousse la page). r : la boîte visée (page) ; marge : 16 px pour un élément visé (son cadre
+     s'écarte de 16 px), 0 pour une zone encadrée ; largeur, hauteur : celles de l'épingle. */
+  function bordDroitPage() {
+    var html = document.documentElement, pousse = parseFloat(getComputedStyle(html).marginRight) || 0;
+    return window.scrollX + html.clientWidth - pousse;
+  }
+  function placeEpingle(r, marge, largeur, hauteur) {
+    var hautDroit = { x: r.x + r.w + marge, y: r.y - marge, basGauche: false };
+    var sortHaut = hautDroit.y - hauteur / 2 < 0, sortDroite = hautDroit.x + largeur / 2 > bordDroitPage();
+    if (sortHaut || sortDroite) return { x: r.x - marge, y: r.y + r.h + marge, basGauche: true };
+    return hautDroit;
   }
   function rectPage(el) {
     var b = el.getBoundingClientRect();
@@ -1911,7 +1924,8 @@
     if (aDuNouveau(c)) parts.push('nouveau');
     return parts.join(', ');
   }
-  /* Onde : un contour de 1 px qui part du bord du repère, s'écarte de 16 px et s'efface (2 × 600 ms). */
+  /* Onde : un contour de 1 px qui part du bord du repère, s'écarte de 16 px et s'efface (2 × 600 ms : DUREE_ONDE). */
+  var DUREE_ONDE = 1200;
   function lancerOnde(el) {
     if (!el || !el.isConnected) return;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1922,7 +1936,17 @@
     o.style.left = (r.x - m) + 'px'; o.style.top = (r.y - m) + 'px';
     o.style.width = (r.w + 2 * m) + 'px'; o.style.height = (r.h + 2 * m) + 'px';
     document.body.appendChild(o);
-    setTimeout(function () { o.remove(); }, 1300);
+    setTimeout(function () { o.remove(); }, DUREE_ONDE + 50);
+  }
+  // Repères qui portent l'onde d'un retour : chacun de ses cadres (plusieurs éléments : ils s'allument et s'éteignent
+  // ensemble, fiche Reperes), sinon son passage de texte (un seul repère, même sur plusieurs lignes), sinon son épingle.
+  function reperesOnde(id) {
+    var cadres = Array.prototype.slice.call(document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]'));
+    if (cadres.length) return cadres;
+    var marks = sessionMarks[id] || [];
+    if (marks.length) return [marks[0]];
+    var pin = document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + id + '"]');
+    return pin ? [pin] : [];
   }
 
   function renderMarkers() {
@@ -1997,11 +2021,12 @@
         openPopup(editPt.x, editPt.y, c.zone, editMeta);
         epingleOuvreuse = c.id;   // Échap rendra le focus à cette épingle
       }
-      function poserEpingle(pt, secondaire, sombrePin) {
+      // Épingle posée dans la page, puis placée : sa largeur (un ou deux chiffres) compte pour savoir si elle tient
+      // en haut à droite. place(largeur, hauteur) rend le point ; secours : le fond de son cadre.
+      function poserEpingle(place, secondaire, secours) {
         var p = document.createElement('div');
-        p.className = 'cm-pin cm-ui' + (secondaire ? ' cm-pin-secondary' : '') + (sombrePin ? ' wm-sur-sombre' : '') + (pt.dessous ? ' wm-dessous' : '') + (pt.texte ? ' wm-pin-texte' : '');
+        p.className = 'cm-pin cm-ui' + (secondaire ? ' cm-pin-secondary' : '');
         p.dataset.id = c.id;
-        p.style.left = pt.x + 'px'; p.style.top = pt.y + 'px';
         p.innerHTML = '<span>' + (i + 1) + '</span>' + (!secondaire && aDuNouveau(c) ? '<i class="wm-voyant-epingle" aria-hidden="true"></i>' : '');
         p.title = c.text;
         p.setAttribute('role', 'button');
@@ -2011,30 +2036,39 @@
         p.onclick = openEditor;
         p.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(e); } };
         document.body.appendChild(p);
+        // (hors mode annotation, l'épingle est masquée et ne se mesure pas : 24 ou 20 px de côté)
+        var w = p.offsetWidth || (secondaire ? 20 : 24), h = p.offsetHeight || (secondaire ? 20 : 24);
+        var pt = place(w, h);
+        p.style.left = pt.x + 'px'; p.style.top = pt.y + 'px';
+        if (pt.basGauche) p.classList.add('wm-bas-gauche');
+        if (document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) p.classList.add('wm-sur-poignee');
+        if (pt.texte) p.classList.add('wm-pin-texte');
+        if (fondSombreEpingle(pt, h, secours)) p.classList.add('wm-sur-sombre');
         return p;
       }
       function centre(el) { var r = rectPage(el); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
 
-      var pt, H = 24;
+      var place;
       if (multi || (c.type === 'pin' && anchorEl)) {
-        pt = placeEpingle(rectPage(anchorEl), MARGE_CADRE, H);
+        var ra = rectPage(anchorEl);
+        place = function (w, h) { return placeEpingle(ra, MARGE_CADRE, w, h); };      // coin du cadre de l'élément
       } else if (boxGeom) {
-        pt = placeEpingle(boxGeom, 0, H);                               // coin haut droit de la zone encadrée
+        place = function (w, h) { return placeEpingle(boxGeom, 0, w, h); };          // coin de la zone encadrée
       } else if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
         // Début du passage, au-dessus de son coin witmit : stable même sur plusieurs lignes.
         var mr = rectPage(sessionMarks[c.id][0]);
-        pt = { x: mr.x - 4, y: mr.y - 8, texte: true };
+        place = function () { return { x: mr.x - 4, y: mr.y - 8, texte: true }; };
       } else {
         // Sans élément retrouvé : le point d'ancrage enregistré (coin haut droit de l'élément, à 3 px près).
         var ap = computeAbsolutePoint(c.anchor, c.fallback);
-        pt = placeEpingle({ x: ap.x + 3, y: ap.y - 3, w: 0, h: 0 }, MARGE_CADRE, H);
+        place = function (w, h) { return placeEpingle({ x: ap.x + 3, y: ap.y - 3, w: 0, h: 0 }, MARGE_CADRE, w, h); };
       }
-      var pin = poserEpingle(pt, false, fondSombreEpingle(pt, H, sombre));
+      var pin = poserEpingle(place, false, sombre);
       if (multi) {
         // Épingles secondaires, même numéro, sur les autres éléments du groupe (+ liens pointillés si demandé)
         multi.slice(1).forEach(function (el) {
-          var p2 = placeEpingle(rectPage(el), MARGE_CADRE, 20);
-          var sp = poserEpingle(p2, true, fondSombreEpingle(p2, 20, fondSombreAutour(el)));
+          var re = rectPage(el);
+          var sp = poserEpingle(function (w, h) { return placeEpingle(re, MARGE_CADRE, w, h); }, true, fondSombreAutour(el));
           if (CONFIG.multiLines) drawLink(centre(pin), centre(sp), c.id, pin.classList.contains('wm-sur-sombre'));
         });
       }
@@ -2532,22 +2566,21 @@
     closePopup(true);
     renderMarkers();
     setFocused(id);
-    var frame = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
-    var targets = frame ? [frame] : (sessionMarks[id] || []);
+    var frames = Array.prototype.slice.call(document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]'));
+    var targets = frames.length ? frames : (sessionMarks[id] || []);
     var pin = document.querySelector('.cm-pin[data-id="' + id + '"]');
     var scrollEl = targets[0] || pin;
     if (scrollEl) {
       scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      var olaClass = scrollEl.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola';
-      var ondes = targets.length ? targets.slice(0, 1) : [];      // une onde par repère (le cadre, ou le passage)
-      if (!ondes.length && pin) ondes = [pin];
       targets.forEach(function (el) {
+        var olaClass = el.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola';
         el.classList.remove('cm-ola', 'cm-ola-light');
         el.classList.add(olaClass);
-        setTimeout(function () { el.classList.remove(olaClass); }, 1300);
+        setTimeout(function () { el.classList.remove(olaClass); }, 350 + DUREE_ONDE);
       });
-      // L'onde part une fois le défilement doux arrivé, pour qu'on la voie.
-      setTimeout(function () { ondes.forEach(lancerOnde); }, 350);
+      // L'onde part une fois le défilement doux arrivé, pour qu'on la voie : une par cadre (tous ensemble), ou sur
+      // le passage ; repères relus à ce moment-là (la liste qui pousse la page les a peut-être redessinés).
+      setTimeout(function () { reperesOnde(id).forEach(lancerOnde); }, 350);
     } else {
       cmStatus("repère introuvable ici : ouvre l'onglet ou l'étape où tu l'avais posé.");
     }
@@ -2733,32 +2766,30 @@
     ta.addEventListener('blur', function () { if (finished) return; if (retourEncoreOuvert(item, id)) enregistrer(); else finish(true); });
   }
 
-  /* Après un ENREGISTREMENT : le repère du commentaire reste à l'état « actif » ~1 s, puis revient au repos
-     en fondu avec une onde — on voit ce qu'on vient de commenter (rien de tel pour Annuler/Échap). Les éléments sont créés
-     directement à l'état actif (flashId) pour que l'effet soit net même si les repères sont redessinés. */
+  /* Après un ENREGISTREMENT : on voit ce qu'on vient de commenter. Le repère passe à l'état « actif » et l'onde
+     part tout de suite de chacun de ses repères (tous les cadres d'un retour à plusieurs éléments, ensemble) :
+     2 × 600 ms (fiche Reperes) ; à la fin de l'onde, le repère revient au repos. Rien de tel pour Annuler/Échap.
+     Les éléments sont créés directement à l'état actif (flashId) pour que l'effet soit net même si les repères
+     sont redessinés pendant l'onde. */
   var flashId = null, flashTimer = null;
   function flashSaved(id) {
     clearTimeout(flashTimer);
     flashId = id;
     applyFocus(id, true);
+    var ondes = reperesOnde(id);
+    ondes.forEach(function (el) {
+      if (el.classList.contains('cm-box-saved')) el.classList.add(el.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola');
+      lancerOnde(el);
+    });
     flashTimer = setTimeout(function () {
       flashId = null;
+      var done = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]');
+      for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
       if (focusedId === id) return; // rouvert entre-temps : reste en couleur "actif"
       var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
-      for (var i = 0; i < els.length; i++) {
-        var el = els[i], light = el.classList.contains('cm-focus-light');
-        el.classList.remove('cm-focus', 'cm-focus-light');
-        if (el.classList.contains('cm-box-saved')) el.classList.add(light ? 'cm-ola-light' : 'cm-ola');
-      }
+      for (var i = 0; i < els.length; i++) els[i].classList.remove('cm-focus', 'cm-focus-light');
       (sessionMarks[id] || []).forEach(function (m) { m.classList.remove('cm-focus'); });
-      var cadre = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
-      var premier = cadre || (sessionMarks[id] || [])[0] || document.querySelector('.cm-pin[data-id="' + id + '"]');
-      lancerOnde(premier);
-      setTimeout(function () {
-        var done = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]');
-        for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
-      }, 1300);
-    }, 1000);
+    }, DUREE_ONDE);
   }
 
   /* Commentaire "actif" (bulle ouverte ou sélectionné dans la liste) : ses cadres, pastilles et lignes changent de couleur */
@@ -3122,6 +3153,10 @@
     if (!boxEl || boxEl.classList.contains('cm-box-editable')) return;
     boxEl.classList.add('cm-box-editable');
     document.body.classList.add('wm-zone-en-edition');   // la zone de 44 px des épingles laisse passer les poignées
+    if (boxEl.dataset.id) {                                // son épingle, posée sur un coin, aussi
+      var siennes = document.querySelectorAll('.cm-pin[data-id="' + boxEl.dataset.id + '"]');
+      for (var k = 0; k < siennes.length; k++) siennes[k].classList.add('wm-sur-poignee');
+    }
     assurerCadre(boxEl);
     applyBoxStyle(boxEl, meta.box || { x: boxEl.offsetLeft, y: boxEl.offsetTop, w: boxEl.offsetWidth, h: boxEl.offsetHeight });
     ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(function (d) {
@@ -3162,6 +3197,8 @@
   }
   function endBoxEdit(meta) {
     document.body.classList.remove('wm-zone-en-edition');
+    var sur = document.querySelectorAll('.cm-pin.wm-sur-poignee');
+    for (var k = 0; k < sur.length; k++) sur[k].classList.remove('wm-sur-poignee');
     if (!meta || !meta.boxEl) return;
     meta.boxEl.classList.remove('cm-box-editable');
     var hs = meta.boxEl.querySelectorAll('.cm-handle');
@@ -3229,31 +3266,71 @@
     if (R) { R.x -= MARGE_CADRE; R.y -= MARGE_CADRE; R.w += 2 * MARGE_CADRE; R.h += 2 * MARGE_CADRE; }
     return R;
   }
-  function placePopup(pop, R, fallbackX, fallbackY) {
+  // Boîte (page) de l'épingle du retour : celle qui est posée, sinon celle qu'elle aura (fiche Epingle : à cheval
+  // sur le coin haut droit du cadre, sinon sur le coin bas gauche ; passage de texte : au-dessus de son début).
+  function rectEpingleDe(meta, R) {
+    var id = meta && meta.existing && meta.existing.id;
+    var posee = id && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + id + '"]');
+    if (posee && posee.getClientRects().length) return rectOf(posee);
+    if (meta && meta.type === 'text') return { x: R.x - 4, y: R.y - 8 - 24, w: 24, h: 24 };
+    var pt = placeEpingle(R, 0, 24, 24);
+    return { x: pt.x - 12, y: pt.y - 12, w: 24, h: 24 };
+  }
+  // Repères des AUTRES retours (cadres tels que dessinés, épingles) : la fenêtre évite de les recouvrir quand elle peut.
+  function autresReperes(meta) {
+    var id = meta && meta.existing && meta.existing.id, out = [];
+    var els = document.querySelectorAll('.cm-box-saved, .cm-pin');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if ((id && el.dataset.id === id) || (meta && el === meta.boxEl) || el.classList.contains('cm-box-editable')) continue;
+      var dessin = el.querySelector(':scope > .wm-cadre') || el;
+      if (!dessin.getClientRects().length) continue;
+      out.push(rectOf(dessin));
+    }
+    return out;
+  }
+  function recouvre(a, b) {
+    var w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+  function placePopup(pop, R, fallbackX, fallbackY, meta) {
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
     // Règle de largeur (M1) : 340 px (V2), jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
     // comprise, que 100vw ne retire pas).
     if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
-    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 48; // place de l'épingle (F6 : 24 px, à 22 px au-dessus)
+    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10;
     function clampX(x) { return Math.max(vx + 8, Math.min(x, vx + vw - W - 8)); }
     function apply(x, y) { pop.style.left = x + 'px'; pop.style.top = y + 'px'; }
     if (!R) { apply(clampX(fallbackX), Math.max(vy + 8, Math.min(fallbackY + 10, vy + vh - Hh - 8))); return; }
-    // Épingle posée sous le cadre faute de place au-dessus (F6 : 6 px + 24 px) : la fenêtre passe sous elle.
-    var pinDessous = R.y - 30 < 0;
+    // Ce que la fenêtre ne recouvre jamais : le cadre et son épingle, à cheval sur un coin (V2) ; la place gardée
+    // pour l'épingle est donc la sienne, pas les 48 px de l'épingle posée au-dessus du cadre en 0.2.0.
+    var P = rectEpingleDe(meta, R);
+    var T = { x: Math.min(R.x, P.x), y: Math.min(R.y, P.y) };
+    T.w = Math.max(R.x + R.w, P.x + P.w) - T.x; T.h = Math.max(R.y + R.h, P.y + P.h) - T.y;
     var cands = [
-      { x: R.x, y: R.y + R.h + gap + (pinDessous ? 30 : 0) },
-      { x: R.x, y: R.y - Hh - gap - pinRoom },
-      { x: R.x + R.w + gap, y: R.y },
-      { x: R.x - W - gap, y: R.y }
+      { x: R.x, y: T.y + T.h + gap },                 // dessous
+      { x: R.x, y: T.y - Hh - gap },                  // au-dessus
+      { x: T.x + T.w + gap, y: R.y },                 // à droite
+      { x: T.x - W - gap, y: R.y },                   // à gauche
+      { x: T.x + T.w + gap, y: R.y + R.h - Hh },      // à droite, calée sur le bas de la cible
+      { x: T.x - W - gap, y: R.y + R.h - Hh }         // à gauche, calée sur le bas de la cible
     ];
+    // Première place qui tient dans l'écran sans recouvrir la cible ni son épingle ; parmi elles, la première qui
+    // ne recouvre pas non plus le repère d'un autre retour, sinon celle qui en recouvre le moins.
+    var autres = autresReperes(meta), choix = null, moindre = Infinity;
     for (var i = 0; i < cands.length; i++) {
       var x = clampX(cands[i].x), y = cands[i].y;
       if (y < vy + 8 || y + Hh > vy + vh - 8) continue;
-      var overlaps = !(x + W <= R.x || x >= R.x + R.w || y + Hh <= R.y || y >= R.y + R.h);
-      if (!overlaps) { apply(x, y); return; }
+      var f = { x: x, y: y, w: W, h: Hh };
+      if (recouvre(f, T)) continue;
+      var gene = 0;
+      for (var k = 0; k < autres.length; k++) gene += recouvre(f, autres[k]);
+      if (gene < moindre) { moindre = gene; choix = f; }
+      if (!gene) break;
     }
-    apply(clampX(R.x), R.y + R.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
+    if (choix) { apply(choix.x, choix.y); return; }
+    apply(clampX(R.x), T.y + T.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
     pop.scrollIntoView({ block: 'nearest' });
   }
   /* La fenêtre a grandi (catégories dépliées, texte long) : elle remonte pour ne pas sortir par le bas. */
@@ -3388,7 +3465,7 @@
     habiller(pop);
     document.body.appendChild(pop);
     tracerContour(pop);                                             // tout de suite, sans attendre l'observateur
-    placePopup(pop, targetRectOf(meta), x, y);
+    placePopup(pop, targetRectOf(meta), x, y, meta);
     pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-tete'));
     var fermer = function (e) { e.stopPropagation(); closePopup(true); };
@@ -3626,7 +3703,8 @@
 
     if (!dragBoxEl) {
       dragBoxEl = document.createElement('div');
-      // En tracé : rectangle de 1 px en pointillés, à l'encre du fond sous le point de départ (T7).
+      // En tracé (fiche Selection, V2) : zone grisée à 26 %, contour plein de 1 px gris (ou orange), ombre dehors et
+      // dedans, arrondi de 6 px, sans crochets ; teinte d'après le fond sous le point de départ (T7).
       dragBoxEl.className = 'cm-box cm-ui' + (fondSombreSous(pageElementAt(dragStart.x - window.scrollX, dragStart.y - window.scrollY)) ? ' wm-sur-sombre' : '');
       document.body.appendChild(dragBoxEl);
     }

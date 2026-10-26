@@ -134,16 +134,17 @@ for (const P of PAGES) {
     test('9. la pastille reste accrochée à son élément après redimensionnement', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Ancrage');
-      // Ancrage F6 (fiche Reperes) : bord droit de l'épingle aligné sur le cadre de l'élément (16 px de marge),
-      // bord bas 22 px au-dessus de l'élément (6 px au-dessus du cadre), ou 22 px sous lui faute de place en haut.
+      // Ancrage (fiche Epingle, V2) : l'épingle à cheval sur le coin haut droit du cadre de l'élément (16 px de
+      // marge), son centre sur le coin ; ou sur son coin bas gauche faute de place en haut à droite.
       const ancrage = async () => {
         const cible = await page.locator(P.pinTarget).first().boundingBox();
         const el = await page.locator('.cm-box-outline').boundingBox();   // boîte de l'élément visé
         const pin = await page.locator('.cm-pin').boundingBox();
-        const dessous = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-dessous'));
+        const basGauche = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-bas-gauche'));
+        const cx = pin.x + pin.width / 2, cy = pin.y + pin.height / 2;
         return {
-          droite: Math.abs((pin.x + pin.width) - (el.x + el.width + 16)),
-          bas: dessous ? Math.abs(pin.y - (el.y + el.height + 22)) : Math.abs((pin.y + pin.height) - (el.y - 22)),
+          droite: basGauche ? Math.abs(cx - (el.x - 16)) : Math.abs(cx - (el.x + el.width + 16)),
+          bas: basGauche ? Math.abs(cy - (el.y + el.height + 16)) : Math.abs(cy - (el.y - 16)),
           surLaCible: Math.abs((el.x + el.width) - (cible.x + cible.width)) < 30 && Math.abs(el.y - cible.y) < 30,
           hauteur: pin.height
         };

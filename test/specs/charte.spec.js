@@ -1476,3 +1476,199 @@ test('33. texte d’aide du champ : au moins 4,6:1 mesuré à l’écran sur la 
     expect(pire, `${nom} : ${pire.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.6);
   }
 });
+
+// ---------- Habillage V2, lot 6 : épingle et repères (fiches Epingle et Reperes, décision a3 de François) ----------
+
+// Page d'essai aux bords : un élément au milieu, un contre le bord droit, un contre le haut, un dans le coin haut droit.
+function pageBords(nom) {
+  const dir = path.join(os.tmpdir(), 'witmit-tests');
+  fs.mkdirSync(dir, { recursive: true });
+  const f = path.join(dir, nom + '.html');
+  const bloc = (id, style) => `<div id="${id}" style="position:absolute;width:160px;height:60px;padding:8px;border:1px solid #888;${style}">${id}</div>`;
+  fs.writeFileSync(f, `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${nom}</title>
+<style>body{margin:0;min-height:1400px;background:#ffffff;font-family:Georgia,serif;}</style></head><body>
+${bloc('milieu', 'left:300px;top:300px')}${bloc('droite', 'right:6px;top:420px')}${bloc('haut', 'left:40px;top:6px')}${bloc('coin', 'right:6px;top:6px')}
+${bloc('autre', 'left:40px;top:330px;width:200px;height:100px')}
+<script src="${WIDGET_URL}" data-project="essai-${nom}"></script></body></html>`);
+  return 'file://' + f;
+}
+// Épingle principale d'un retour : sa boîte, son centre, sa place, et le cadre dessiné de son retour (.wm-cadre).
+async function epingleEtCadre(page, n = 0) {
+  return page.locator('.cm-pin:not(.cm-pin-secondary)').nth(n).evaluate((p) => {
+    const r = p.getBoundingClientRect(), box = document.querySelector('.cm-box-saved[data-id="' + p.dataset.id + '"]');
+    const c = (box.querySelector(':scope > .wm-cadre') || box).getBoundingClientRect();
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height, basGauche: p.classList.contains('wm-bas-gauche'),
+      cadre: { gauche: c.left, haut: c.top, droite: c.right, bas: c.bottom } };
+  });
+}
+
+test('37. épingle V2 : 24 px, quatre coins à 6 px, marges de 7 px, deux crochets intérieurs, verre des fenêtres (72/70 %, flou 40, saturation 1,9), chiffre et crochets pleins', async ({ page }) => {
+  await planche(page);
+  await H.addPin(page, '#boutonClair', 'clair');
+  await H.addPin(page, '#carteSombre', 'sombre');
+  await page.waitForTimeout(1400);                                   // fin de l'onde « vient d'être commenté »
+  await page.mouse.move(400, 900);
+  const [clair, sombre] = await page.locator('.cm-pin').evaluateAll((ps) => ps.map((p) => {
+    const cs = getComputedStyle(p), av = getComputedStyle(p, '::before'), r = p.getBoundingClientRect();
+    return { h: r.height, largeurMin: cs.minWidth, rayon: cs.borderRadius, marges: cs.paddingLeft + ' ' + cs.paddingRight, fond: cs.backgroundColor,
+      flou: cs.backdropFilter || cs.webkitBackdropFilter, chiffre: cs.color, taille: cs.fontSize, graisse: cs.fontWeight, opacite: cs.opacity,
+      crochets: { couleur: av.borderTopColor, trait: av.borderTopWidth, coude: av.borderTopLeftRadius, retrait: av.top + ' ' + av.left, bras: cs.getPropertyValue('--wm-coin-pin').trim() },
+      contour: cs.boxShadow.split(/,(?![^(]*\))/)[0].trim() };
+  }));
+  const commun = { h: 24, largeurMin: '24px', rayon: '6px', marges: '7px 7px', flou: 'blur(40px) saturate(1.9)', taille: '13px', graisse: '500', opacite: '1' };
+  expect(clair).toMatchObject({ ...commun, fond: 'rgba(250, 250, 250, 0.72)', chiffre: 'rgb(20, 20, 20)' });
+  expect(sombre).toMatchObject({ ...commun, fond: 'rgba(27, 27, 27, 0.7)', chiffre: 'rgb(244, 244, 244)' });
+  // Crochets : à 3 px du bord, trait de 2 px, coude de 1,5 px, bras de 6 px ; de la couleur pleine du chiffre.
+  expect(clair.crochets).toEqual({ couleur: 'rgb(20, 20, 20)', trait: '2px', coude: '1.5px', retrait: '3px 3px', bras: '6px' });
+  expect(sombre.crochets).toEqual({ couleur: 'rgb(244, 244, 244)', trait: '2px', coude: '1.5px', retrait: '3px 3px', bras: '6px' });
+  // Contour de 1 px à 55 %.
+  expect(clair.contour).toBe('rgba(20, 20, 20, 0.55) 0px 0px 0px 1px inset');
+  expect(sombre.contour).toBe('rgba(255, 255, 255, 0.55) 0px 0px 0px 1px inset');
+});
+
+test('38. à cheval sur le coin du cadre : centre de l’épingle sur le coin haut droit (élément visé et zone) ; voyant « nouveau » orange centré sur le coin de l’épingle', async ({ page }) => {
+  await planche(page);
+  await H.addPin(page, '#boutonClair', 'élément');
+  const img = await H.visibleBox(page, '#imageVive');
+  await H.drag(page, img.x + 40, img.y + 40, img.x + 240, img.y + 160);
+  await page.locator('.cm-popup textarea').fill('zone');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await page.waitForTimeout(1400);
+  for (const n of [0, 1]) {
+    const e = await epingleEtCadre(page, n);
+    expect(e.basGauche).toBe(false);
+    expect(Math.abs(e.cx - e.cadre.droite), 'centre x ' + n).toBeLessThan(1);
+    expect(Math.abs(e.cy - e.cadre.haut), 'centre y ' + n).toBeLessThan(1);
+  }
+  const [c] = await H.stored(page, 'witmit_planche_v1');
+  await H.retourColle(page, [c.id + ' pris_en_compte']);
+  await page.mouse.move(400, 900);
+  const v = await page.locator('.cm-pin .wm-voyant-epingle').evaluate((el) => {
+    const r = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect();
+    return { dx: Math.abs(r.left + r.width / 2 - p.right), dy: Math.abs(r.top + r.height / 2 - p.top), fond: getComputedStyle(el).backgroundColor };
+  });
+  expect(v.dx).toBeLessThan(0.6);
+  expect(v.dy).toBeLessThan(0.6);
+  expect(v.fond).toBe('rgb(247, 130, 26)');
+});
+
+test('39. deux places : en haut à droite, sinon en bas à gauche (bord droit, haut de la page, ou les deux) ; même règle pour les épingles secondaires', async ({ page }) => {
+  await page.goto(pageBords('lot6-bords'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  for (const id of ['#milieu', '#droite', '#haut', '#coin']) await H.addPin(page, id, id);
+  await page.waitForTimeout(1400);
+  const places = [];
+  for (let n = 0; n < 4; n++) {
+    const e = await epingleEtCadre(page, n);
+    const coin = e.basGauche ? { x: e.cadre.gauche, y: e.cadre.bas } : { x: e.cadre.droite, y: e.cadre.haut };
+    expect(Math.abs(e.cx - coin.x), 'x ' + n).toBeLessThan(1);
+    expect(Math.abs(e.cy - coin.y), 'y ' + n).toBeLessThan(1);
+    places.push(e.basGauche ? 'bas gauche' : 'haut droit');
+  }
+  expect(places).toEqual(['haut droit', 'bas gauche', 'bas gauche', 'bas gauche']);
+  // L'épingle en bas à gauche reste dans la page visible (elle ne sort ni par le haut ni par la droite).
+  const vw = await page.evaluate(() => document.documentElement.clientWidth);
+  for (let n = 1; n < 4; n++) {
+    const e = await epingleEtCadre(page, n);
+    expect(e.cy - e.h / 2).toBeGreaterThanOrEqual(0);
+    expect(e.cx + e.w / 2).toBeLessThanOrEqual(vw);
+  }
+  // Plusieurs éléments : l'épingle secondaire (20 px) suit la même règle sur son propre cadre.
+  await page.locator('.cm-pin').first().click();
+  await page.keyboard.press('Escape');
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const a = await H.visibleBox(page, '#autre');
+  await page.mouse.click(a.x + a.width / 2, a.y + a.height / 2);
+  const d = await H.visibleBox(page, '#droite');
+  await page.keyboard.down(mod);
+  await page.mouse.click(d.x + d.width / 2, d.y + d.height / 2 + 20);
+  await page.keyboard.up(mod);
+  await page.locator('.cm-popup textarea').fill('deux');
+  await page.locator('.cm-popup textarea').press('Enter');
+  const sec = await page.locator('.cm-pin.cm-pin-secondary').evaluate((p) => {
+    const r = p.getBoundingClientRect(), cs = getComputedStyle(p);
+    return { h: r.height, bras: cs.getPropertyValue('--wm-coin-pin').trim(), basGauche: p.classList.contains('wm-bas-gauche'), voyant: !!p.querySelector('.wm-voyant-epingle') };
+  });
+  expect(sec).toEqual({ h: 20, bras: '5px', basGauche: true, voyant: false });
+});
+
+test('40. zone cliquable de 44 px autour de l’épingle de 24 px ; au clavier : rôle, nom, focus et Entrée inchangés', async ({ page }) => {
+  await planche(page);
+  await H.addPin(page, '#boutonClair', 'cible');
+  await page.waitForTimeout(1400);
+  const pin = page.locator('.cm-pin');
+  const touches = await pin.evaluate((p) => {
+    const r = p.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, out = [];
+    for (const [dx, dy] of [[-21, -21], [21, -21], [-21, 21], [21, 21], [0, -21], [0, 21], [-21, 0], [21, 0]]) out.push(document.elementFromPoint(cx + dx, cy + dy) === p);
+    return { taille: Math.round(r.width) + '×' + Math.round(r.height), touches: out };
+  });
+  expect(touches.taille).toBe('24×24');
+  expect(touches.touches.every(Boolean)).toBe(true);
+  await expect(pin).toHaveAttribute('role', 'button');
+  await expect(pin).toHaveAttribute('tabindex', '0');
+  await expect(pin).toHaveAttribute('aria-label', 'retour 1');
+  await pin.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-popup textarea')).toHaveValue('cible');
+});
+
+test('41. onde : sur chacun des cadres d’un retour à plusieurs éléments, ensemble ; éteinte au bout de 2 × 600 ms, le repère revient au repos', async ({ page }) => {
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
+  await page.mouse.click(b.x + 5, b.y + 5);
+  for (const sel of ['.kpi-tile:nth-child(2) .kpi-value', 'tbody tr:nth-child(2) td:nth-child(4)']) {
+    const s = await H.visibleBox(page, sel);
+    await page.keyboard.down(mod);
+    await page.mouse.click(s.x + s.width / 2, s.y + s.height / 2);
+    await page.keyboard.up(mod);
+  }
+  await page.locator('.cm-popup textarea').fill('trois');
+  await page.locator('.cm-popup textarea').press('Enter');
+  // Tout de suite : une onde par cadre (3), posée sur chaque cadre ; les cadres sont actifs.
+  const ondes = await page.evaluate(() => {
+    const os = [...document.querySelectorAll('.wm-onde')].map((o) => o.getBoundingClientRect());
+    const cs = [...document.querySelectorAll('.cm-box-outline > .wm-cadre')].map((c) => c.getBoundingClientRect());
+    return { n: os.length, cadres: cs.length, poses: cs.every((c) => os.some((o) => Math.abs(o.left - c.left) < 1 && Math.abs(o.top - c.top) < 1)) };
+  });
+  expect(ondes).toEqual({ n: 3, cadres: 3, poses: true });
+  await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(3);
+  // 1,3 s après l'enregistrement : plus d'onde, cadres et épingles au repos (Paula voyait encore l'onde à 1,8 s).
+  await page.waitForTimeout(1300);
+  await expect(page.locator('.wm-onde')).toHaveCount(0);
+  await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(0);
+  await expect(page.locator('.cm-pin.cm-focus')).toHaveCount(0);
+  // Depuis la liste (retour choisi) : l'onde part aussi des trois cadres ensemble, puis le repère reste actif.
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await page.locator('.cm-panel-item .body').click();
+  await expect.poll(() => page.locator('.wm-onde').count()).toBe(3);
+  await page.waitForTimeout(1400);
+  await expect(page.locator('.wm-onde')).toHaveCount(0);
+  await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(3);
+});
+
+test('42. fenêtre d’une zone tracée en bas de l’écran : ni montée de 48 px pour une épingle au-dessus, ni posée sur le cadre d’un autre retour quand une place libre existe (N4)', async ({ page }) => {
+  await page.goto(pageBords('lot6-fenetre'));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  await H.addPin(page, '#autre', 'autre retour');
+  await page.waitForTimeout(1400);
+  const vh = await page.evaluate(() => window.innerHeight);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await H.drag(page, 40, vh - 160, 300, vh - 40);
+  await expect(page.locator('.cm-popup textarea')).toBeVisible();
+  const r = await page.evaluate(() => {
+    const b = (el) => { const x = el.getBoundingClientRect(); return { x: x.left, y: x.top, w: x.width, h: x.height }; };
+    return { pop: b(document.querySelector('.cm-popup')), zone: b(document.querySelector('.cm-box-editable')),
+      autre: b(document.querySelector('.cm-box-outline > .wm-cadre')), epingle: b(document.querySelector('.cm-pin')) };
+  });
+  const recouvre = (a, c) => !(a.x + a.w <= c.x || c.x + c.w <= a.x || a.y + a.h <= c.y || c.y + c.h <= a.y);
+  expect(recouvre(r.pop, r.zone)).toBe(false);
+  expect(recouvre(r.pop, r.autre)).toBe(false);
+  expect(recouvre(r.pop, r.epingle)).toBe(false);
+  expect(r.pop.y + r.pop.h).toBeLessThanOrEqual(vh - 8);
+});

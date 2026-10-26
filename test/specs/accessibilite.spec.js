@@ -567,7 +567,9 @@ test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt 
   // c1 (V2) : ouvrir un retour de la liste a lancé le mode annotation (son repère s'allume) ; sinon, on le lance.
   if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
   const b = await H.visibleBox(page, CIBLE2);
-  await page.mouse.click(b.x + 4, b.y + 4);
+  // Au milieu de la cellule (V2) : son coin haut gauche est sous la zone de 44 px de l'épingle de la cellule
+  // voisine, à cheval sur le coin de son cadre (fiche Epingle).
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.locator('.cm-popup textarea').fill('pas fini');
   await page.locator('#cmToggleBtn').click();
   await expect.poll(() => dialogues.length).toBeGreaterThanOrEqual(3);
