@@ -134,7 +134,7 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 32, largeur: true, haut: true, bas: true });
 });
 
-test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 900 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
+test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 760 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
   await H.activate(page);
   const pill = page.locator('#cmPill');
   await expect(pill).toHaveAttribute('aria-label', 'witmit : mode annotation');
@@ -151,13 +151,13 @@ test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 900 px ; li
   let r = await pill.boundingBox();
   expect(r.height).toBe(44);
   expect(r.y).toBe(12);
-  // 900 px : deux lignes, chaque geste entier sur sa ligne
-  await page.setViewportSize({ width: 900, height: 800 });
+  // 760 px : deux lignes, chaque geste entier sur sa ligne (V2 : police système plus étroite, le bandeau tient sur une ligne à 900 px)
+  await page.setViewportSize({ width: 760, height: 800 });
   await expect(pill).toHaveClass(/wm-deux-lignes/);
   r = await pill.boundingBox();
   expect(r.height).toBeGreaterThan(60);
   expect(r.x).toBeGreaterThanOrEqual(8);
-  expect(r.x + r.width).toBeLessThanOrEqual(892);
+  expect(r.x + r.width).toBeLessThanOrEqual(752);
   const gestesEntiers = await pill.locator('.wm-geste').evaluateAll((gs) => gs.every((g) => new Set([...g.getClientRects()].map((q) => Math.round(q.top))).size === 1));
   expect(gestesEntiers).toBe(true);
   // Liste ouverte en mode actif (1 280 px) : le bandeau se centre sur la page restante, à gauche de la liste

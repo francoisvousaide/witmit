@@ -284,7 +284,7 @@ test('11. les touches sous le fil gardent leurs marges à 380 et 375 px (« ça 
           deborde: b.scrollWidth > b.clientWidth, dansLeTiroir: face.left >= panneau.left && face.right <= panneau.right };
       });
       const quoi = sel + ' à ' + largeur + ' px';
-      expect(r.taille, quoi).toBe('12px');
+      expect(r.taille, quoi).toBe('13px');   // V2 : aucun texte sous 13 px
       expect(r.libreGauche, quoi + ' : libre à gauche').toBeGreaterThanOrEqual(12 - 0.5);
       expect(r.libreDroite, quoi + ' : libre à droite').toBeGreaterThanOrEqual(8 - 0.5);
       expect(r.deborde, quoi + ' : débordement').toBe(false);

@@ -262,7 +262,7 @@ test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la 
   expect(st.ombre).toBe('none');                               // aucune ombre de focus de la page hôte
   expect(st.contour).toBe('none');
   expect(st.resize).toBe('none');                              // pas de poignée rognée par le coin coupé
-  expect(st.police).toContain('Syne');
+  expect(st.police).toMatch(/^-apple-system, /);                 // V2 : police système, texte de la personne compris
   expect(st.coupe).toContain('polygon');
   await ta.pressSequentially('du texte');                      // taper ne fait pas apparaître l'anneau
   expect((await etat()).anneau).toBe('none');

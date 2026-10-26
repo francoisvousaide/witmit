@@ -376,19 +376,19 @@ for (const P of PAGES) {
     });
 
     test('16. couleurs : épingle, verre et encre aux jetons de witmit, que la page ait ses variables CSS ou non', async ({ page }) => {
-      // Jetons de la charte (design system, tokens.css) : le verre prend l'inverse du fond de la page.
+      // Jetons de la charte V2 (design system, tokens.json) : le verre prend le thème du site.
       const JETONS = {
-        'client-sombre': { verre: 'rgba(20, 19, 17, 0.66)', encre: 'rgb(246, 243, 238)' },
-        'client-clair': { verre: 'rgba(236, 232, 224, 0.6)', encre: 'rgb(20, 20, 18)' }
+        'client-sombre': { verre: 'rgba(27, 27, 27, 0.7)', encre: 'rgb(255, 255, 255)', repere: 'rgb(244, 244, 244)' },
+        'client-clair': { verre: 'rgba(250, 250, 250, 0.72)', encre: 'rgb(20, 20, 20)', repere: 'rgb(20, 20, 20)' }
       };
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
       await page.waitForTimeout(1800); // laisse passer l'effet « vient d'être commenté »
       // Épingle (fiches Epingle et Reperes) : face en verre des fenêtres choisie d'après le fond derrière elle,
-      // champagne et chiffre encre sur fond clair, graphite et chiffre blanc cassé sur fond sombre.
+      // titane clair et chiffre encre sur fond clair, titane sombre et chiffre clair sur fond sombre.
       const pin = await page.locator('.cm-pin').evaluate((el) => ({ fond: getComputedStyle(el).backgroundColor, chiffre: getComputedStyle(el).color, sombre: el.classList.contains('wm-sur-sombre') }));
       expect(pin.fond).toBe(pin.sombre ? JETONS['client-sombre'].verre : JETONS['client-clair'].verre);
-      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].encre : JETONS['client-clair'].encre);
+      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].repere : JETONS['client-clair'].repere);
       const t = await page.getAttribute('body', 'data-wm-theme');
       expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();

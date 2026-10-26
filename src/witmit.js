@@ -1,7 +1,7 @@
 /*!
  * witmit 0.2.0 — widget d'annotation visuelle (charte « Objet »)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
- * Polices (dossier witmit-polices/ à côté de ce fichier) : Tektur, Martian Mono, Syne et Doto, SIL Open Font License 1.1.
+ * Police : celle du système (aucun fichier de police chargé).
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourcis : ⌥ deux fois / alt deux fois montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Camille' }) · identify(null) — voir plus bas.
@@ -57,57 +57,14 @@
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
     multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || '')),
     // data-host-theme="light" | "dark" : le site dit lui-même si son fond est clair ou sombre (défaut "auto" :
-    // witmit le lit sur la page). witmit prend toujours l'inverse : site clair → verre graphite.
-    hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme')),
-    // data-fonts="<adresse du dossier>" : autre emplacement des polices ; data-fonts="none" : polices du système
-    fonts: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-fonts')) || ''
+    // witmit le lit sur la page). witmit prend le thème du site : site clair → titane clair (V2).
+    hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme'))
   };
   var VERSION = '0.2.0';
 
-  /* ---------- polices de la charte, servies à côté du script (jamais par un service tiers) ----------
-     Adresse : new URL('witmit-polices/', <adresse de witmit.js>), ou data-fonts. Les @font-face sont écrits
-     dans le CSS injecté : une police n'est téléchargée qu'au premier texte de witmit qui l'utilise. */
-  var FONTS_BASE = (function () {
-    if (/^none$/i.test(CONFIG.fonts)) return null;
-    try {
-      var href = CONFIG.fonts ? new URL(CONFIG.fonts, location.href).href : new URL('witmit-polices/', SCRIPT_EL && SCRIPT_EL.src).href;
-      return /\/$/.test(href) ? href : href + '/';
-    } catch (e) { return null; }
-  })();
-  var UNI_LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
-  var UNI_LATIN_EXT = 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF';
-  // [famille affichée, fichier, graisses, latin-ext ?]
-  var POLICES = [
-    ['witmit Tektur', 'tektur', [500, 700], true],
-    ['witmit Martian Mono', 'martian-mono', [400, 500, 600], true],
-    ['witmit Syne', 'syne', [400, 500], true],
-    ['witmit Doto', 'doto', [900], false]
-  ];
-  function fontFacesCss() {
-    if (!FONTS_BASE) return '';
-    var base = FONTS_BASE.replace(/["\\\n\r]/g, encodeURIComponent);
-    var out = '';
-    POLICES.forEach(function (p) {
-      p[2].forEach(function (w) {
-        var sets = p[3] ? [['latin-ext', UNI_LATIN_EXT], ['latin', UNI_LATIN]] : [['latin', UNI_LATIN]];
-        sets.forEach(function (set) {
-          out += '@font-face{font-family:"' + p[0] + '";font-style:normal;font-weight:' + w + ';font-display:swap;' +
-            'src:url("' + base + p[1] + '-' + set[0] + '-' + w + '-normal.woff2") format("woff2");unicode-range:' + set[1] + ';}\n';
-        });
-      });
-    });
-    return out;
-  }
-  // Demande les polices à l'avance (révélation, premier survol d'un bouton, ouverture de la liste) : elles
-  // sont prêtes quand la fenêtre s'ouvre. Un visiteur qui n'ouvre jamais witmit ne télécharge rien.
-  var fontsRequested = false;
-  function prechargerPolices() {
-    if (fontsRequested || !FONTS_BASE || !document.fonts || !document.fonts.load) return;
-    fontsRequested = true;
-    POLICES.forEach(function (p) {
-      p[2].forEach(function (w) { try { document.fonts.load(w + ' 16px "' + p[0] + '"').catch(function () {}); } catch (e) {} });
-    });
-  }
+  /* ---------- police : celle du système (V2) ----------
+     Plus aucune police embarquée ni chargée : witmit écrit avec la police système (SF Pro sur Mac, Segoe UI
+     sous Windows, Roboto sous Android). data-fonts, attribut de 0.2.0, est ignoré. Aucune requête de police. */
 
   /* ---------- icônes : Phosphor Regular 2.1.1 (licence MIT, en tête de ce fichier) ----------
      Tracés recopiés tels quels depuis assets/regular/<nom>.svg du paquet @phosphor-icons/core 2.1.1
@@ -209,7 +166,7 @@
   );
   var RACC_DOUBLE_ALT = IS_MAC ? '⌥ deux fois' : 'alt deux fois';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
-  // Repère « ⌥ deux fois » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono
+  // Repère « ⌥ deux fois » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (la chasse fixe du système
   // ne l'a pas), suivie de « deux fois » hors du carré ; lu « option deux fois » par un lecteur d'écran ; « alt deux fois » hors Mac.
   // Repère « ⌥+A » de l'aide de l'état vide : même carré, lu « option+A » par un lecteur d'écran ; « alt+A » hors Mac.
   var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
@@ -223,30 +180,56 @@
     '<span class="wm-geste"><b>glisser</b> : zone</span> ·\u00a0<span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
 
   var CSS = `
-  /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
+  /* ---------- jetons de la charte V2 (design system witmit, version 6, tokens.json) ----------
      Valeurs recopiées telles quelles, préfixées --wm-. Elles ne sont JAMAIS posées sur :root, html ni
      body : rien ne fuit dans la page hôte, et aucune variable de l'hôte n'entre dans witmit.
-     Thème : data-wm-theme sur <body>, toujours l'inverse du fond de la page (site clair → verre
-     graphite « client-sombre » ; site sombre → verre champagne « client-clair »). */
+     Thème : data-wm-theme sur <body>, celui du site (site clair → titane clair « client-clair » ;
+     site sombre → titane sombre « client-sombre »), boutons ronds compris. */
   .cm-ui, mark.cm-highlight {
-    --wm-ground: rgba(236,232,224,0.60);
-    --wm-surface: rgba(236,232,224,0.60);
-    --wm-surface-raised: rgba(255,255,255,0.45);
-    --wm-face-touche: rgba(255,255,255,0.45);
-    --wm-ink: #141412;
-    --wm-ink-soft: #2e2b27;
-    --wm-ink-faint: #45423d;
-    --wm-line: rgba(0,0,0,0.16);
-    --wm-contour-fenetre: #6f685d;
-    --wm-line-strong: rgba(20,20,18,0.55);
-    --wm-accent: #fff200;
+    --wm-ground: rgba(250,250,250,0.72);
+    --wm-surface: rgba(250,250,250,0.72);
+    --wm-surface-raised: rgba(0,0,0,0.05);
+    --wm-face-touche: rgba(0,0,0,0.07);
+    --wm-ink: #141414;
+    --wm-ink-soft: #141414;
+    --wm-ink-faint: rgba(20,20,20,0.60);
+    --wm-line: rgba(0,0,0,0.10);
+    --wm-contour-fenetre: rgba(0,0,0,0.14);
+    --wm-line-strong: rgba(0,0,0,0.30);
+    --wm-accent: #f7821a;
     --wm-accent-ring: #0a0a0a;
     --wm-signal: #b8291d;
-    --wm-metal-dark-hi: #5e584f;
-    --wm-metal-dark-lo: #191816;
-    --wm-metal-light-hi: #faf8f4;
-    --wm-metal-light-lo: #c3bbad;
-    --wm-ombre-fenetre: 0 16px 26px rgba(0,0,0,0.55);
+    /* Fond mat de la liste, filet qui la sépare de la page, ligne choisie, bloc intérieur, face d'un champ
+       posé dans un bloc, libellé du bouton principal orange (tokens.json, V2). */
+    --wm-liste-fond: #fafafa;
+    --wm-liste-separation: rgba(0,0,0,0.12);
+    --wm-selection-ligne: rgba(0,0,0,0.07);
+    --wm-bloc-fond: rgba(0,0,0,0.028);
+    --wm-bloc-lisere: rgba(255,255,255,0.75);
+    --wm-champ-fond: rgba(255,255,255,0.80);
+    --wm-bouton-principal-texte: #ffffff;
+    /* Cadres de sélection (fiche Selection) : d'après le fond derrière eux, comme les repères. */
+    --wm-cadre-trait: rgba(0,0,0,0.30);
+    --wm-cadre-trait-sombre: rgba(255,255,255,0.42);
+    --wm-cadre-pointilles: rgba(0,0,0,0.42);
+    --wm-cadre-pointilles-sombre: rgba(255,255,255,0.50);
+    --wm-cadre-poignee: rgba(0,0,0,0.40);
+    --wm-cadre-poignee-sombre: rgba(255,255,255,0.55);
+    --wm-cadre-gris-trace: rgba(128,128,128,0.26);
+    --wm-cadre-gris-actif: rgba(128,128,128,0.12);
+    --wm-ombre-cadre: 0 2px 10px rgba(0,0,0,0.22), inset 0 0 6px rgba(0,0,0,0.20);
+    --wm-ombre-bloc: 0 1px 6px rgba(0,0,0,0.05);
+    /* Métal poli des boutons ronds et de l'épingle active : titane neutre (tokens.json ; paliers mi et fin,
+       reflet et trait clair d'après la maquette V2). */
+    --wm-metal-dark-hi: #5c5c5c;
+    --wm-metal-dark-lo: #181818;
+    --wm-metal-light-hi: #fafafa;
+    --wm-metal-light-lo: #bdbdbd;
+    /* Ombre des fenêtres à la manière de macOS (thème clair) : noir à 34 %, glissée de 22 px, flou ~56 px,
+       plus une ombre de contact. En sombre : lueur blanche de même forme et liseré (plus bas). */
+    --wm-ombre-fenetre: 0 22px 56px rgba(0,0,0,0.34), 0 1px 3px rgba(0,0,0,0.14);
+    --wm-ombre-copie: rgba(0,0,0,0.34);
+    --wm-ombre-contact: 0 1px 3px rgba(0,0,0,0.14);
     --wm-ombre-epingle: inset 0 1.5px 0 rgba(255,255,255,0.75), inset 0 -3px 5px rgba(0,0,0,0.26), 0 3px 10px rgba(0,0,0,0.28);
     --wm-ombre-bouton: inset 0 1px 1px rgba(255,240,220,0.45), 0 8px 18px rgba(0,0,0,0.30);
     --wm-ombre-bouton-enfonce: inset 0 3px 6px rgba(90,70,50,0.45), inset 0 -1px 0 #ffffff, 0 1px 2px rgba(0,0,0,0.40);
@@ -254,14 +237,14 @@
     /* Métal des deux boutons ronds (fiche BoutonWitmit) : trait, signe, reflet et paliers du dégradé poli. */
     --wm-metal-dark-trait: #0a0a0a;
     --wm-metal-dark-signe: #f4f4f4;
-    --wm-metal-dark-reflet: rgba(255,240,220,0.30);
-    --wm-metal-dark-mi: #2e2b27;
-    --wm-metal-dark-fin: #38342f;
-    --wm-metal-light-trait: #6f685d;
-    --wm-metal-light-signe: #141412;
+    --wm-metal-dark-reflet: rgba(255,255,255,0.28);
+    --wm-metal-dark-mi: #2e2e2e;
+    --wm-metal-dark-fin: #383838;
+    --wm-metal-light-trait: #6f6f6f;
+    --wm-metal-light-signe: #141414;
     --wm-metal-light-reflet: rgba(255,255,255,0.75);
-    --wm-metal-light-mi: #e0dacf;
-    --wm-metal-light-fin: #e8e3da;
+    --wm-metal-light-mi: #e0e0e0;
+    --wm-metal-light-fin: #e8e8e8;
     --wm-ombre-bouton-clair: inset 0 1px 1px #ffffff, 0 8px 18px rgba(0,0,0,0.45);
     --wm-space-1: 4px;
     --wm-space-2: 8px;
@@ -273,71 +256,85 @@
     --wm-radius-rond: 999px;
     --wm-coupe-fenetre: 11px;
     --wm-coupe-touche: 6px;
-    --wm-verre-flou: 10px;
-    --wm-verre-opacite-clair: 0.60;
-    --wm-verre-opacite-sombre: 0.66;
+    /* Verre (fenêtres, bandeau, messages passagers) : 72 % en clair, 70 % en sombre, flou de 40 px, saturation 1,9. */
+    --wm-verre-flou: 40px;
+    --wm-verre-saturation: 1.9;
+    --wm-verre-opacite-clair: 0.72;
+    --wm-verre-opacite-sombre: 0.70;
     --wm-cible-min: 44px;
-    --wm-texte-min: 12px;
-    --wm-font-titre: "witmit Tektur", system-ui, sans-serif;
-    --wm-font-outil: "witmit Martian Mono", ui-monospace, Menlo, Consolas, monospace;
-    --wm-font-voix: "witmit Syne", system-ui, sans-serif;
-    --wm-font-compteur: "witmit Doto", ui-monospace, Menlo, Consolas, monospace;
+    --wm-texte-min: 13px;
+    /* Police système partout dans l'outil, texte de la personne compris ; chasse fixe du système pour les
+       seules touches de clavier citées dans une aide. Aucun fichier de police chargé. */
+    --wm-font-systeme: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wm-font-touche: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     /* Encre des repères posés sur le site (épingles, cadres, liens) : fixe, elle ne suit pas le verre
        mais le fond derrière chaque repère (fiche Reperes) — valeurs de --wm-ink clair et sombre. */
-    --wm-encre-repere: #141412;
-    --wm-encre-repere-claire: #f6f3ee;
-    --wm-encre-repere-55: rgba(20,20,18,.55);
-    --wm-encre-repere-claire-55: rgba(246,243,238,.55);
-    /* Face de l'épingle (fiches Epingle et Reperes) : le verre des fenêtres, choisi d'après le fond derrière elle
-       (champagne et chiffre encre sur fond clair ; graphite et chiffre blanc cassé sur fond sombre). */
-    --wm-epingle-verre-clair: rgba(236,232,224,.60);
-    --wm-epingle-verre-sombre: rgba(20,19,17,.66);
+    --wm-encre-repere: #141414;
+    --wm-encre-repere-claire: #f4f4f4;
+    --wm-encre-repere-55: rgba(20,20,20,.55);
+    --wm-encre-repere-claire-55: rgba(244,244,244,.55);
+    /* Face de l'épingle (fiches Epingle et Reperes ; décision a3) : le verre des fenêtres, choisi d'après le
+       fond derrière elle (titane clair sur fond clair ; titane sombre sur fond sombre). */
+    --wm-epingle-verre-clair: rgba(250,250,250,.72);
+    --wm-epingle-verre-sombre: rgba(27,27,27,.70);
     --wm-epingle-contour-sombre: rgba(255,255,255,.55);
-    --wm-ombre-epingle-metal-sombre: inset 0 1px 1px rgba(255,240,220,.45), 0 3px 10px rgba(0,0,0,.28);
+    --wm-ombre-epingle-metal-sombre: inset 0 1px 1px rgba(255,255,255,.28), 0 3px 10px rgba(0,0,0,.28);
     --wm-ombre-epingle-metal-clair: inset 0 1px 1px #ffffff, 0 3px 10px rgba(0,0,0,.45);
-    /* Halo du mode annotation (fiche Bandeau) : mêmes valeurs sur tous les sites, sans variante de thème. */
+    /* Halo du mode annotation (fiche Bandeau) : orange, mêmes valeurs sur tous les sites, sans variante de thème. */
     --wm-halo-filet: rgba(10,10,10,.9);
-    --wm-halo-lueur-courte: rgba(255,242,0,.42);
-    --wm-halo-lueur: rgba(255,242,0,.40);
+    --wm-halo-lueur-courte: rgba(247,130,26,.42);
+    --wm-halo-lueur: rgba(247,130,26,.40);
     /* Rond de la loupe posé sur une capture (fiche Tiroir) : sur l'image, jamais sur le verre. */
-    --wm-loupe-fond: rgba(20,19,17,.66);
+    --wm-loupe-fond: rgba(22,22,22,.66);
     /* Mise en page seulement (pas d'identité) : la barre de navigation de l'hôte, si elle est déclarée. */
     --wm-nav-h: var(--nav-h, 0px);
   }
   body[data-wm-theme="client-sombre"] .cm-ui, body[data-wm-theme="client-sombre"] mark.cm-highlight {
-    --wm-ground: rgba(20,19,17,0.66);
-    --wm-surface: rgba(20,19,17,0.66);
-    --wm-surface-raised: rgba(0,0,0,0.30);
-    --wm-face-touche: rgba(255,255,255,0.07);
-    --wm-ink: #f6f3ee;
-    --wm-ink-soft: #e6e2d9;
-    --wm-ink-faint: #bdb9b0;
-    --wm-line: rgba(255,255,255,0.14);
-    --wm-contour-fenetre: #0a0a0a;
-    --wm-line-strong: rgba(246,243,238,0.55);
+    --wm-ground: rgba(27,27,27,0.70);
+    --wm-surface: rgba(27,27,27,0.70);
+    --wm-surface-raised: rgba(255,255,255,0.06);
+    --wm-face-touche: rgba(255,255,255,0.14);
+    --wm-ink: #ffffff;
+    --wm-ink-soft: #ffffff;
+    --wm-ink-faint: rgba(255,255,255,0.60);
+    --wm-line: rgba(255,255,255,0.09);
+    --wm-contour-fenetre: rgba(255,255,255,0.16);
+    --wm-line-strong: rgba(255,255,255,0.30);
     --wm-signal: #ff6b5b;
-    --wm-ombre-fenetre: 0 16px 24px rgba(0,0,0,0.32);
+    --wm-liste-fond: #1b1b1b;
+    --wm-liste-separation: rgba(255,255,255,0.12);
+    --wm-selection-ligne: rgba(255,255,255,0.09);
+    --wm-bloc-fond: rgba(255,255,255,0.04);
+    --wm-bloc-lisere: rgba(255,255,255,0.08);
+    --wm-champ-fond: rgba(255,255,255,0.06);
+    /* Lueur du thème sombre : même géométrie que l'ombre du thème clair, en blanc à 22 % ; liseré blanc à
+       16 % dedans et 5 % dehors. */
+    --wm-ombre-fenetre: 0 22px 56px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
+    --wm-ombre-copie: rgba(255,255,255,0.22);
+    --wm-ombre-contact: inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
   }
   /* Sans flou d'arrière-plan, ou si la personne réduit la transparence : verre presque opaque (0,94). */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
-    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+    .cm-ui { --wm-ground: rgba(250,250,250,0.94); --wm-surface: rgba(250,250,250,0.94); }
+    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(27,27,27,0.94); --wm-surface: rgba(27,27,27,0.94); }
   }
   @media (prefers-reduced-transparency: reduce) {
-    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
-    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+    .cm-ui { --wm-ground: rgba(250,250,250,0.94); --wm-surface: rgba(250,250,250,0.94); }
+    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(27,27,27,0.94); --wm-surface: rgba(27,27,27,0.94); }
   }
+  /* La liste est mate, sans verre : titane neutre (#FAFAFA en clair, #1B1B1B en sombre ; décision du 26/10). */
+  body .cm-ui.cm-panel { --wm-ground: var(--wm-liste-fond); --wm-surface: var(--wm-liste-fond); }
 
   /* Réinitialisation limitée à nos couches : les règles de l'hôte (preflight de Tailwind, styles posés sur
      button, mark, svg ou *) ne doivent pas déteindre sur witmit. Tout est écrit en toutes lettres. */
   .cm-ui, .cm-ui *, .cm-ui::before, .cm-ui::after, .cm-ui *::before, .cm-ui *::after { box-sizing:border-box; }
-  .cm-ui { font-family:var(--wm-font-outil); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-ui { font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   mark.cm-highlight { background:none; color:inherit; }
 
   /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; décisions F1 à F5, F8, F9) ----------
      Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas découpée
      elle-même : habiller() lui ajoute en premiers enfants trois couches muettes, sans clic, qui portent la
-     matière. .wm-ombre : copie floutée de la forme, posée 14 px plus bas (l'ombre d'un élément découpé
+     matière. .wm-ombre : copie floutée de la forme, posée 22 px plus bas (l'ombre d'un élément découpé
      serait coupée avec lui). .wm-verre : la face de verre dépoli, découpée. .wm-contour : le trait de 1 px
      et les deux coins witmit, en SVG retracé à la taille réelle. Aucun parent du verre ne porte filter,
      opacity < 1, mask, clip-path, mix-blend-mode ni backdrop-filter, même pendant une animation : ils
@@ -349,17 +346,17 @@
        coupe (6 px + 0,586 × l'écart : 7,17 px au bord intérieur, 8,34 px au bord extérieur). */
     --wm-anneau-touche: polygon(evenodd, 8.34px 0, 100% 0, 100% calc(100% - 8.34px), calc(100% - 8.34px) 100%, 0 100%, 0 8.34px, 8.34px 0,
       9.17px 2px, 2px 9.17px, 2px calc(100% - 2px), calc(100% - 9.17px) calc(100% - 2px), calc(100% - 2px) calc(100% - 9.17px), calc(100% - 2px) 2px, 9.17px 2px);
-    /* Ombre de la copie floutée et survol des touches : un cran plus blanc (clair) ou plus clair (sombre). */
-    --wm-ombre-copie: rgba(0,0,0,.30);
-    --wm-face-touche-survol: rgba(255,255,255,.62);
+    /* Survol d'un bouton secondaire : un cran plus marqué (tokens.json, face-touche-survol). */
+    --wm-face-touche-survol: rgba(0,0,0,.11);
   }
-  body[data-wm-theme="client-sombre"] .cm-ui { --wm-ombre-copie: rgba(0,0,0,.35); --wm-face-touche-survol: rgba(255,255,255,.12); }
+  body[data-wm-theme="client-sombre"] .cm-ui { --wm-face-touche-survol: rgba(255,255,255,.20); }
   .cm-ui[hidden], .cm-ui [hidden] { display:none !important; }
   .wm-habille { isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
   .wm-habille > .wm-ombre, .wm-habille > .wm-verre, .wm-habille > .wm-contour { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; border:0; pointer-events:none; }
-  .wm-habille > .wm-ombre { z-index:-2; top:14px; filter:blur(14px); }
+  .wm-habille > .wm-ombre { z-index:-2; top:22px; filter:blur(28px); }   /* ombre macOS : glissée de 22 px, flou ~56 px ; lueur en sombre */
   .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; clip-path:var(--wm-forme-fenetre); background:var(--wm-ombre-copie); }
-  .wm-habille > .wm-verre { z-index:-1; clip-path:var(--wm-forme-fenetre); background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); }
+  .wm-habille > .wm-verre { z-index:-1; clip-path:var(--wm-forme-fenetre); background:var(--wm-surface); box-shadow:var(--wm-ombre-contact);
+    backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); }
   .wm-habille > .wm-contour { z-index:1; overflow:visible; display:block; max-width:none; }
   .wm-contour polygon { fill:none; stroke:var(--wm-contour-fenetre); stroke-width:1; }
   .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; }
@@ -374,10 +371,11 @@
      face ton sur ton. La découpe et le trait vont sur ::before, jamais sur le bouton : son contour de focus
      (::after) n'est ainsi pas rogné (F5). Principale : trait line-strong ; secondaire : trait line. */
   .cm-ui .wm-touche { position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:0; margin:0; padding:0 10px 0 14px;
-    background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-outil); font-size:13px; font-weight:500; line-height:1; letter-spacing:normal; text-transform:none;
+    background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; letter-spacing:normal; text-transform:none;
     color:var(--wm-ink); white-space:nowrap; cursor:pointer; text-decoration:none; }
   .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
   .cm-ui .wm-touche.wm-principale::before { border-color:var(--wm-line-strong); }
+  .cm-ui .wm-touche.wm-principale { font-weight:500; }   /* bouton principal en graisse 500 (charte V2, Typographie) */
   .cm-ui .wm-touche:hover::before { background:var(--wm-face-touche-survol); }
   .cm-ui .wm-touche:active::before { background:var(--wm-surface-raised); }
   .cm-ui .wm-touche.wm-petite { height:32px; padding:0 8px 0 12px; gap:6px; }
@@ -388,11 +386,11 @@
   .cm-ui .wm-touche:disabled .wm-repere, .cm-ui .wm-touche[aria-disabled="true"] .wm-repere { border-color:var(--wm-line); color:var(--wm-ink-faint); }
   /* « annuler » et actions discrètes : texte seul, sans cadre (ink-soft : contraste sur le verre, T12). */
   .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+    font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .wm-texte:hover { color:var(--wm-ink); }
   /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
   .cm-ui .wm-repere { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; margin-left:4px; border:1px solid var(--wm-line-strong);
-    border-radius:var(--wm-radius-repere); font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
+    border-radius:var(--wm-radius-repere); font-family:var(--wm-font-touche); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
   /* Texte pour les lecteurs d'écran seulement (« cmd » derrière l'icône ⌘). */
   .cm-ui .wm-lu { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   /* Icône seule : icône Phosphor dans un cercle fin de 30 px, zone cliquable portée à 44 px par ::before. */
@@ -435,14 +433,14 @@
   /* ---------- Les deux boutons ronds (fiche BoutonWitmit ; décisions C6, F8, L1) ----------
      Bouton witmit (#cmPanelBtn, 52 px) : il ouvre et ferme la liste, enfoncé = liste ouverte. Collé à sa
      gauche, le bouton du mode annotation (#cmToggleBtn, 40 px dessinés, 44 px cliquables) : enfoncé = mode
-     actif. Métal poli, sombre sur un site clair et clair sur un site sombre (même attribut que le verre) ;
+     actif. Métal poli, clair sur un site clair et sombre sur un site sombre (même attribut que le verre, V2) ;
      l'état se lit à l'enfoncement, jamais à la teinte. Créés seulement si la page n'a pas déjà les siens. */
   .cm-fab { position:fixed; right:24px; bottom:24px; z-index:845; display:flex; align-items:center; gap:8px; margin:0; padding:0;
     transition:right 240ms cubic-bezier(0.16, 1, 0.3, 1); }  /* sous le panneau (850), sauf quand il le chevauche (écran étroit) */
   .cm-fab.wm-decale { z-index:855; }                        /* liste ouverte : à gauche de la liste, toujours cliquables */
   .cm-ui .wm-bouton { position:relative; flex:none; box-sizing:border-box; display:flex; align-items:center; justify-content:center; margin:0; padding:0; border-radius:50%;
     font-size:0; line-height:0; cursor:pointer; outline:none; transition:box-shadow 120ms ease;
-    /* métal sombre (défaut, site clair) */
+    /* métal sombre (défaut, site sombre ; le métal clair suit « client-clair ») */
     border:1px solid var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
     background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
       linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
@@ -470,7 +468,7 @@
   /* Focus clavier (fiche Etats, forme ronde) : outline de 2 px à 2 px. Le bouton est posé sur le site, pas
      sur le verre : le trait prend l'encre qui tranche sur le site (sombre sur un site clair, et l'inverse). */
   .cm-ui .wm-bouton:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:2px; }
-  body[data-wm-theme="client-clair"] .cm-ui .wm-bouton:focus-visible { outline-color:var(--wm-encre-repere-claire); }
+  body[data-wm-theme="client-sombre"] .cm-ui .wm-bouton:focus-visible { outline-color:var(--wm-encre-repere-claire); }
   @media (max-width:480px) { .cm-fab { right:16px; bottom:16px; } }   /* M1 : à 16 px des bords sur un téléphone */
   @media (prefers-reduced-motion:reduce) { .cm-fab, .cm-ui .wm-bouton { transition:none; } }
   @media (forced-colors:active) { .cm-ui .wm-bouton { border-color:ButtonText; } .cm-ui .wm-bouton[aria-pressed="true"], .cm-ui .wm-bouton[aria-expanded="true"] { border-width:3px; } }
@@ -478,7 +476,7 @@
   /* Boutons fournis par la page (C8, maquettes TellUs) : witmit les adopte (data-wm-fourni="page") sans
      toucher à leur contenu ; touche ronde à icône seule, ton sur ton, aux jetons ; .cm-on = enfoncé. */
   .cm-ui[data-wm-fourni="page"] { position:relative; box-sizing:border-box; width:40px; height:40px; margin:0; padding:0; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:1px solid var(--wm-line-strong); background:var(--wm-face-touche); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7);
+    border-radius:50%; border:1px solid var(--wm-line-strong); background:var(--wm-face-touche); backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation));
     font-size:16px; line-height:1; color:var(--wm-ink); cursor:pointer; box-shadow:var(--wm-ombre-bouton); transition:box-shadow 120ms ease; }
   .cm-ui[data-wm-fourni="page"]:hover { background:var(--wm-face-touche-survol); }
   .cm-ui[data-wm-fourni="page"].cm-on { background:var(--wm-surface-raised); box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
@@ -520,16 +518,16 @@
     .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
   }
 
-  /* Bandeau du mode annotation (fiche Bandeau ; Léa 3.2) : fenêtre de verre de 44 px, thème inverse du site,
+  /* Bandeau du mode annotation (fiche Bandeau ; Léa 3.2) : fenêtre de verre de 44 px, au thème du site,
      coins witmit (habiller), centrée à 12 px sous la barre de navigation, déplaçable par sa poignée (position
      gardée). Placement et passage sur deux lignes : placerBandeau() (mesure réelle : s'il ne tient pas sur une
      ligne dans la place libre, à côté de la liste ouverte comprise). */
-  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:400; font-size:12px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
+  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-weight:400; font-size:14px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
   .cm-pill.show { display:block; }
   .cm-pill .wm-bandeau-corps { position:relative; display:flex; align-items:center; gap:8px; height:44px; padding:0 22px 0 18px; }
   .cm-pill .wm-poignee { display:inline-flex; align-items:center; justify-content:center; flex:none; width:20px; height:44px; color:var(--wm-ink-soft); }
   .cm-pill.cm-dragging .wm-poignee { color:var(--wm-ink); }
-  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:600; color:var(--wm-ink); }
+  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:500; color:var(--wm-ink); }
   .cm-pill .wm-bandeau-mode .wm-voyant { flex:none; }
   .cm-pill .wm-filet { flex:none; width:1px; height:20px; background:var(--wm-line); }
   .cm-pill .wm-gestes { color:var(--wm-ink-soft); }
@@ -565,7 +563,7 @@
      gauche arrondis à 5 px, coins witmit 7 × 2 px en haut à gauche et en bas à droite (::before), zone
      cliquable de 44 px (::after transparent). Son bord droit s'aligne sur le cadre de l'élément, son bord bas
      6 px au-dessus du cadre : le point posé en JS est ce coin bas droit (translate -100 %, -100 %). */
-  .cm-pin { --wm-coin-pin: 7px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:0 var(--wm-radius-numero) 0 var(--wm-radius-numero); font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
+  .cm-pin { --wm-coin-pin: 7px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:0 var(--wm-radius-numero) 0 var(--wm-radius-numero); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
   .cm-pin.wm-sur-sombre { background:var(--wm-epingle-verre-sombre); box-shadow:inset 0 0 0 1px var(--wm-epingle-contour-sombre), var(--wm-ombre-epingle); }
   .cm-pin.wm-dessous { transform:translate(-100%,0); }            /* pas de place au-dessus : sous le coin bas droit */
   .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début */
@@ -683,33 +681,33 @@
 
   /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
      380 px, au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
-     poignée (titre, croix, élément visé dessous) ; corps : champ coupé en Syne, catégorie en touches
+     poignée (titre, croix, élément visé dessous) ; corps : champ coupé en police système, catégorie en touches
      dépliées (I4), actions. Les marges laissent libres les deux coins witmit. */
-  .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
+  .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
   @media (max-width:480px) { .cm-popup { width:min(380px, calc(100vw - 16px)); } }
   .cm-popup .cm-tete { position:relative; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
   .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
-  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
   .cm-popup .cm-zone .wm-icone { margin:0; }
   .cm-popup .cm-zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; color:var(--wm-ink-soft); white-space:nowrap; }
+  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:13px; color:var(--wm-ink-soft); white-space:nowrap; }
   .cm-popup .cm-aide-multi .wm-repere { margin:0; }
   .cm-popup .cm-corps { position:relative; padding:12px 24px 20px 20px; }
-  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
+  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
   .cm-popup .cm-libelle-cat { margin-top:12px; }
-  /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), Syne 14 px. Sans
+  /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), police système 15 px. Sans
      poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
      Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
   .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
     border:1px solid var(--wm-line); border-radius:0; background:var(--wm-surface-raised); box-shadow:none; outline:none;
-    font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+    font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
-  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
   .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:44px; }
   .cm-popup .cm-champ-reponse { margin-top:12px; }
   /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
-  .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
+  .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
   /* Vignette de la capture d'une zone : 112 × 64 px, coupe de 6 px, trait line-strong. */
   .cm-popup .cm-vignette-ligne { display:flex; align-items:center; gap:12px; margin-top:10px; }
   .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
@@ -717,24 +715,24 @@
   .cm-popup .cm-vignette img { display:block; width:100%; height:100%; max-width:none; object-fit:cover; }
   .cm-popup .cm-vignette:focus { outline:none; }
   .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
-  .cm-popup .cm-vignette-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-vignette-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
      touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
-  .cm-popup .cm-cat.wm-touche { display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:13px; font-weight:400; }
+  .cm-popup .cm-cat.wm-touche { display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:14px; font-weight:400; }
   .cm-popup .cm-cat-nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
-  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
+  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
   .cm-popup .cm-cat-liste { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .cm-popup .cm-cat-choix.wm-touche { max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:12px; font-weight:400; }
+  .cm-popup .cm-cat-choix.wm-touche { max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:13px; font-weight:400; }
   .cm-popup .cm-cat-choix span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
   /* Lecture seule : verrou, texte de la personne entre « », catégorie en méta. Complément : zone en creux. */
-  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-popup .cm-lock-line { margin:0 0 8px; }
-  .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:600; }
+  .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:500; }
   .cm-popup .cm-meta-lu { margin-top:8px; }
   .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-meta-lu .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
-  .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); clip-path:var(--wm-forme-touche); }
-  .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Actions : supprimer (cercle, jamais rouge) à gauche ; « annuler » en texte et la touche principale à droite. */
   .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:16px; }
   .cm-popup .cm-delete { margin-right:auto; }
@@ -745,7 +743,7 @@
      Fenêtre witmit de 380 px sur toute la hauteur, collée à droite (pleine largeur, en surimpression, sous
      480 px). Matière par habiller(). Tête, liste qui défile, encart « coller un retour », pied collé en bas. */
   .cm-panel { position:fixed; top:0; right:0; height:100vh; width:380px; max-width:100vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column;
-    font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; transform:translateX(100%); visibility:hidden;
+    font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; transform:translateX(100%); visibility:hidden;
     transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 240ms; }
   .cm-panel.show { transform:translateX(0); visibility:visible; transition-delay:0s; }
   @media (max-width:480px) { .cm-panel { width:100vw; } }
@@ -753,16 +751,16 @@
   /* Tête : marges 14 / 14 / 12 / 22, filet dessous. */
   .cm-panel-head { flex:none; padding:14px 14px 12px 22px; border-bottom:1px solid var(--wm-line); }
   .cm-panel-head-row { display:flex; align-items:center; gap:10px; margin:0 0 6px; }
-  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
-  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-size:22px; font-weight:900; line-height:1; color:var(--wm-ink); }
-  .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
+  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-systeme); font-size:22px; font-weight:600; line-height:1; color:var(--wm-ink); }
+  .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-author[hidden], .cm-panel-ailleurs[hidden] { display:none; }
-  .cm-panel-author b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-author b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-filtres { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12px; min-height:28px; margin-top:2px; }
   .cm-panel-filtres:not(:has(> :not([hidden]))) { display:none; }   /* maquette, page vide : aucune ligne de filtres */
   /* « masquer les terminés » (case de 16 px) et « masquer witmit » : textes seuls, zone de 44 px de haut. */
   .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-filtre::before { content:''; position:absolute; left:0; right:0; top:-8px; bottom:-8px; }
   .cm-ui .cm-filtre:hover { color:var(--wm-ink); }
   .cm-ui .cm-filtre:focus { outline:none; }
@@ -782,29 +780,29 @@
   .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:transparent; pointer-events:none; }
   .cm-panel-item:hover::before, .cm-panel-item.cm-current::before { background:var(--wm-surface-raised); }
   .cm-panel-item .num { flex:none; display:flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 5px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-numero);
-    background:transparent; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1; color:var(--wm-ink); }
+    background:transparent; font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; color:var(--wm-ink); }
   /* Ligne sélectionnée : même face + numéro plein, chiffre dans l'encre de l'autre thème (pas de barre à gauche). */
   .cm-panel-item.cm-current .num { background:var(--wm-ink); border-color:var(--wm-ink); color:var(--wm-encre-repere-claire); }
   body[data-wm-theme="client-sombre"] .cm-panel-item.cm-current .num { color:var(--wm-encre-repere); }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
-  .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
   .cm-panel-item .zone .wm-icone { margin:0; }
   .cm-panel-item .zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  /* Texte de la personne : Syne 14 px, entre « » (posés par le style : le texte du retour reste intact). */
-  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
+  /* Texte de la personne : police système 15 px, entre « » (posés par le style : le texte du retour reste intact). */
+  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
   .cm-panel-item .txt::before, .cm-voix::before { content:'« '; }
   .cm-panel-item .txt::after, .cm-voix::after { content:' »'; }
   /* Méta : ligne 1 = verrou, statut (ou marque d'envoi) en gras, voyant, prénom, date ; ligne 2 = catégorie. */
-  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-meta2 { gap:2px 14px; margin-top:0; }
-  .cm-panel-item .cm-meta b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-meta b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-meta > span, .cm-panel-item .cm-mi { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
   .cm-panel-item .cm-meta .wm-icone { margin:0; }
   .cm-panel-item .cm-status-chip, .cm-panel-item .cm-sync-chip, .cm-panel-item .cm-cat-chip { display:inline-flex; align-items:center; gap:5px; margin:0; padding:0; border:0; border-radius:0; background:none; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; text-transform:none; }
-  .cm-panel-item .cm-status-chip b, .cm-panel-item .cm-sync-chip b { color:var(--wm-ink); font-weight:600; }
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; text-transform:none; }
+  .cm-panel-item .cm-status-chip b, .cm-panel-item .cm-sync-chip b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-verrou { display:inline-flex; color:var(--wm-ink-soft); }
-  .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:600; gap:5px; }
+  .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:500; gap:5px; }
   .cm-panel-item .cm-nouveau .wm-voyant { display:inline-block; }
   /* « à renvoyer » : un bouton ; icône et soulignement rouges, mot à l'encre ; zone de 44 px de haut. */
   .cm-ui button.cm-sync-error { position:relative; cursor:pointer; }
@@ -814,14 +812,14 @@
   .cm-ui .cm-sync-error:focus { outline:none; }
   .cm-ui .cm-sync-error:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   /* Détails techniques : repli en texte seul ; ouvert, zone en creux de 160 px au plus, 12 px. */
-  .cm-panel-item details.cm-tech { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item details.cm-tech { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item details.cm-tech[open] { flex-basis:100%; }
   .cm-panel-item details.cm-tech summary { display:inline-flex; align-items:center; gap:5px; min-height:24px; cursor:pointer; list-style:none; }
   .cm-panel-item details.cm-tech summary::-webkit-details-marker { display:none; }
   .cm-panel-item details.cm-tech .wm-ouvert, .cm-panel-item details.cm-tech[open] .wm-ferme { display:none; }
   .cm-panel-item details.cm-tech[open] .wm-ouvert { display:inline-block; }
   .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:0; border-radius:0;
-    font-family:var(--wm-font-outil); font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
+    font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
   /* Actions : cercles de 30 px empilés, 14 px d'écart (zones de 44 px sans chevauchement). */
   .cm-panel-item .cm-item-actions { flex:none; display:flex; flex-direction:column; align-items:center; gap:14px; }
   .cm-panel-item.cm-done .num { border-color:var(--wm-line); color:var(--wm-ink-soft); }
@@ -836,53 +834,53 @@
   .cm-ui .cm-vignette:focus { outline:none; }
   .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
   /* Capture en cours (fiche Etats) : zone en creux, CircleNotch centré, « capture… » à côté. */
-  .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
   .cm-popup .cm-capture-boite { width:112px; height:64px; }
   /* Modification en place : champ coupé (comme celui de la fenêtre), aide en dessous. */
   .cm-panel-item .cm-edit-bloc { margin-top:4px; }
   .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:0;
     background:var(--wm-surface-raised); box-shadow:none; outline:none; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; }
+  .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; }
   .cm-ui .cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply) { border-color:var(--wm-line-strong); }
   .cm-ui .cm-panel-item .wm-champ > textarea:focus, .cm-ui .cm-feedback-box .wm-champ > textarea:focus { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
-  .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
-  .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-ui .cm-aide .wm-repere { margin:0; }
-  /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta en mono, messages en Syne entre « ». */
+  /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta et messages en police système, messages entre « ». */
   .cm-panel-item .cm-thread { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
-  .cm-panel-item .cm-msg { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-msg { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); }
   .cm-panel-item .cm-msg-auteur, .cm-panel-item .cm-reply { margin-left:16px; }
-  .cm-panel-item .cm-msg-who { display:block; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
-  .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-msg-who { display:block; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
+  .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-msg-who .wm-icone { margin:0 5px 0 0; }
   .cm-panel-item .cm-msg-who .cm-sync-chip { vertical-align:baseline; margin-left:4px; }
   .cm-panel-item .cm-msg-who .cm-msg-drop { vertical-align:middle; }
-  .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-panel-item .cm-msg-drop { margin-left:2px; }
   .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; margin-right:-42px; }
   /* -42 px : la rangée sous le fil passe sous la colonne des cercles (30 px + 12 px d'écart), pour que « ça ne convient pas ?
      rouvrir » garde ses marges intérieures à 380 et 375 px. En live, un retour envoyé n'a plus que son cercle du haut de ligne :
      rien ne se chevauche (relecture de Paula, lot 5). */
-  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:12px; }   /* 12 px, comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 380 px */
+  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:13px; }   /* 13 px (minimum V2), comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 380 px */
   /* Champ de réponse : libellé, champ, puis « annuler » à gauche et la touche secondaire à droite. */
   .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
-  .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-reponse-libelle .wm-icone { margin:0; }
   .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
-  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte { padding:0 6px 0 0; font-size:12px; }
+  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte { padding:0 6px 0 0; font-size:13px; }
   .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte .wm-repere { margin-left:6px; }
-  .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
+  .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
   .cm-panel-item .cm-refus[hidden] { display:none; }
-  /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : mono 12 px, ink-soft, centrées. */
-  .cm-panel-empty { padding:24px 16px; text-align:center; font-size:12px; line-height:1.5; color:var(--wm-ink-soft); }
+  /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : 13 px, ink-soft, centrées. */
+  .cm-panel-empty { padding:24px 16px; text-align:center; font-size:13px; line-height:1.5; color:var(--wm-ink-soft); }
   /* Encart « coller un retour » (fiche Rapport) : entre la liste et le pied. */
   .cm-feedback-box { flex:none; padding:12px 24px 14px 20px; border-top:1px solid var(--wm-line); border-bottom:1px solid var(--wm-line); }
   .cm-feedback-box[hidden] { display:none; }
-  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1.4; color:var(--wm-ink); }
+  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:600; line-height:1.4; color:var(--wm-ink); }
   .cm-feedback-box .cm-feedback-title .wm-icone { margin:0; }
-  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; }
+  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.5; }
   .cm-feedback-box .cm-feedback-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
   /* Pied : outils de la page et rapport (mode maquette, ou retour pas encore parti en live), puis « nouveau retour ». */
   .cm-panel-pied { flex:none; padding:12px 24px 22px 18px; border-top:1px solid var(--wm-line); }
@@ -891,21 +889,21 @@
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden], .cm-panel-foot label[hidden] { display:none; }
   .cm-panel-tools { gap:0 16px; }
   .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-panel-tools .cm-outil::before { content:''; position:absolute; left:0; right:0; top:-6px; bottom:-6px; }
   .cm-ui .cm-panel-tools .cm-outil:hover { color:var(--wm-ink); }
   .cm-ui .cm-panel-tools .cm-outil:focus { outline:none; }
   .cm-ui .cm-panel-tools .cm-outil:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-panel-report { gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--wm-line); }
-  .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; gap:6px; min-height:28px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; gap:6px; min-height:28px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
   .cm-panel-report .cm-scope input { position:absolute; left:0; top:50%; width:16px; height:16px; margin:-8px 0 0; padding:0; opacity:0; cursor:pointer; }
   .cm-panel-report .cm-scope input:focus-visible + .wm-case { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-panel-report .cm-scope .wm-case { pointer-events:none; }   /* la case dessinée laisse le clic à la vraie case */
-  .cm-ui .cm-panel-report .wm-touche { font-size:12px; font-weight:400; }
+  .cm-ui .cm-panel-report .wm-touche { font-size:13px; font-weight:400; }
   .cm-panel-new { flex-direction:column; align-items:stretch; }
   .cm-panel-pied.wm-outils-visibles .cm-panel-new { margin-top:14px; }
   .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
-  .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-new .cm-new-aide[hidden] { display:none; }
   .cm-panel-new .cm-new-aide .wm-repere { margin:0 1px; vertical-align:baseline; }
 
@@ -913,16 +911,16 @@
      .cm-lightbox ne prend aucun clic (le clic à côté atteint la page, où il ferme la visionneuse). */
   .cm-lightbox { position:fixed; inset:0; z-index:990; display:flex; align-items:center; justify-content:center; padding:8px; pointer-events:none; background:none; }
   .cm-lightbox .cm-lightbox-fenetre { position:relative; display:flex; flex-direction:column; min-width:min(360px, calc(100vw - 16px)); max-width:min(92vw, calc(100vw - 16px)); max-height:86vh;
-    pointer-events:auto; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
+    pointer-events:auto; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
   .cm-lightbox .cm-lb-tete { position:relative; flex:none; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); }
   .cm-lightbox .cm-lb-l1 { display:flex; align-items:center; gap:8px; margin:0 0 4px; }
-  .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
-  .cm-lightbox .cm-lb-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
+  .cm-lightbox .cm-lb-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cm-lightbox .cm-lb-corps { position:relative; display:flex; flex-direction:column; min-height:0; padding:14px 24px 20px 20px; }
   .cm-lightbox .cm-lb-image { position:relative; isolation:isolate; display:flex; justify-content:center; min-height:0; }
   .cm-lightbox .cm-lb-face { position:relative; display:block; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-lightbox img { display:block; max-width:100%; max-height:calc(86vh - 150px); width:auto; height:auto; margin:0; border:0; border-radius:0; object-fit:contain; }
-  .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-lightbox .cm-lightbox-hint .wm-repere { margin:0; }
   /* Apparition en 160 ms portée par chaque couche de la fenêtre, jamais par un parent du verre (F9). */
   .cm-lightbox .cm-lightbox-fenetre > * { animation:wmApparait 160ms ease-out; }
@@ -931,7 +929,7 @@
   /* Message d'état (toast) : verre aux jetons (aspect intermédiaire ; fiche Etats au lot 7). */
   /* Message passager : petite fenêtre de verre sans coins witmit (fiche Etats). Le fondu de 200 ms porte
      sur chaque couche enfant, jamais sur .cm-status, qui contient le verre (F4, F9) ; visibility suit. */
-  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:18px; min-height:40px; padding:11px 20px 11px 16px; pointer-events:none; width:max-content; max-width:min(420px, 90vw); white-space:normal; visibility:hidden; transition:visibility 0s linear 200ms; }
+  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:18px; min-height:40px; padding:11px 20px 11px 16px; pointer-events:none; width:max-content; max-width:min(420px, 90vw); white-space:normal; visibility:hidden; transition:visibility 0s linear 200ms; }
   .cm-status.show { visibility:visible; transition-delay:0s; }
   .cm-status > * { opacity:0; transition:opacity 200ms ease; }
   .cm-status.show > * { opacity:1; }
@@ -1054,7 +1052,7 @@
   function injectUI() {
     var style = document.createElement('style');
     style.id = 'cmStyles';
-    style.textContent = fontFacesCss() + CSS;
+    style.textContent = CSS;
     document.head.appendChild(style);
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
@@ -1164,9 +1162,9 @@
   renderAuthor();
   initTheme();
 
-  /* ---------- thème : le verre prend l'inverse du fond de la page ----------
-     On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → verre
-     champagne (« client-clair ») ; sinon verre graphite (« client-sombre »). Sans fond opaque, on suit
+  /* ---------- thème : witmit prend le thème du site (V2) ----------
+     On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → titane
+     sombre (« client-sombre ») ; sinon titane clair (« client-clair »). Sans fond opaque, on suit
      prefers-color-scheme. data-host-theme sur la balise <script> impose la réponse. Le résultat est posé
      en data-wm-theme sur <body> (jamais de variable sur :root) : toutes nos couches suivent d'un coup. */
   function hostIsDark() {
@@ -1181,7 +1179,7 @@
     return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   }
   function applyTheme() {
-    var t = hostIsDark() ? 'client-clair' : 'client-sombre';
+    var t = hostIsDark() ? 'client-sombre' : 'client-clair';
     if (document.body.getAttribute('data-wm-theme') !== t) document.body.setAttribute('data-wm-theme', t);
   }
   // Recalcul : au chargement ; quand le site change son thème (class, style ou data-theme de <html> ou de
@@ -1282,7 +1280,6 @@
   }
   function applyReveal(on) {
     document.body.classList.toggle('cm-concealed', !on);
-    if (on && LIVE) prechargerPolices();
     var hideBtn = document.getElementById('cmHideBtn');
     if (hideBtn) hideBtn.hidden = !LIVE;
   }
@@ -2222,7 +2219,7 @@
   };
 
   /* ---------- le fil d'un retour (fiche FilDeMessages ; Léa 3.4 et 3.6) ----------
-     Messages de l'équipe en creux, les tiens en retrait ; méta en mono, texte de la personne en Syne entre « ».
+     Messages de l'équipe en creux, les tiens en retrait ; méta et texte de la personne en police système, ce dernier entre « ».
      Live : le fil du serveur, puis tes messages pas encore partis ; dessous, « répondre » (si l'équipe a écrit
      au moins une fois) et « ça ne convient pas ? rouvrir » (retour résolu ou répondu par l'équipe).
      Maquette : complément demandé, message de l'équipe collé, tes réponses en attente du prochain rapport. */
@@ -3677,7 +3674,7 @@
     var show = (typeof force === 'boolean') ? force : !panel.classList.contains('show');
     if (typeof force !== 'boolean' && show && !confirmerAbandon()) return;
     if (show) {
-      applyTheme(); prechargerPolices();
+      applyTheme();
       // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
       clearTimeout(clickTimer); clickTimer = null;
       closePopup(true);
@@ -3831,7 +3828,7 @@
     pill.style.top = top === null ? '' : top + 'px';
   }
   window.addEventListener('resize', placerBandeau);
-  // Les polices de witmit arrivent après coup (chargement paresseux) : la largeur du bandeau change.
+  // Une police du système peut finir de se charger après coup : la largeur du bandeau change.
   if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', placerBandeau);
 
   (function initPillDrag() {
@@ -3968,13 +3965,6 @@
     }
   });
   majBoutons();
-  // Premier survol (ou focus clavier) d'un des deux boutons : les polices partent, prêtes pour la fenêtre.
-  ['cmToggleBtn', 'cmPanelBtn'].forEach(function (id) {
-    var b = document.getElementById(id);
-    if (!b) return;
-    b.addEventListener('pointerenter', prechargerPolices, { once: true });
-    b.addEventListener('focus', prechargerPolices, { once: true });
-  });
 
   var statusTimer = null;
   var masquageTimer = null;

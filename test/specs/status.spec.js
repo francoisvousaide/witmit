@@ -159,7 +159,8 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-panel-item').nth(1).locator('.del')).toHaveCount(1);   // maquette : corbeille sur un complément aussi
     await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-feedback-q')).toContainText('Quelle ligne exactement ?');
     // répondre au complément depuis la liste
-    await page.locator('.cm-panel-item').nth(1).locator('.body').click();
+    // clic sur le texte du retour (V2 : texte plus grand, le milieu de .body tombe sur « détails techniques »)
+    await page.locator('.cm-panel-item').nth(1).locator('.body .txt').click();
     await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
     await page.locator('.cm-panel-item textarea.cm-inline-reply').fill('La ligne 1042, Café des Arts');
     await page.locator('.cm-panel-item textarea.cm-inline-reply').press('Enter');

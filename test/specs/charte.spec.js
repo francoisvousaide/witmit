@@ -1,4 +1,4 @@
-// Charte « Objet » : jetons, thème inverse, isolation, polices, fin de l'ancienne palette, halo jaune.
+// Charte V2 (avant : « Objet ») : jetons, thème du site, isolation, police système, fin de l'ancienne palette, halo orange.
 // Spécification technique de la course d'habillage (section 3.3, fichier charte.spec.js).
 const fs = require('fs');
 const os = require('os');
@@ -8,7 +8,7 @@ const H = require('./helpers');
 
 const SRC_DIR = path.resolve(__dirname, '..', '..', 'src');
 const WIDGET_URL = 'file://' + path.join(SRC_DIR, 'witmit.js');
-const POLICES_URL = 'file://' + path.join(SRC_DIR, 'witmit-polices') + '/';
+// Familles des polices embarquées de 0.2.0 : plus aucune n'est déclarée ni chargée depuis la V2 (police système).
 const FAMILLES = ['witmit Tektur', 'witmit Martian Mono', 'witmit Syne', 'witmit Doto'];
 
 // Valeurs de l'ancienne palette (T13), en minuscules et sans espaces.
@@ -39,15 +39,15 @@ async function basculerTheme(page) {
 }
 
 test.describe('Thème', () => {
-  test('1. thème automatique : page claire → verre graphite, page sombre → verre champagne', async ({ page }) => {
+  test('1. thème automatique : page claire → titane clair, page sombre → titane sombre (witmit suit le site)', async ({ page }) => {
     await page.goto(H.fileUrl('tellus-accueil.html'));
-    await expect.poll(() => theme(page)).toBe('client-sombre');
-    await page.goto(H.fileUrl('planche-charte.html'));
-    await expect.poll(() => theme(page)).toBe('client-sombre');
-    await page.goto(H.fileUrl('generic-dashboard.html'));
     await expect.poll(() => theme(page)).toBe('client-clair');
+    await page.goto(H.fileUrl('planche-charte.html'));
+    await expect.poll(() => theme(page)).toBe('client-clair');
+    await page.goto(H.fileUrl('generic-dashboard.html'));
+    await expect.poll(() => theme(page)).toBe('client-sombre');
     await page.locator('#cmPanelBtn').click();
-    expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgba(236, 232, 224, 0.6)');
+    expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(27, 27, 27)');   // liste mate, titane sombre
   });
 
   for (const nom of ['tellus-accueil.html', 'planche-charte.html']) {
@@ -56,33 +56,33 @@ test.describe('Thème', () => {
       await H.clearStorage(page); await page.reload();
       await page.locator('#cmPanelBtn').click();
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-      expect(await theme(page)).toBe('client-sombre');
-      expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgba(20, 19, 17, 0.66)');
+      expect(await theme(page)).toBe('client-clair');
+      expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(250, 250, 250)');   // liste mate, titane clair
       await basculerTheme(page);
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await expect.poll(() => theme(page), { timeout: 1000 }).toBe('client-clair');
-      await expect.poll(() => fondDe(page, '#cmPanel > .wm-verre'), { timeout: 1000 }).toBe('rgba(236, 232, 224, 0.6)');
+      await expect.poll(() => theme(page), { timeout: 1000 }).toBe('client-sombre');
+      await expect.poll(() => fondDe(page, '#cmPanel > .wm-verre'), { timeout: 1000 }).toBe('rgb(27, 27, 27)');
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // la liste est restée ouverte
       await basculerTheme(page);
-      await expect.poll(() => theme(page), { timeout: 1000 }).toBe('client-sombre');
+      await expect.poll(() => theme(page), { timeout: 1000 }).toBe('client-clair');
     });
   }
 
-  test('3. réglage par l’hôte : data-host-theme="dark" sur une page claire donne le verre champagne', async ({ page }) => {
+  test('3. réglage par l’hôte : data-host-theme="dark" sur une page claire donne le titane sombre', async ({ page }) => {
     await page.goto(pageEssai('hote-sombre', { fond: '#ffffff', attrs: 'data-host-theme="dark"' }));
-    await expect.poll(() => theme(page)).toBe('client-clair');
-    await page.goto(pageEssai('hote-clair', { fond: '#101010', attrs: 'data-host-theme="light"' }));
     await expect.poll(() => theme(page)).toBe('client-sombre');
-    await page.goto(pageEssai('hote-auto', { fond: '#101010' }));
+    await page.goto(pageEssai('hote-clair', { fond: '#101010', attrs: 'data-host-theme="light"' }));
     await expect.poll(() => theme(page)).toBe('client-clair');
+    await page.goto(pageEssai('hote-auto', { fond: '#101010' }));
+    await expect.poll(() => theme(page)).toBe('client-sombre');
   });
 
   test('4. isolation : les variables de la page n’entrent pas dans witmit, et les nôtres n’en sortent pas', async ({ page }) => {
     await page.goto(pageEssai('isolation', { rootCss: '--surface:red;--text:lime;--border:blue;' }));
     await page.locator('#cmPanelBtn').click();
-    expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgba(20, 19, 17, 0.66)');
+    expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(250, 250, 250)');   // page blanche : liste titane clair
     const couleur = await page.locator('#cmPanel .cm-panel-head-row').evaluate((el) => getComputedStyle(el).color);
-    expect(couleur).toBe('rgb(246, 243, 238)');
+    expect(couleur).toBe('rgb(20, 20, 20)');
     const racine = await page.evaluate(() => {
       const r = getComputedStyle(document.documentElement);
       const b = getComputedStyle(document.body);
@@ -97,8 +97,46 @@ test.describe('Thème', () => {
     await H.activate(page);
     await H.addPin(page, '.mcard.active .mcard-title', 'Isolation');
     await page.locator('.cm-pin').click();
-    expect(await fondDe(page, '.cm-popup > .wm-verre')).toBe('rgba(20, 19, 17, 0.66)');
+    expect(await fondDe(page, '.cm-popup > .wm-verre')).toBe('rgba(250, 250, 250, 0.72)');
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--surface').trim())).toBe('#FFFFFF');
+  });
+});
+
+test.describe('Thème suivi et matières (V2)', () => {
+  // Matières d'une fenêtre ouverte sur une page d'essai au fond donné : verre, flou, ombre, métal du bouton witmit.
+  async function matieres(page, nom, fond) {
+    await page.goto(pageEssai(nom, { fond }));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, '#bloc');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+    return page.evaluate(() => {
+      const verre = getComputedStyle(document.querySelector('.cm-popup > .wm-verre'));
+      const ombre = document.querySelector('.cm-popup > .wm-ombre');
+      const btn = getComputedStyle(document.getElementById('cmPanelBtn'));
+      return {
+        theme: document.body.getAttribute('data-wm-theme'),
+        fond: verre.backgroundColor, flou: verre.backdropFilter || verre.webkitBackdropFilter,
+        ombre: getComputedStyle(ombre.firstElementChild).backgroundColor, ombreDecalage: getComputedStyle(ombre).top, ombreFlou: getComputedStyle(ombre).filter,
+        encre: getComputedStyle(document.querySelector('.cm-popup .cm-titre')).color,
+        metal: btn.color,
+      };
+    });
+  }
+
+  test('4b. thème suivi : site clair → witmit clair, site sombre → witmit sombre, boutons ronds compris', async ({ page }) => {
+    const clair = await matieres(page, 'v2-site-clair', '#ffffff');
+    expect(clair).toMatchObject({ theme: 'client-clair', encre: 'rgb(20, 20, 20)', metal: 'rgb(20, 20, 20)' });   // métal clair, signe encre
+    const sombre = await matieres(page, 'v2-site-sombre', '#101010');
+    expect(sombre).toMatchObject({ theme: 'client-sombre', encre: 'rgb(255, 255, 255)', metal: 'rgb(244, 244, 244)' });   // métal sombre, signe clair
+  });
+
+  test('4c. verre 72 % en clair et 70 % en sombre, flou de 40 px, saturation 1,9 ; ombre macOS à 34 % ; lueur blanche à 22 %', async ({ page }) => {
+    const clair = await matieres(page, 'v2-verre-clair', '#ffffff');
+    expect(clair).toMatchObject({ fond: 'rgba(250, 250, 250, 0.72)', flou: 'blur(40px) saturate(1.9)', ombre: 'rgba(0, 0, 0, 0.34)', ombreDecalage: '22px', ombreFlou: 'blur(28px)' });
+    const sombre = await matieres(page, 'v2-verre-sombre', '#101010');
+    expect(sombre).toMatchObject({ fond: 'rgba(27, 27, 27, 0.7)', flou: 'blur(40px) saturate(1.9)', ombre: 'rgba(255, 255, 255, 0.22)', ombreDecalage: '22px', ombreFlou: 'blur(28px)' });
   });
 });
 
@@ -116,41 +154,90 @@ test('5. ancienne palette absente du CSS injecté et du script', async ({ page }
   }
 });
 
-test.describe('Polices', () => {
-  test('6a. servies à côté du script, et prêtes pour les 4 familles une fois la liste ouverte', async ({ page }) => {
-    const woff = [];
-    page.on('request', (r) => { if (/\.woff2(\?|$)/.test(r.url())) woff.push(r.url()); });
-    await page.goto(H.fileUrl('planche-charte.html'));
-    await page.locator('#cmPanelBtn').click();
-    await expect.poll(() => page.evaluate((f) => f.every((fam) => document.fonts.check('16px "' + fam + '"')), FAMILLES), { timeout: 5000 }).toBe(true);
-    // les 4 familles sont bien chargées (et pas seulement inconnues) : une face « loaded » par famille
-    const chargees = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')));
-    for (const fam of FAMILLES) expect(chargees).toContain(fam);
-    expect(woff.length).toBeGreaterThan(0);
-    for (const u of woff) expect(u.startsWith(POLICES_URL), u).toBe(true);
-  });
+test.describe('Police système (V2)', () => {
+  // Une requête de police : fichier de police, ou feuille d'un service de polices.
+  const estPolice = (u) => /\.(woff2?|ttf|otf|eot)(\?|#|$)/i.test(u) || /fonts\.(googleapis|gstatic)\.com|use\.typekit|fonts\.bunny/i.test(u);
+  const policesDeclarees = (page) => page.evaluate(() => [...document.fonts].map((f) => f.family.replace(/"/g, '')));
 
-  test('6b. data-fonts="none" : aucune requête de police, polices du système', async ({ page }) => {
-    const woff = [];
-    page.on('request', (r) => { if (/\.woff2(\?|$)/.test(r.url())) woff.push(r.url()); });
-    await page.goto(pageEssai('sans-polices', { attrs: 'data-fonts="none"' }));
+  test('6a. aucune police embarquée chargée ni déclarée : liste, fenêtre et bandeau ouverts', async ({ page }) => {
+    const polices = [];
+    page.on('request', (r) => { if (estPolice(r.url())) polices.push(r.url()); });
+    await page.goto(H.fileUrl('planche-charte.html'));
     await page.locator('#cmPanelBtn').hover();
     await page.locator('#cmPanelBtn').click();
+    await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+    await page.locator('#cmPanelBtn').click();
+    await H.activate(page);
+    await H.addPin(page, '#carteClaire p', 'police');
+    await page.locator('.cm-pin').click();
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
     await page.waitForTimeout(800);
-    expect(woff).toHaveLength(0);
+    expect(polices).toEqual([]);
     expect(await page.locator('#cmStyles').evaluate((el) => el.textContent.indexOf('@font-face'))).toBe(-1);
+    const declarees = await policesDeclarees(page);
+    for (const fam of FAMILLES) expect(declarees, fam).not.toContain(fam);
+    expect(fs.existsSync(path.join(SRC_DIR, 'witmit-polices')), 'dossier witmit-polices/ retiré').toBe(false);
+    // police système partout, texte de la personne compris ; aucune famille de 0.2.0
+    const familles = await page.evaluate(() => ['.cm-popup .cm-titre', '.cm-popup textarea', '#cmPill', '#cmPanelBtn'].map((sel) => getComputedStyle(document.querySelector(sel)).fontFamily));
+    for (const f of familles) {
+      expect(f).toMatch(/^-apple-system, /);
+      for (const fam of ['Tektur', 'Martian', 'Syne', 'Doto']) expect(f).not.toContain(fam);
+    }
   });
 
-  test('7. chargement paresseux : en live caché, aucune police avant la révélation', async ({ page }) => {
-    const woff = [];
-    page.on('request', (r) => { if (/\.woff2(\?|$)/.test(r.url())) woff.push(r.url()); });
+  test('6b. data-fonts est ignoré : aucune requête de police, quelle que soit sa valeur', async ({ page }) => {
+    const polices = [];
+    page.on('request', (r) => { if (estPolice(r.url())) polices.push(r.url()); });
+    for (const [nom, v] of [['sans-polices', 'none'], ['polices-ailleurs', 'https://polices.exemple.test/witmit/']]) {
+      await page.goto(pageEssai(nom, { attrs: `data-fonts="${v}"` }));
+      await page.locator('#cmPanelBtn').hover();
+      await page.locator('#cmPanelBtn').click();
+      await page.waitForTimeout(800);
+      expect(await page.locator('#cmStyles').evaluate((el) => el.textContent.indexOf('@font-face'))).toBe(-1);
+    }
+    expect(polices).toEqual([]);
+  });
+
+  test('7. live : aucune requête de police, ni avant ni après la révélation', async ({ page }) => {
+    const polices = [];
+    page.on('request', (r) => { if (estPolice(r.url())) polices.push(r.url()); });
     await page.goto(H.fileUrl('generic-dashboard-live.html'));
     await H.clearStorage(page); await page.reload();
     await expect(page.locator('body')).toHaveClass(/cm-concealed/);
-    await page.waitForTimeout(1000);
-    expect(woff).toHaveLength(0);
+    await page.waitForTimeout(500);
     await page.evaluate(() => window.cmReveal(true));
-    await expect.poll(() => woff.length, { timeout: 5000 }).toBeGreaterThan(0);
+    await page.locator('#cmPanelBtn').hover();
+    await page.locator('#cmPanelBtn').click();
+    await page.waitForTimeout(1000);
+    expect(polices).toEqual([]);
+  });
+
+  test('7b. tailles et graisses V2 : aucun texte sous 13 px ; titres semi-gras ; texte de la personne 15 px normal ; principal 500', async ({ page }) => {
+    await page.goto(H.fileUrl('planche-charte.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await H.addPin(page, '#carteClaire p', 'tailles');
+    await page.locator('.cm-pin').click();
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+    const m = await page.evaluate(() => {
+      const cs = (sel) => getComputedStyle(document.querySelector(sel));
+      // Texte visible : ni réservé aux lecteurs d'écran (.wm-lu), ni sorti de la vue (nombre du voyant), ni en taille 0 (bouton à icône).
+      // Couches de witmit seulement (la planche pose aussi des spécimens .cm-ui légendés par la page elle-même).
+      const textes = [...document.querySelectorAll('.cm-ui, .cm-ui *')].filter((el) => !el.closest('.wm-specimen')).filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim()) && el.getClientRects().length
+        && !el.closest('.wm-lu') && parseFloat(getComputedStyle(el).textIndent) > -100 && parseFloat(getComputedStyle(el).fontSize) > 0);
+      return {
+        petits: textes.filter((el) => parseFloat(getComputedStyle(el).fontSize) < 13).map((el) => el.tagName + '.' + el.className + ' ' + getComputedStyle(el).fontSize + ' ' + el.textContent.trim().slice(0, 20)),
+        titre: [cs('.cm-popup .cm-titre').fontSize, cs('.cm-popup .cm-titre').fontWeight],
+        voix: [cs('.cm-popup textarea').fontSize, cs('.cm-popup textarea').fontWeight],
+        principal: cs('.cm-popup .cm-save').fontWeight,
+        touche: cs('.cm-popup .cm-save').fontSize,
+      };
+    });
+    expect(m.petits).toEqual([]);
+    expect(m.titre).toEqual(['15px', '600']);
+    expect(m.voix).toEqual(['15px', '400']);
+    expect(m.principal).toBe('500');
+    expect(m.touche).toBe('14px');
   });
 });
 
@@ -224,7 +311,7 @@ test.describe('Halo du mode annotation', () => {
   }
   const ANCIENNES_RGB = ['252,128,5', '255,158,61', '255,181,107', '255,140,20', '53,131,142', '35,82,89', '123,208,219', '95,191,203', '168,166,160', '180,35,26', '229,72,77', '138,90,0', '245,166,35', '230,160,35'];
 
-  test('9. halo jaune, sans orange, identique sur une page claire et une page sombre', async ({ page }) => {
+  test('9. halo orange (#F7821A), sans autre teinte, identique sur une page claire et une page sombre', async ({ page }) => {
     const releves = {};
     for (const nom of ['tellus-accueil.html', 'generic-dashboard.html']) {
       await page.goto(H.fileUrl(nom));
@@ -234,11 +321,11 @@ test.describe('Halo du mode annotation', () => {
       const halo = await lireHalo(page);
       releves[nom] = halo;
       const toutes = Object.values(halo).flatMap((v) => couleurs(v.ombre + ' ' + v.bord));
-      expect(toutes.some((c) => c.r === 255 && c.g === 242 && c.b === 0 && c.a === 1), JSON.stringify(halo)).toBe(true);
+      expect(toutes.some((c) => c.r === 247 && c.g === 130 && c.b === 26 && c.a === 1), JSON.stringify(halo)).toBe(true);
       expect(toutes.some((c) => c.r === 10 && c.g === 10 && c.b === 10 && Math.abs(c.a - 0.9) < 0.001), 'filet sombre').toBe(true);
       for (const c of toutes) {
         if (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > 40) {
-          expect(Math.abs(teinte(c) - 57), `teinte de ${c.txt}`).toBeLessThanOrEqual(3);
+          expect(Math.abs(teinte(c) - 28), `teinte de ${c.txt}`).toBeLessThanOrEqual(3);   // orange de macOS (28°)
         }
         expect(ANCIENNES_RGB, c.txt).not.toContain(`${c.r},${c.g},${c.b}`);
       }
@@ -305,7 +392,7 @@ test.describe('Halo du mode annotation', () => {
     expect(etat.anims).toBe(0);
     expect(etat.opaciteApres).toBe('0.5');
     expect(etat.opaciteCadre).toBe('1');
-    expect(etat.bord).toContain('rgb(255, 242, 0)');
+    expect(etat.bord).toContain('rgb(247, 130, 26)');
     // disparition sans fondu non plus : caché dans l'instant (Léa 48)
     const sortie = await page.evaluate(() => {
       const el = document.getElementById('cmFrame');
@@ -381,7 +468,7 @@ test.describe('Halo du mode annotation', () => {
 });
 
 test('13. liste : le numéro du retour sélectionné est lisible (encre de l’autre thème)', async ({ page }) => {
-  for (const [nom, fond, chiffre] of [['tellus-accueil.html', 'rgb(246, 243, 238)', 'rgb(20, 20, 18)'], ['generic-dashboard.html', 'rgb(20, 20, 18)', 'rgb(246, 243, 238)']]) {
+  for (const [nom, fond, chiffre] of [['tellus-accueil.html', 'rgb(20, 20, 20)', 'rgb(244, 244, 244)'], ['generic-dashboard.html', 'rgb(255, 255, 255)', 'rgb(20, 20, 20)']]) {
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -453,7 +540,7 @@ test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse p
     expect(f.muets, f.sel).toBe(true);
     expect(f.coins, f.sel).toBe(f.sel === '#cmStatus' ? 0 : 2);      // messages passagers : sans coins witmit
     expect(f.clip, f.sel).toContain('calc(100% - 11px)');            // coupe fixe de 11 px (F1)
-    expect(f.flou, f.sel).toBe('blur(10px) saturate(1.7)');
+    expect(f.flou, f.sel).toBe('blur(40px) saturate(1.9)');
     expect(f.parentNu, f.sel).toBe(true);                            // la fenêtre elle-même n'est ni découpée ni peinte
   }
 });
@@ -584,7 +671,7 @@ test('20. icônes Phosphor : SVG intégrés, viewBox 256, couleur du texte, muet
 // Signe du bouton witmit : le logo B1 calé à 28 px (fiche BoutonWitmit, décision de François du 25/10/2026), à la place
 // de la plume PenNib (22 px, décalée de 2 px), qui ne sert plus nulle part.
 test('20b. bouton witmit : logo B1 calé à 28 px, centré, couleur du métal ; voyant à 10 px du haut et 9 px de la droite', async ({ page }) => {
-  for (const [nom, fond, encre] of [['b1-site-clair', '#ffffff', 'rgb(244, 244, 244)'], ['b1-site-sombre', '#101010', 'rgb(20, 20, 18)']]) {
+  for (const [nom, fond, encre] of [['b1-site-clair', '#ffffff', 'rgb(20, 20, 20)'], ['b1-site-sombre', '#101010', 'rgb(244, 244, 244)']]) {   // métal du thème du site (V2)
     await page.goto(pageEssai(nom, { fond }));
     await page.goto(pageEssai(nom, { fond }) + '?witmit=on');
     const btn = page.locator('#cmPanelBtn');
@@ -685,7 +772,7 @@ test('21b. aucun émoji dans ce que witmit dessine (live : marques d’envoi, fi
 });
 
 test('22. voyant (F8) : disque net de 7 px, sans ombre ; cerne intérieur seulement sur fond clair', async ({ page }) => {
-  for (const [nom, cible, cerne] of [['planche-charte.html', '#carteClaire p', false], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)', true]]) {
+  for (const [nom, cible, cerne] of [['planche-charte.html', '#carteClaire p', true], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)', false]]) {   // V2 : métal clair sur un site clair
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -698,7 +785,7 @@ test('22. voyant (F8) : disque net de 7 px, sans ombre ; cerne intérieur seulem
       const cs = getComputedStyle(el), r = el.getBoundingClientRect();
       return { w: r.width, h: r.height, rond: cs.borderTopLeftRadius, ombre: cs.boxShadow, fond: cs.backgroundColor, cerne: parseFloat(cs.borderTopWidth) > 0, entier: Number.isInteger(r.left * devicePixelRatio) && Number.isInteger(r.top * devicePixelRatio) };
     });
-    expect(v, nom).toMatchObject({ w: 7, h: 7, rond: '50%', ombre: 'none', fond: 'rgb(255, 242, 0)', cerne, entier: true });
+    expect(v, nom).toMatchObject({ w: 7, h: 7, rond: '50%', ombre: 'none', fond: 'rgb(247, 130, 26)', cerne, entier: true });
   }
 });
 
@@ -744,21 +831,21 @@ test('24. une seule encre par repère, d’après le fond derrière lui ; un pet
   const petit = await cadreDe(page.locator('.cm-box-outline').nth(0));
   const grand = await cadreDe(page.locator('.cm-box-outline').nth(1));
   // Petit élément (18 px + 2 × 16 px de marge < 56 px) : coins seuls, encre sur fond clair.
-  expect(petit).toMatchObject({ coin: 'rgb(20, 20, 18)', epaisseur: '3.6px', marge: 16, traitH: 'transparent', traitV: 'transparent', sombre: false });
+  expect(petit).toMatchObject({ coin: 'rgb(20, 20, 20)', epaisseur: '3.6px', marge: 16, traitH: 'transparent', traitV: 'transparent', sombre: false });
   // Grand élément sur la moitié sombre : coins et traits de 1 px à 55 %, blanc cassé.
-  expect(grand).toMatchObject({ coin: 'rgb(246, 243, 238)', marge: 16, traitH: 'rgba(246,243,238,.55)', traitV: 'rgba(246,243,238,.55)', sombre: true });
-  // Épingles : verre champagne et chiffre encre sur fond clair ; verre graphite et chiffre blanc cassé sur fond sombre.
+  expect(grand).toMatchObject({ coin: 'rgb(244, 244, 244)', marge: 16, traitH: 'rgba(244,244,244,.55)', traitV: 'rgba(244,244,244,.55)', sombre: true });
+  // Épingles : verre titane clair et chiffre encre sur fond clair ; verre titane sombre et chiffre blanc sur fond sombre.
   const pins = await page.locator('.cm-pin').evaluateAll((ps) => ps.map((p) => ({ fond: getComputedStyle(p).backgroundColor, chiffre: getComputedStyle(p).color, h: p.getBoundingClientRect().height })));
   expect(pins).toEqual([
-    { fond: 'rgba(236, 232, 224, 0.6)', chiffre: 'rgb(20, 20, 18)', h: 24 },
-    { fond: 'rgba(20, 19, 17, 0.66)', chiffre: 'rgb(246, 243, 238)', h: 24 }
+    { fond: 'rgba(250, 250, 250, 0.72)', chiffre: 'rgb(20, 20, 20)', h: 24 },
+    { fond: 'rgba(27, 27, 27, 0.7)', chiffre: 'rgb(244, 244, 244)', h: 24 }
   ]);
   // Actif (survol) : métal, sans verre ; les cadres du retour passent à traits pleins.
   await page.locator('.cm-pin').nth(1).hover();
   const actif = await page.locator('.cm-pin').nth(1).evaluate((p) => ({ fond: getComputedStyle(p).backgroundImage, flou: getComputedStyle(p).backdropFilter }));
   expect(actif.fond).toContain('linear-gradient');
   expect(actif.flou).toBe('none');
-  expect((await cadreDe(page.locator('.cm-box-outline').nth(1))).traitH).toBe('#f6f3ee');
+  expect((await cadreDe(page.locator('.cm-box-outline').nth(1))).traitH).toBe('#f4f4f4');
 });
 
 test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointillés ; passage souligné entre deux coins', async ({ page }) => {
@@ -773,7 +860,7 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   await expect(page.locator('.cm-pin .wm-voyant-epingle')).toHaveCount(1);
   await expect(page.locator('.cm-pin')).toHaveAttribute('aria-label', 'retour 1, pris en compte, nouveau');
   const v = await page.locator('.cm-pin .wm-voyant-epingle').evaluate((el) => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return { w: r.width, h: r.height, fond: cs.backgroundColor, ombre: cs.boxShadow }; });
-  expect(v).toEqual({ w: 7, h: 7, fond: 'rgb(255, 242, 0)', ombre: 'none' });
+  expect(v).toEqual({ w: 7, h: 7, fond: 'rgb(247, 130, 26)', ombre: 'none' });
   // Traité : contour en pointillés, ni ombre ni liseré.
   await H.retourColle(page, [c.id + ' resolu']);
   await page.mouse.move(400, 900);                                // aucun survol (ligne de la liste ou épingle)
@@ -799,7 +886,7 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   }));
   // Repos : souligné de 2 px, coins de 7 px ; aucune marge (witmit ne touche qu'au trait, relecture de Paula).
   let m = await passage();
-  expect(m[0]).toMatchObject({ fond: 'rgba(0, 0, 0, 0)', marge: '0px 0px', trait: '2px', couleur: 'rgb(246, 243, 238)', debut: 7 });
+  expect(m[0]).toMatchObject({ fond: 'rgba(0, 0, 0, 0)', marge: '0px 0px', trait: '2px', couleur: 'rgb(244, 244, 244)', debut: 7 });
   expect(m[m.length - 1].fin).toBe(7);
   // Actif (fenêtre ouverte depuis son épingle) : souligné de 3 px, coins de 10 px.
   await page.locator('.cm-pin').nth(1).click();
