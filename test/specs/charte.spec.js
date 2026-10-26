@@ -1002,42 +1002,49 @@ test('23. contraste sur le verre (T12) : aucun texte en ink-faint hors champ, zo
 });
 
 // Lot 6 — repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7).
-async function planche(page) {
-  await page.goto(H.fileUrl('planche-charte.html'));
+async function planche(page, requete = '') {
+  await page.goto(H.fileUrl('planche-charte.html') + requete);
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
 }
-// Couleur du coin witmit haut gauche d'un cadre (::before de .wm-cadre) et état de ses traits.
+// Cadre de sélection (fiche Selection, V2) : dessin de .wm-cadre et de ses deux crochets witmit (::before haut gauche,
+// ::after bas droit). contour : pointillés de l'état inactif (outline), null à l'état actif (contour en box-shadow).
 const cadreDe = (loc) => loc.evaluate((b) => {
-  const c = b.querySelector(':scope > .wm-cadre'), cs = getComputedStyle(c), av = getComputedStyle(c, '::before');
+  const c = b.querySelector(':scope > .wm-cadre'), cs = getComputedStyle(c), av = getComputedStyle(c, '::before'), ap = getComputedStyle(c, '::after');
   const r = c.getBoundingClientRect(), e = b.getBoundingClientRect();
-  const fond = av.backgroundImage.match(/rgba?\([^)]*\)/);
-  return { coin: fond ? fond[0] : null, epaisseur: av.backgroundSize.split(',')[0].trim().split(' ')[1], marge: Math.round(e.left - r.left), traitH: cs.getPropertyValue('--wm-th').replace(/\s/g, ''), traitV: cs.getPropertyValue('--wm-tv').replace(/\s/g, ''), sombre: b.classList.contains('wm-sur-sombre') };
+  return { coin: av.borderLeftColor, coinBas: ap.borderRightColor, trait: av.borderLeftWidth + ' ' + av.borderTopWidth, traitBas: ap.borderRightWidth + ' ' + ap.borderBottomWidth,
+    bras: av.width + ' ' + av.height, place: av.left + ' ' + av.top, placeBas: ap.right + ' ' + ap.bottom, coude: av.borderTopLeftRadius + ' ' + ap.borderBottomRightRadius,
+    opacite: av.opacity + ' ' + ap.opacity, rayon: cs.borderRadius, fond: cs.backgroundColor, ombre: cs.boxShadow,
+    contour: cs.outlineStyle === 'none' ? null : cs.outlineStyle + ' ' + cs.outlineWidth + ' ' + cs.outlineColor,
+    marge: Math.round(e.left - r.left), sombre: b.classList.contains('wm-sur-sombre') };
 });
 
-test('24. une seule encre par repère, d’après le fond derrière lui ; un petit élément n’a que les deux coins', async ({ page }) => {
+test('24. une seule encre par repère, d’après le fond derrière lui ; un petit élément garde son cadre fermé et ses deux crochets', async ({ page }) => {
   await planche(page);
   await H.addPin(page, '#petitClair', 'petit');
   await H.addPin(page, '#carteSombre', 'grand');
   await page.waitForTimeout(1500);                                  // fin de l'effet « vient d'être commenté »
   const petit = await cadreDe(page.locator('.cm-box-outline').nth(0));
   const grand = await cadreDe(page.locator('.cm-box-outline').nth(1));
-  // Petit élément (18 px + 2 × 16 px de marge < 56 px) : coins seuls, encre sur fond clair.
-  expect(petit).toMatchObject({ coin: 'rgb(20, 20, 20)', epaisseur: '3.6px', marge: 16, traitH: 'transparent', traitV: 'transparent', sombre: false });
-  // Grand élément sur la moitié sombre : coins et traits de 1 px à 55 %, blanc cassé.
-  expect(grand).toMatchObject({ coin: 'rgb(244, 244, 244)', marge: 16, traitH: 'rgba(244,244,244,.55)', traitV: 'rgba(244,244,244,.55)', sombre: true });
+  // Petit élément (18 px + 2 × 16 px de marge) : cadre fermé quand même (V2, fiche Selection), crochets #141414 sur fond
+  // clair ; inactif : pointillés gris (noir à 42 %).
+  expect(petit).toMatchObject({ coin: 'rgb(20, 20, 20)', trait: '2px 2px', marge: 16, rayon: '6px', contour: 'dashed 1px rgba(0, 0, 0, 0.42)', sombre: false });
+  // Grand élément sur la moitié sombre : crochets blancs, pointillés blancs à 50 %.
+  expect(grand).toMatchObject({ coin: 'rgb(255, 255, 255)', marge: 16, rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)', sombre: true });
   // Épingles : verre titane clair et chiffre encre sur fond clair ; verre titane sombre et chiffre blanc sur fond sombre.
   const pins = await page.locator('.cm-pin').evaluateAll((ps) => ps.map((p) => ({ fond: getComputedStyle(p).backgroundColor, chiffre: getComputedStyle(p).color, h: p.getBoundingClientRect().height })));
   expect(pins).toEqual([
     { fond: 'rgba(250, 250, 250, 0.72)', chiffre: 'rgb(20, 20, 20)', h: 24 },
     { fond: 'rgba(27, 27, 27, 0.7)', chiffre: 'rgb(244, 244, 244)', h: 24 }
   ]);
-  // Actif (survol) : métal, sans verre ; les cadres du retour passent à traits pleins.
+  // Actif (survol) : métal, sans verre ; les cadres du retour passent au contour plein, gris léger et crochets pleins.
   await page.locator('.cm-pin').nth(1).hover();
   const actif = await page.locator('.cm-pin').nth(1).evaluate((p) => ({ fond: getComputedStyle(p).backgroundImage, flou: getComputedStyle(p).backdropFilter }));
   expect(actif.fond).toContain('linear-gradient');
   expect(actif.flou).toBe('none');
-  expect((await cadreDe(page.locator('.cm-box-outline').nth(1))).traitH).toBe('#f4f4f4');
+  const survole = await cadreDe(page.locator('.cm-box-outline').nth(1));
+  expect(survole).toMatchObject({ contour: null, opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)' });
+  expect(survole.ombre).toContain('rgba(255, 255, 255, 0.42) 0px 0px 0px 1px');
 });
 
 test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointillés ; passage souligné entre deux coins', async ({ page }) => {
@@ -1095,17 +1102,19 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   await expect(page.locator('.cm-pin').nth(1)).toBeFocused();
 });
 
-test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre ne recouvre ni le cadre ni l’épingle', async ({ page }) => {
+test('26. zone en édition : 6 petits traits intérieurs et 2 crochets witmit ; la fenêtre ne recouvre ni le cadre ni l’épingle', async ({ page }) => {
   await planche(page);
   const img = await H.visibleBox(page, '#imageVive');
   await H.drag(page, img.x + 40, img.y + 30, img.x + 260, img.y + 160);
   await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
   const poignees = await page.locator('.cm-box-editable .cm-handle').evaluateAll((hs) => hs.map((h) => {
     const r = h.getBoundingClientRect(), a = getComputedStyle(h, '::after');
-    return { dir: h.dataset.dir, prise: Math.round(r.width), carre: a.content === 'none' ? null : a.width };
+    return { dir: h.dataset.dir, prise: Math.round(r.width), trait: a.content === 'none' ? null : a.width + ' × ' + a.height };
   }));
-  // Zone de plus de 88 px de côté : prise de 44 px ; les coins haut gauche et bas droit n'ont pas de carré.
-  for (const h of poignees) expect(h, h.dir).toEqual({ dir: h.dir, prise: 44, carre: h.dir === 'nw' || h.dir === 'se' ? null : '8px' });
+  // Zone de plus de 88 px de côté : prise de 44 px ; traits de 12 × 2 px au milieu des côtés, petits crochets de 10 px
+  // dans les coins haut droit et bas gauche ; les coins haut gauche et bas droit n'ont que le crochet witmit (V2).
+  const TRAITS = { n: '12px × 2px', s: '12px × 2px', e: '2px × 12px', w: '2px × 12px', ne: '10px × 10px', sw: '10px × 10px', nw: null, se: null };
+  for (const h of poignees) expect(h, h.dir).toEqual({ dir: h.dir, prise: 44, trait: TRAITS[h.dir] });
   await page.locator('.cm-popup textarea').fill('zone');
   await page.locator('.cm-popup textarea').press('Enter');
   await page.locator('.cm-pin').click();
@@ -1120,6 +1129,123 @@ test('26. zone en édition : 6 carrés de 8 px et 2 coins witmit ; la fenêtre n
   const chevauche = (a, b) => !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
   expect(chevauche(pop, pin)).toBe(false);
   expect(chevauche(pop, box)).toBe(false);
+});
+
+// ---------- Habillage V2, lot 5 : cadre de sélection (fiche Selection, décision de François du 26/10 sur la couleur) ----------
+
+// Cadre en cours de tracé (bouton tenu) sur un paragraphe de la planche ; renvoie son dessin, puis lâche la souris.
+async function tracerEtLire(page, selecteur) {
+  const p = await H.visibleBox(page, selecteur);
+  await page.mouse.move(p.x + 6, p.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(p.x + 220, p.y + 90, { steps: 10 });
+  const trace = await page.locator('.cm-box:not(.cm-box-saved):not(.cm-box-editing):not(.cm-box-editable)').evaluate((b) => {
+    const cs = getComputedStyle(b);
+    return { bord: cs.borderTopStyle + ' ' + cs.borderTopWidth + ' ' + cs.borderTopColor, fond: cs.backgroundColor, ombre: cs.boxShadow, rayon: cs.borderRadius,
+      crochets: b.querySelectorAll('.wm-cadre').length, sombre: b.classList.contains('wm-sur-sombre') };
+  });
+  await page.mouse.up();
+  await expect(page.locator('.cm-box-editable')).toHaveCount(1);
+  return trace;
+}
+// Couleur des poignées d'une zone en édition (::after des six poignées hors crochets witmit).
+const poigneesDe = (page) => page.locator('.cm-box-editable .cm-handle').evaluateAll((hs) => hs.map((h) => {
+  const a = getComputedStyle(h, '::after');
+  return a.content === 'none' ? null : (a.backgroundColor !== 'rgba(0, 0, 0, 0)' ? a.backgroundColor : a.borderTopColor || a.borderBottomColor);
+}).filter(Boolean));
+const OMBRE_DEHORS = 'rgba(0, 0, 0, 0.22) 0px 2px 10px 0px', OMBRE_DEDANS = 'rgba(0, 0, 0, 0.2) 0px 0px 6px 0px inset';
+
+test('34. cadre en tracé : gris à 26 %, contour de 1 px, ombre dehors et dedans, arrondi de 6 px, sans crochets (clair et sombre)', async ({ page }) => {
+  await planche(page);
+  const clair = await tracerEtLire(page, '#moitieClaire > p');
+  expect(clair).toMatchObject({ bord: 'solid 1px rgba(0, 0, 0, 0.3)', fond: 'rgba(128, 128, 128, 0.26)', rayon: '6px', crochets: 0, sombre: false });
+  expect(clair.ombre).toContain(OMBRE_DEHORS);
+  expect(clair.ombre).toContain(OMBRE_DEDANS);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cm-popup')).toHaveCount(0);
+  const sombre = await tracerEtLire(page, '#moitieSombre > p');
+  expect(sombre).toMatchObject({ bord: 'solid 1px rgba(255, 255, 255, 0.42)', fond: 'rgba(128, 128, 128, 0.26)', rayon: '6px', crochets: 0, sombre: true });
+  expect(sombre.ombre).toContain(OMBRE_DEHORS);
+});
+
+test('35. cadre actif fermé (gris léger, contour, ombres, crochets pleins à 5 px du bord) ; inactif en pointillés, crochets à 55 % ; zone et élément, clair et sombre', async ({ page }) => {
+  test.setTimeout(40000);
+  await planche(page);
+  for (const [cible, sombre] of [['#moitieClaire > p', false], ['#moitieSombre > p', true]]) {
+    await tracerEtLire(page, cible);
+    const coin = sombre ? 'rgb(255, 255, 255)' : 'rgb(20, 20, 20)';
+    // Zone lâchée, fenêtre ouverte : actif.
+    const actif = await cadreDe(page.locator('.cm-box-editable'));
+    expect(actif, cible).toMatchObject({ coin, coinBas: coin, trait: '2px 2px', traitBas: '2px 2px', bras: '12px 12px', place: '5px 5px', placeBas: '5px 5px',
+      coude: '3px 3px', opacite: '1 1', rayon: '6px', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 0, sombre });
+    expect(actif.ombre).toContain((sombre ? 'rgba(255, 255, 255, 0.42)' : 'rgba(0, 0, 0, 0.3)') + ' 0px 0px 0px 1px');
+    expect(actif.ombre).toContain(OMBRE_DEHORS);
+    expect(actif.ombre).toContain(OMBRE_DEDANS);
+    await page.locator('.cm-popup textarea').fill('zone');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+  }
+  await page.mouse.move(640, 790);                                  // aucun survol
+  await page.waitForTimeout(1500);                                  // fin de l'effet « vient d'être commenté »
+  // Enregistrées, pas sélectionnées : inactives, pointillés de 1 px, ni fond ni ombre, crochets à 55 % (couleur pleine).
+  const inactifs = await Promise.all([0, 1].map((n) => cadreDe(page.locator('.cm-box-saved').nth(n))));
+  expect(inactifs[0]).toMatchObject({ coin: 'rgb(20, 20, 20)', opacite: '0.55 0.55', fond: 'rgba(0, 0, 0, 0)', ombre: 'none', rayon: '6px', contour: 'dashed 1px rgba(0, 0, 0, 0.42)' });
+  expect(inactifs[1]).toMatchObject({ coin: 'rgb(255, 255, 255)', opacite: '0.55 0.55', fond: 'rgba(0, 0, 0, 0)', ombre: 'none', rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)' });
+  // Plusieurs éléments (⌘+clic, ctrl+clic hors Mac) : chaque élément visé a le même cadre, 16 px de marge, actif puis inactif.
+  const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const b1 = await H.visibleBox(page, '#boutonClair'), b2 = await H.visibleBox(page, '#boutonSombre');
+  await page.mouse.click(b1.x + b1.width / 2, b1.y + b1.height / 2);
+  await expect(page.locator('.cm-popup')).toBeVisible();
+  await page.keyboard.down(MOD); await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2); await page.keyboard.up(MOD);
+  await expect(page.locator('.cm-box-editing')).toHaveCount(2);
+  const enSaisie = await Promise.all([0, 1].map((n) => cadreDe(page.locator('.cm-box-editing').nth(n))));
+  expect(enSaisie[0]).toMatchObject({ coin: 'rgb(20, 20, 20)', opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 16, rayon: '6px', place: '5px 5px' });
+  expect(enSaisie[1]).toMatchObject({ coin: 'rgb(255, 255, 255)', opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 16, rayon: '6px' });
+  await page.locator('.cm-popup textarea').fill('deux boutons');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await expect(page.locator('.cm-box-outline')).toHaveCount(2);
+  await page.mouse.move(640, 790);
+  await page.waitForTimeout(1500);
+  const groupe = await Promise.all([0, 1].map((n) => cadreDe(page.locator('.cm-box-outline').nth(n))));
+  expect(groupe[0]).toMatchObject({ contour: 'dashed 1px rgba(0, 0, 0, 0.42)', opacite: '0.55 0.55', ombre: 'none', marge: 16 });
+  expect(groupe[1]).toMatchObject({ contour: 'dashed 1px rgba(255, 255, 255, 0.5)', opacite: '0.55 0.55', ombre: 'none', marge: 16 });
+});
+
+test('36. couleur des sélections (data-selection-color) : gris par défaut, orange au choix du site, valeur inconnue = gris ; crochets pleins et poignées grises quelle que soit la couleur (clair et sombre)', async ({ page }) => {
+  test.setTimeout(90000);
+  const ORANGE = 'rgb(247, 130, 26)';
+  const CAS = [
+    ['', 'gris', { clair: ['rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.42)'], sombre: ['rgba(255, 255, 255, 0.42)', 'rgba(255, 255, 255, 0.5)'] }],
+    ['?selection=orange', 'orange', { clair: [ORANGE, ORANGE], sombre: [ORANGE, ORANGE] }],
+    ['?selection=ORANGE', 'orange', { clair: [ORANGE, ORANGE], sombre: [ORANGE, ORANGE] }],
+    ['?selection=gray', 'gris', { clair: ['rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.42)'], sombre: ['rgba(255, 255, 255, 0.42)', 'rgba(255, 255, 255, 0.5)'] }],
+    ['?selection=violet', 'gris', { clair: ['rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.42)'], sombre: ['rgba(255, 255, 255, 0.42)', 'rgba(255, 255, 255, 0.5)'] }],
+  ];
+  for (const [requete, attendu, couleurs] of CAS) {
+    await planche(page, requete);
+    expect(await page.getAttribute('body', 'data-wm-selection'), requete).toBe(attendu);
+    for (const [cible, cote] of [['#moitieClaire > p', 'clair'], ['#moitieSombre > p', 'sombre']]) {
+      const [contour, pointilles] = couleurs[cote];
+      const trace = await tracerEtLire(page, cible);
+      expect(trace.bord, requete + ' ' + cote).toBe('solid 1px ' + contour);
+      const actif = await cadreDe(page.locator('.cm-box-editable'));
+      expect(actif.ombre, requete + ' ' + cote).toContain(contour + ' 0px 0px 0px 1px');
+      // Crochets toujours pleins (#141414 en clair, blanc en sombre) ; poignées toujours grises, jamais orange.
+      expect(actif.coin, requete + ' ' + cote).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(255, 255, 255)');
+      expect(actif.opacite).toBe('1 1');
+      const prises = await poigneesDe(page);
+      expect(prises).toHaveLength(6);
+      for (const c of prises) expect(c, requete + ' ' + cote).toBe(cote === 'clair' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.55)');
+      await page.locator('.cm-popup textarea').fill('zone ' + cote);
+      await page.locator('.cm-popup textarea').press('Enter');
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
+      await page.mouse.move(640, 790);
+      await page.waitForTimeout(1500);
+      const inactif = await cadreDe(page.locator('.cm-box-saved').last());
+      expect(inactif.contour, requete + ' ' + cote).toBe('dashed 1px ' + pointilles);
+      expect(inactif.coin).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(255, 255, 255)');
+    }
+  }
 });
 
 // Lot 8, relecture de Paula : le message passager ne couvre jamais les deux boutons (fiche BoutonWitmit), et le texte

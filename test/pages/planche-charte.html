@@ -138,7 +138,16 @@
     document.getElementById('themeNom').textContent = suivant === 'dark' ? 'thème sombre' : 'thème clair';
   });
 </script>
-<script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"></script>
+<script>
+  // Cadre de sélection (fiche Selection) : planche-charte.html?selection=orange pose data-selection-color="orange"
+  // sur la balise de witmit (toute autre valeur aussi, pour vérifier qu'elle retombe sur gris). Sans paramètre :
+  // la balise habituelle, sans l'attribut.
+  (function () {
+    var m = /[?&]selection=([A-Za-z0-9-]*)/.exec(location.search);
+    document.write('<script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"' +
+      (m ? ' data-selection-color="' + m[1] + '"' : '') + '><\/script>');
+  })();
+</script>
 <script>
   // Spécimens du lot 2, dessinés avec le vrai code de witmit (habiller, icônes).
   (function () {

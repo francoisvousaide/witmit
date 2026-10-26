@@ -58,7 +58,10 @@
     multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || '')),
     // data-host-theme="light" | "dark" : le site dit lui-même si son fond est clair ou sombre (défaut "auto" :
     // witmit le lit sur la page). witmit prend le thème du site : site clair → titane clair (V2).
-    hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme'))
+    hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme')),
+    // data-selection-color="orange" : contour des sélections actives et pointillés des sélections inactives en orange
+    // (fiche Selection, décision de François du 26/10). Par défaut, et pour toute autre valeur : gris ("gray").
+    selectionColor: /^\s*orange\s*$/i.test((SCRIPT_EL && SCRIPT_EL.getAttribute('data-selection-color')) || '') ? 'orange' : 'gris'
   };
   var VERSION = '0.2.0';
 
@@ -636,43 +639,45 @@
   #cmLinks line.cm-focus.wm-sur-sombre { stroke:var(--wm-encre-repere-claire); }
   body:not(.cm-active) #cmLinks { display:none; }
 
-  /* Cadres (F7, fiche Selection) : .cm-box garde exactement la boîte visée (élément ou zone) ; le dessin vit
-     dans son enfant .wm-cadre : 16 px de marge autour d'un élément visé, aucune autour d'une zone encadrée.
-     Coins witmit de 18 px (bras de 14,4 px, trait de 3,6 px) en haut à gauche et en bas à droite ; traits de
-     1 px ouverts à 20 px des angles, centrés sur l'épaisseur des coins ; un côté de moins de 56 px n'a pas de
-     trait (classes wm-court-h et wm-court-v posées en JS). Aucun remplissage, aucune ombre ; arrondi de 6 px
-     (radius-bouton, V2 : plus d'angle droit). En tracé (on glisse) : rectangle arrondi de 1 px en pointillés, sans coins. */
-  .cm-box { position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border:1px dashed var(--wm-encre); border-radius:var(--wm-radius-bouton); }
+  /* Cadres (fiche Selection, V2) : à la manière d'une capture d'écran sur Mac. .cm-box garde exactement la boîte
+     visée (élément ou zone) ; le dessin vit dans son enfant .wm-cadre : 16 px de marge autour d'un élément visé,
+     aucune autour d'une zone encadrée. Cadre fermé, arrondi de 6 px (radius-bouton), tout en pixels fixes.
+     - En tracé (on glisse, .cm-box nu) : gris neutre à 26 %, contour de 1 px, ombre dehors et dedans, sans crochets.
+     - Actif (fenêtre ouverte, élément visé pendant la saisie, épingle survolée, zone en édition) : gris neutre à
+       12 %, contour de 1 px, ombre dehors et dedans, crochets witmit pleins.
+     - Inactif (retour présent, pas sélectionné) et traité : contour de 1 px en pointillés, ni fond ni ombre,
+       crochets à 55 %.
+     Crochets witmit (haut gauche, bas droit) : à 5 px du bord, bras de 12 px, trait de 2 px, coude arrondi de
+     3 px ; #141414 sur fond clair, blanc sur fond sombre (wm-sur-sombre, d'après le fond derrière le cadre).
+     Contour et pointillés : gris (par défaut) ou orange, au choix du site (data-selection-color sur la balise,
+     posé en data-wm-selection sur <body>). Les crochets restent pleins et les poignées grises quelle que soit
+     la couleur. */
+  .cm-box { --wm-cadre-coin: #141414; --wm-cadre-contour: var(--wm-cadre-trait); --wm-cadre-tirets: var(--wm-cadre-pointilles); --wm-cadre-prise: var(--wm-cadre-poignee);
+    position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border-radius:var(--wm-radius-bouton); }
+  .cm-box.wm-sur-sombre { --wm-cadre-coin: #ffffff; --wm-cadre-contour: var(--wm-cadre-trait-sombre); --wm-cadre-tirets: var(--wm-cadre-pointilles-sombre); --wm-cadre-prise: var(--wm-cadre-poignee-sombre); }
+  body[data-wm-selection="orange"] .cm-box { --wm-cadre-contour: var(--wm-accent); --wm-cadre-tirets: var(--wm-accent); }
+  /* En tracé */
+  .cm-box:not(.cm-box-saved):not(.cm-box-editing):not(.cm-box-editable) { border:1px solid var(--wm-cadre-contour); background:var(--wm-cadre-gris-trace); box-shadow:var(--wm-ombre-cadre); }
   .cm-box.cm-box-saved, .cm-box.cm-box-editing, .cm-box.cm-box-editable { border:0; }
-  .cm-box > .wm-cadre { --wm-th: var(--wm-encre-55); --wm-tv: var(--wm-encre-55); position:absolute; inset:0; pointer-events:none; border-radius:var(--wm-radius-bouton); background:
-    linear-gradient(var(--wm-th),var(--wm-th)) 20px 0 / calc(100% - 40px) 1px no-repeat,
-    linear-gradient(var(--wm-th),var(--wm-th)) 20px 100% / calc(100% - 40px) 1px no-repeat,
-    linear-gradient(var(--wm-tv),var(--wm-tv)) 0 20px / 1px calc(100% - 40px) no-repeat,
-    linear-gradient(var(--wm-tv),var(--wm-tv)) 100% 20px / 1px calc(100% - 40px) no-repeat; }
+  /* Inactif et traité (par défaut) */
+  .cm-box > .wm-cadre { position:absolute; inset:0; pointer-events:none; box-sizing:border-box; border-radius:var(--wm-radius-bouton); background:none; box-shadow:none;
+    outline:1px dashed var(--wm-cadre-tirets); outline-offset:-1px; }
   .cm-box.cm-box-outline > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre { inset:-16px; }
-  /* Coins tracés en fond (une bordure de 3,6 px serait arrondie au pixel de l'écran). */
-  .cm-box > .wm-cadre::before, .cm-box > .wm-cadre::after { --wm-trait-coin: 3.6px; content:''; position:absolute; width:14.4px; height:14.4px; }
-  .cm-box > .wm-cadre::before { left:-1.3px; top:-1.3px; background:linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / 100% var(--wm-trait-coin) no-repeat, linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / var(--wm-trait-coin) 100% no-repeat; }
-  .cm-box > .wm-cadre::after { right:-1.3px; bottom:-1.3px; background:linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / 100% var(--wm-trait-coin) no-repeat, linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / var(--wm-trait-coin) 100% no-repeat; }
-  /* Actif (fenêtre ouverte, élément visé pendant la saisie, survol de l'épingle, zone en édition) : traits pleins. */
-  .cm-box.cm-focus > .wm-cadre, .cm-box.cm-glow > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre, .cm-box.cm-box-editable > .wm-cadre { --wm-th: var(--wm-encre); --wm-tv: var(--wm-encre); }
-  /* Traité : coins en trait de 1 px, traits en pointillés de 1 px à 55 %. */
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre { background:
-    repeating-linear-gradient(90deg, var(--wm-th) 0 3px, transparent 3px 6px) 20px 0 / calc(100% - 40px) 1px no-repeat,
-    repeating-linear-gradient(90deg, var(--wm-th) 0 3px, transparent 3px 6px) 20px 100% / calc(100% - 40px) 1px no-repeat,
-    repeating-linear-gradient(180deg, var(--wm-tv) 0 3px, transparent 3px 6px) 0 20px / 1px calc(100% - 40px) no-repeat,
-    repeating-linear-gradient(180deg, var(--wm-tv) 0 3px, transparent 3px 6px) 100% 20px / 1px calc(100% - 40px) no-repeat; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::before, .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::after { --wm-trait-coin: 1px; width:12.8px; height:12.8px; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::before { left:0; top:0; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::after { right:0; bottom:0; }
-  /* Petit côté (moins de 56 px, marge comprise) : pas de trait, il ne reste que les deux coins. */
-  .cm-box.wm-court-h > .wm-cadre { --wm-th: transparent !important; }
-  .cm-box.wm-court-v > .wm-cadre { --wm-tv: transparent !important; }
+  .cm-box > .wm-cadre::before, .cm-box > .wm-cadre::after { content:''; position:absolute; width:12px; height:12px; box-sizing:border-box; background:none; border:0 solid var(--wm-cadre-coin); opacity:.55; }
+  .cm-box > .wm-cadre::before { left:5px; top:5px; border-left-width:2px; border-top-width:2px; border-top-left-radius:3px; }
+  .cm-box > .wm-cadre::after { right:5px; bottom:5px; border-right-width:2px; border-bottom-width:2px; border-bottom-right-radius:3px; }
+  /* Actif */
+  .cm-box.cm-focus > .wm-cadre, .cm-box.cm-glow > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre, .cm-box.cm-box-editable > .wm-cadre {
+    outline:0; background:var(--wm-cadre-gris-actif); box-shadow:0 0 0 1px var(--wm-cadre-contour), var(--wm-ombre-cadre); }
+  .cm-box.cm-focus > .wm-cadre::before, .cm-box.cm-focus > .wm-cadre::after, .cm-box.cm-glow > .wm-cadre::before, .cm-box.cm-glow > .wm-cadre::after,
+  .cm-box.cm-box-editing > .wm-cadre::before, .cm-box.cm-box-editing > .wm-cadre::after, .cm-box.cm-box-editable > .wm-cadre::before, .cm-box.cm-box-editable > .wm-cadre::after { opacity:1; }
   .cm-box.cm-box-saved { transition:none; }
 
-  /* Zone en édition (fenêtre ouverte) : le centre déplace, 8 poignées redimensionnent. Les deux coins witmit
-     servent de poignées d'angle (haut gauche, bas droit) ; les six autres sont des carrés pleins de 8 × 8 px
-     à l'encre, cernés de 1 px de l'encre opposée. Prise de 24 × 24 px, 44 px quand la zone dépasse 88 px. */
+  /* Zone en édition (fenêtre ouverte) : le centre déplace, 8 poignées redimensionnent. Les deux crochets witmit
+     servent de poignées d'angle (haut gauche, bas droit) ; les six autres sont de petits traits gris à l'intérieur
+     du cadre, à 5 px du bord, jamais des carrés : un trait de 12 × 2 px au milieu de chaque côté, un petit crochet
+     de 10 px (trait de 2 px, coude arrondi de 3 px) dans les coins haut droit et bas gauche. Prise de 24 × 24 px,
+     44 px quand la zone dépasse 88 px. */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
   body .cm-box.cm-box-editable { cursor:move; }
   .cm-box .cm-handle { position:absolute; width:24px; height:24px; transform:translate(-50%,-50%); box-sizing:border-box; background:none; }
@@ -680,7 +685,15 @@
   .cm-box .cm-handle-nw { left:0; top:0; } .cm-box .cm-handle-n { left:50%; top:0; } .cm-box .cm-handle-ne { left:100%; top:0; }
   .cm-box .cm-handle-e { left:100%; top:50%; } .cm-box .cm-handle-se { left:100%; top:100%; } .cm-box .cm-handle-s { left:50%; top:100%; }
   .cm-box .cm-handle-sw { left:0; top:100%; } .cm-box .cm-handle-w { left:0; top:50%; }
-  .cm-box .cm-handle-n::after, .cm-box .cm-handle-ne::after, .cm-box .cm-handle-e::after, .cm-box .cm-handle-s::after, .cm-box .cm-handle-sw::after, .cm-box .cm-handle-w::after { content:''; position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; background:var(--wm-encre); box-shadow:0 0 0 1px var(--wm-encre-inverse); }
+  .cm-box .cm-handle-n::after, .cm-box .cm-handle-ne::after, .cm-box .cm-handle-e::after, .cm-box .cm-handle-s::after, .cm-box .cm-handle-sw::after, .cm-box .cm-handle-w::after {
+    content:''; position:absolute; left:50%; top:50%; box-sizing:border-box; background:var(--wm-cadre-prise); border:0 solid var(--wm-cadre-prise); border-radius:1px; box-shadow:none; }
+  .cm-box .cm-handle-n::after { width:12px; height:2px; margin:5px 0 0 -6px; }
+  .cm-box .cm-handle-s::after { width:12px; height:2px; margin:-7px 0 0 -6px; }
+  .cm-box .cm-handle-e::after { width:2px; height:12px; margin:-6px 0 0 -7px; }
+  .cm-box .cm-handle-w::after { width:2px; height:12px; margin:-6px 0 0 5px; }
+  .cm-box .cm-handle-ne::after, .cm-box .cm-handle-sw::after { width:10px; height:10px; background:none; border-radius:0; }
+  .cm-box .cm-handle-ne::after { border-top-width:2px; border-right-width:2px; border-top-right-radius:3px; margin:5px 0 0 -15px; }
+  .cm-box .cm-handle-sw::after { border-bottom-width:2px; border-left-width:2px; border-bottom-left-radius:3px; margin:-15px 0 0 5px; }
   body .cm-ui .cm-handle-nw, body .cm-ui .cm-handle-se { cursor:nwse-resize; } body .cm-ui .cm-handle-ne, body .cm-ui .cm-handle-sw { cursor:nesw-resize; }
   body .cm-ui .cm-handle-n, body .cm-ui .cm-handle-s { cursor:ns-resize; } body .cm-ui .cm-handle-e, body .cm-ui .cm-handle-w { cursor:ew-resize; }
 
@@ -1231,6 +1244,7 @@
   })();
   renderAuthor();
   initTheme();
+  document.body.setAttribute('data-wm-selection', CONFIG.selectionColor);   // couleur des cadres (fiche Selection)
 
   /* ---------- thème : witmit prend le thème du site (V2) ----------
      On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → titane
@@ -1834,7 +1848,6 @@
 
   /* ---------- dessin des repères (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ---------- */
   var MARGE_CADRE = 16;      // cadre d'un élément visé : 16 px autour de l'élément (une zone encadrée : aucune)
-  var COTE_MIN_TRAIT = 56;   // un côté du cadre plus court n'a pas de trait : il ne reste que les deux coins
   // Le fond derrière le repère d'un élément est celui de son parent (le cadre et l'épingle sont posés autour de
   // l'élément, pas dessus) ; derrière une zone encadrée, celui du conteneur qu'elle couvre.
   function fondSombreAutour(el) { return isDarkBehind((el && el.parentElement) || document.body); }
@@ -1849,14 +1862,11 @@
     }
     return secours;
   }
-  // Taille du cadre (dessiné par son enfant .wm-cadre) et traits retirés sur un côté trop court.
+  // Taille du cadre (dessiné par son enfant .wm-cadre ; fermé, quelle que soit sa taille : fiche Selection, V2).
   function dimensionnerCadre(box, x, y, w, h) {
     w = Math.max(w, 4); h = Math.max(h, 4);
     box.style.left = x + 'px'; box.style.top = y + 'px';
     box.style.width = w + 'px'; box.style.height = h + 'px';
-    var m = (box.classList.contains('cm-box-outline') || box.classList.contains('cm-box-editing')) ? 2 * MARGE_CADRE : 0;
-    box.classList.toggle('wm-court-h', w + m < COTE_MIN_TRAIT);
-    box.classList.toggle('wm-court-v', h + m < COTE_MIN_TRAIT);
     box.classList.toggle('wm-prise-large', w > 88 && h > 88);   // poignées : prise de 44 px au-delà de 88 px
   }
   function assurerCadre(box) {

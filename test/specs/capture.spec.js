@@ -52,7 +52,7 @@ test.describe('Capture (Kiosque)', () => {
     // nos repères (cadre, ses coins et ses traits, poignées, épingle) prennent d'abord une couleur témoin (magenta),
     // absente de la page : on vérifie ensuite
     // qu'elle n'apparaît pas dans la capture
-    await page.addStyleTag({ content: '.cm-box{border-color:#ff00ff !important;background:rgba(255,0,255,.35) !important} .cm-pin{background:#ff00ff !important} .cm-handle-se{background:#ff00ff !important} .cm-box .wm-cadre{--wm-encre:#ff00ff !important;--wm-th:#ff00ff !important;--wm-tv:#ff00ff !important} .cm-box .cm-handle::after{background:#ff00ff !important}' });
+    await page.addStyleTag({ content: '.cm-box{border-color:#ff00ff !important;background:rgba(255,0,255,.35) !important} .cm-pin{background:#ff00ff !important} .cm-handle-se{background:#ff00ff !important} .cm-box{--wm-cadre-coin:#ff00ff !important;--wm-cadre-contour:#ff00ff !important;--wm-cadre-tirets:#ff00ff !important;--wm-cadre-prise:#ff00ff !important} .cm-box .cm-handle::after{background:#ff00ff !important}' });
     await drawBox(page, '.kpi-tile:nth-child(1)', 'tuile 1');
     await expect.poll(() => page.locator('.cm-box').first().evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(255, 0, 255)');
     const first = await waitShot(page);
