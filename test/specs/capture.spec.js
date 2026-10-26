@@ -33,6 +33,7 @@ test.describe('Capture (Kiosque)', () => {
     await expect(page.locator('#cmStatus')).toContainText('capture enregistrée (');
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
     await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
     await page.locator('.cm-panel-item img.cm-shot').click();
     await expect(page.locator('.cm-lightbox img')).toBeVisible();
@@ -41,7 +42,7 @@ test.describe('Capture (Kiosque)', () => {
     await page.mouse.click(30, 600);                                     // clic à côté : la visionneuse se ferme
     await expect(page.locator('.cm-lightbox')).toHaveCount(0);
     // un clic simple (pastille) n'a pas de capture
-    await page.mouse.click(30, 600); await H.activate(page);
+    await page.mouse.click(30, 600); await H.assurerMode(page);         // (le retour ouvert dans la liste a lancé le mode)
     await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'clic');
     await page.waitForTimeout(400);
     expect((await H.stored(page, KEY))[1].shot).toBeUndefined();

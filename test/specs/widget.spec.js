@@ -195,12 +195,13 @@ for (const P of PAGES) {
       await H.addPin(page, P.pinTarget, 'Retrouve-moi');
       await H.deactivate(page);
       await page.locator('#cmPanelBtn').click();
-      await page.locator('.cm-panel-item .body').click();
+      await page.locator('.cm-panel-item .body').click();              // 1er clic (c1, V2) : le retour est choisi
       await expect(page.locator('body')).toHaveClass(/cm-active/);
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
       await expect(page.locator('.cm-popup')).toHaveCount(0);                // pas de bulle…
+      await page.locator('.cm-panel-item .body').click();              // 2e clic : ouvert, son texte en place dans le champ
       await expect(page.locator('.cm-panel-item textarea')).toHaveValue('Retrouve-moi'); // …on modifie dans la liste
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus/);   // cadre et pastille en couleur active
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);
@@ -227,10 +228,12 @@ for (const P of PAGES) {
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
       await expect(page.locator('.cm-panel-item')).toHaveCount(1);
       await expect(page.locator('.cm-panel-item .txt')).toHaveText('Dans la liste');
-      await expect(page.locator('#cmPanelCount')).toHaveText('1');
+      await expect(page.locator('#cmPanelCount')).toHaveCount(0);       // V2 : plus de compteur ; la ligne de compte donne le nombre
+      await expect(page.locator('#cmPanelSub')).toHaveText(/^1 à suivre — 1 retour sur 1 page du site/);
       await page.mouse.click(30, 400);
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await page.locator('#cmPanelBtn').click();
+      await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 : les actions sont dans le retour ouvert
       await page.locator('.cm-panel-item .del').click();
       await expect(page.locator('.cm-panel-item')).toHaveCount(0);
       await expect(page.locator('.cm-pin')).toHaveCount(0);

@@ -208,13 +208,13 @@ test('8. touche N : liste ouverte, ferme la liste et lance le mode ; liste ferm�
   await H.activate(page);
   await H.addPin(page, CIBLE, 'Retour à modifier');
   await page.locator('#cmPanelBtn').click();
-  await page.locator('.cm-panel-item .body').first().click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : un clic choisit, un deuxième ouvre le champ
   const champ = page.locator('.cm-panel-item textarea.cm-inline-edit');
   await expect(champ).toBeFocused();
   await page.keyboard.press('n');
   await expect(champ).toHaveValue('Retour à modifiern');
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-  await page.keyboard.press('Escape');                                  // annule la modification
+  await page.keyboard.press('Escape');                                  // annule la modification (et referme le retour)
   await H.deactivate(page);
   // Avec maj, ctrl, alt ou ⌘ : rien.
   await page.locator('#cmPanelBtn').click();

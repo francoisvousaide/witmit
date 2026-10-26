@@ -19,15 +19,21 @@ test.beforeEach(async ({ page }) => {
 
 // Un ticket envoyé au guichet, puis la ligne que le serveur renverra à la relecture ; tiroir ouvert.
 async function ticketEnvoye(page, row, i = 0) {
-  await H.activate(page);
+  // (c1, V2 : ouvrir un retour de la liste lance le mode ; au 2e ticket, il peut déjà tourner.)
+  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
   await H.addPin(page, `tbody tr:nth-child(${i + 1}) td:nth-child(2)`, 'Ticket ' + (i + 1));
   await expect.poll(async () => ((await ticket(page, i)).sync || {}).state, { timeout: 15000 }).toBe('sent');
   const t = await ticket(page, i);
   state.rows.push({ id_local: t.id, message_retour: null, mis_a_jour_le: '2026-09-28T10:00:00Z', messages: [], ...row });
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(i));   // c1 (V2) : le fil et ses touches sont dans le retour ouvert
 }
-const rouvrirTiroir = async (page) => { await page.locator('#cmPanelBtn').click(); await page.locator('#cmPanelBtn').click(); };
+// Fermer puis rouvrir la liste (relecture) ; la fermeture referme le retour : on rouvre le premier, comme avant (c1).
+const rouvrirTiroir = async (page) => {
+  await page.locator('#cmPanelBtn').click(); await page.locator('#cmPanelBtn').click();
+  if (await page.locator('.cm-panel-item').count()) await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());
+};
 
 test('1. le fil est affiché : messages de l’équipe et les tiens, datés, dans l’ordre', async ({ page }) => {
   await ticketEnvoye(page, {
@@ -137,6 +143,7 @@ test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) =
   await expect(page.locator('.cm-panel-item')).toHaveCount(2);
   await expect(page.locator('.cm-reply-btn, .cm-reopen-btn')).toHaveCount(0);
   // résolu « par moi » (✓ local) : rien à rouvrir côté équipe
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(0));         // c1 (V2) : ✓ est dans le retour ouvert
   await page.locator('.cm-panel-item').nth(0).locator('button.st').click();
   await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-status-chip')).toContainText('par moi');
   await expect(page.locator('.cm-reopen-btn')).toHaveCount(0);
@@ -215,6 +222,7 @@ test('9. voyant : allumé par un message de l’équipe, éteint après lecture 
   await witmit.click(); await witmit.click();
   await expect(voyant).toBeHidden();
   await witmit.click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());       // c1 (V2) : le fil est dans le retour ouvert
   await page.locator('.cm-reply-btn').click();
   await page.locator('.cm-inline-reply').fill('Je regarde');
   await page.locator('.cm-inline-reply').press('Enter');
@@ -262,13 +270,13 @@ test('10. « masquer les terminés » coché : un retour résolu par l’équipe
   await expect(voyant).toBeHidden();
 });
 
-// Relecture de Paula (lot 5) : à 380 px (tiroir sur ordinateur) et à 375 px (écran étroit, tiroir pleine largeur),
+// Relecture de Paula (lot 5) : à 340 px (liste sur ordinateur, V2) et à 375 px (écran étroit, liste pleine largeur),
 // chaque touche sous le fil garde ses marges intérieures (12 px à gauche, 8 px à droite du contenu) ; la rangée passe
 // sous la colonne des cercles sans rien chevaucher.
-test('11. les touches sous le fil gardent leurs marges à 380 et 375 px (« ça ne convient pas ? rouvrir »), sans chevauchement', async ({ page }) => {
+test('11. les touches sous le fil gardent leurs marges à 340 et 375 px (« ça ne convient pas ? rouvrir »), sans chevauchement ; zones de 44 px sans recouvrement', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
   await expect(page.locator('.cm-reopen-btn')).toBeVisible({ timeout: 15000 });
-  for (const [largeur, vue] of [[380, null], [375, { width: 375, height: 812 }]]) {
+  for (const [largeur, vue] of [[340, null], [375, { width: 375, height: 812 }]]) {
     if (vue) { await page.setViewportSize(vue); await page.waitForTimeout(400); }
     const tiroir = await page.locator('#cmPanel').boundingBox();
     expect(Math.round(tiroir.width), 'largeur du tiroir').toBe(largeur);
@@ -298,6 +306,18 @@ test('11. les touches sous le fil gardent leurs marges à 380 et 375 px (« ça 
       return { touches: touches.length, cercles: cercles.length, chevauche: touches.some((t) => cercles.some((c) => inter(t, c))) };
     });
     expect(chevauche, 'à ' + largeur + ' px').toEqual({ touches: 2, cercles: 1, chevauche: false });
+    // Lot 4 (V2) : deux touches, sur une rangée (8 px entre elles) ou repliées (14 px entre les rangées) ; leurs zones de
+    // 44 px (la boîte de chaque touche) ne se recouvrent jamais.
+    const zones = await page.locator('.cm-panel-item').first().evaluate((it) => {
+      const r = Array.from(it.querySelectorAll('.cm-thread-actions .wm-touche')).map((e) => e.getBoundingClientRect());
+      const [a, b] = r;
+      const memeRangee = Math.abs(a.top - b.top) < 1;
+      return { hauteurs: r.map((x) => Math.round(x.height)), ecart: Math.round(memeRangee ? Math.max(b.left - a.right, a.left - b.right) : Math.abs(b.top - a.top) - 44 + 14),
+        memeRangee, recouvre: a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5 };
+    });
+    expect(zones.hauteurs, 'à ' + largeur + ' px').toEqual([44, 44]);
+    expect(zones.recouvre, 'à ' + largeur + ' px').toBe(false);
+    expect(zones.ecart, 'à ' + largeur + ' px').toBe(zones.memeRangee ? 8 : 14);
   }
 });
 
@@ -374,6 +394,7 @@ test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien n
   expect(state.replies).toHaveLength(2);
   // un autre 413 (refus que la table ne nomme pas) : « witmit a refusé ce message », rien ne repart
   await page.locator('#cmPanelBtn').click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());       // c1 (V2) : le fil est dans le retour ouvert
   await expect(page.locator('.cm-reply-btn')).toBeVisible();
   state.failReply = { status: 413, erreur: 'corps trop gros' };
   await repondre(page, 'Encore un');

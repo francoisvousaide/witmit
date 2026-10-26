@@ -186,7 +186,7 @@ test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => 
     await H.deactivate(page);
     const [c] = await H.stored(page, 'witmit_essai-aide-fenetre_v1');
     await H.retourColle(page, [c.id + ' complement | Quelle ligne ?']);
-    await page.locator('.cm-panel-item .body .txt').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : le champ de réponse s'ouvre avec le retour
     await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
     expect(await page.locator('.cm-panel-item textarea.cm-inline-reply').evaluate((ta) => getComputedStyle(ta, '::placeholder').fontSize)).toBe('13px');
   });
@@ -198,14 +198,14 @@ test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => 
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
     expect(await page.locator('.cm-panel-item .txt').evaluate((el) => getComputedStyle(el).fontSize)).toBe('14px');
-    await page.locator('.cm-panel-item .body .txt').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : le champ s'ouvre avec le retour
     const edition = page.locator('.cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply)');
     await expect(edition).toBeVisible();
     expect(await edition.evaluate((ta) => [getComputedStyle(ta).fontSize, getComputedStyle(ta).backgroundColor])).toEqual(['14px', 'rgba(255, 255, 255, 0.8)']);
     await edition.press('Escape');
     const [c] = await H.stored(page, 'witmit_essai-liste-tailles_v1');
     await H.retourColle(page, [c.id + ' complement | Quelle ligne ?']);
-    await page.locator('.cm-panel-item .body .txt').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());
     await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
     expect(await page.locator('.cm-panel-item textarea.cm-inline-reply').evaluate((ta) => getComputedStyle(ta).fontSize)).toBe('15px');
   });
@@ -550,8 +550,8 @@ test.describe('Halo du mode annotation', () => {
   });
 });
 
-test('13. liste : le numéro du retour sélectionné est lisible (encre de l’autre thème)', async ({ page }) => {
-  for (const [nom, fond, chiffre] of [['tellus-accueil.html', 'rgb(20, 20, 20)', 'rgb(244, 244, 244)'], ['generic-dashboard.html', 'rgb(255, 255, 255)', 'rgb(20, 20, 20)']]) {
+test('13. liste : le numéro du retour sélectionné est lisible (V2 : face ink, chiffre dans la couleur du fond de la liste)', async ({ page }) => {
+  for (const [nom, fond, chiffre] of [['tellus-accueil.html', 'rgb(20, 20, 20)', 'rgb(250, 250, 250)'], ['generic-dashboard.html', 'rgb(255, 255, 255)', 'rgb(27, 27, 27)']]) {
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -629,7 +629,8 @@ test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse p
     expect(f.clipOmbre, f.sel).toBe('none');
     expect(f.rayon, f.sel).toBe(rayon);
     expect(f.rayonOmbre, f.sel).toBe(rayon);
-    expect(f.flou, f.sel).toBe('blur(40px) saturate(1.9)');
+    // La liste est mate (V2, fiche Tiroir : titane neutre opaque, sans verre) : pas de flou derrière elle.
+    expect(f.flou, f.sel).toBe(f.sel === '#cmPanel' ? 'none' : 'blur(40px) saturate(1.9)');
     expect(f.parentNu, f.sel).toBe(true);                            // la fenêtre elle-même n'est ni découpée ni peinte
   }
 });
@@ -643,7 +644,9 @@ test('15b. visionneuse : la capture s’agrandit dans une fenêtre habillée', a
   await ta.fill('Zone'); await ta.press('Enter');
   await H.deactivate(page);
   await page.locator('#cmPanelBtn').click();
-  await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.cm-panel-item img.cm-shot')).toHaveCount(1, { timeout: 15000 });
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
+  await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
   await page.locator('.cm-panel-item img.cm-shot').click();
   const kids = await page.locator('.cm-lightbox .cm-lightbox-fenetre').evaluate((el) => Array.from(el.children).slice(0, 3).map((k) => k.classList[0]));
   expect(kids).toEqual(['wm-ombre', 'wm-verre', 'wm-contour']);
@@ -927,6 +930,7 @@ test('21a. aucun émoji dans ce que witmit dessine (maquette : tous les statuts,
   await page.reload();
   await H.activate(page);
   await page.locator('#cmPanelBtn').click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les détails sont dans le retour ouvert
   await page.locator('.cm-panel-item details.cm-tech summary').first().click();
   await page.locator('.cm-pin').nth(3).click();                  // fenêtre d'un complément demandé
   await expect(page.locator('.cm-popup')).toBeVisible();
@@ -1271,7 +1275,7 @@ test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport
   await expect(page.locator('#cmFeedbackBox')).toBeVisible();
   expect(await fautes()).toEqual([]);
   await page.locator('#cmFeedbackBox').getByRole('button', { name: 'annuler' }).click();
-  await page.locator('.cm-panel-item .body .txt').click();              // champ de réponse au complément : annuler, enregistrer
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // champ de réponse au complément (c1 : retour ouvert) : annuler, enregistrer
   await expect(page.locator('.cm-panel-item .cm-reponse-actions')).toBeVisible();
   expect(await fautes()).toEqual([]);
   const rep = await page.evaluate((f) => eval(f)(document.querySelector('.cm-panel-item .cm-reponse-actions')), lireBoutons.toString());

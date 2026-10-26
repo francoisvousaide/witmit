@@ -31,6 +31,11 @@ async function activate(page) {
   await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#cmFrame')).toHaveClass(/show/);
 }
+// Mode annotation actif, qu'il le soit déjà ou non (c1, V2 : choisir un retour dans la liste lance le mode).
+async function assurerMode(page) {
+  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await activate(page);
+  await expect(page.locator('body')).toHaveClass(/cm-active/);
+}
 async function deactivate(page) {
   await page.locator('#cmToggleBtn').click();
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
@@ -110,6 +115,13 @@ function accepterConfirmation(page) {
   return new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.accept(); resolve(m); }));
 }
 
+// Liste, décision c1 (V2, lot 4) : un clic choisit un retour, un deuxième l'ouvre (son texte en entier, sa méta, ses
+// actions, son fil). `ligne` : le locator d'une .cm-panel-item ; ouvre-la si elle ne l'est pas déjà.
+async function ouvrirRetour(page, ligne) {
+  for (let k = 0; k < 2 && !/\bwm-ouvert\b/.test((await ligne.getAttribute('class')) || ''); k++) await ligne.locator('.zone').click();
+  await expect(ligne).toHaveClass(/\bwm-ouvert\b/);
+}
+
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Faux Supabase : identité anonyme, défi, dépôt, réponse / réouverture, relecture des statuts (et du fil). `state` pilote les réponses.
 function mockSupabase(page, state) {
@@ -144,4 +156,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne };
+module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne, ouvrirRetour, assurerMode };

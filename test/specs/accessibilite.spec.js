@@ -100,6 +100,7 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.waitForTimeout(400);                                       // fin du glissement de la liste
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les icônes seules sont dans le retour ouvert
   const cercles = await page.evaluate(() => Array.from(document.querySelectorAll('#cmPanel .wm-cercle')).filter((el) => el.offsetParent).map((el) => {
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const e = document.elementFromPoint(cx + 21, cy);
@@ -207,6 +208,7 @@ test('5b. visionneuse : Échap, croix et clic à côté la ferment (le clic à c
   });
   await page.reload();
   await page.locator('#cmPanelBtn').click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
   const vignette = page.locator('.cm-panel-item .cm-vignette');
   await expect(vignette).toHaveAccessibleName('agrandir la capture');
   const ouvrir = async () => { await vignette.click(); await expect(page.locator('.cm-lightbox')).toHaveCount(1); };
@@ -335,7 +337,7 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
     return { marge: getComputedStyle(l).paddingBottom, couvert: dernier.bottom > fab.top && dernier.top < fab.bottom };
   });
   expect(bas).toEqual({ marge: '76px', couvert: false });
-  // Sur ordinateur, la fenêtre fait 340 px (V2, fiche Fenetre) ; le tiroir, 380 px (jusqu'au lot 4, fiche Tiroir).
+  // Sur ordinateur, la fenêtre fait 340 px (V2, fiche Fenetre) ; la liste aussi (V2, fiche Tiroir).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));
   await H.activate(page);
@@ -345,7 +347,7 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
   await page.keyboard.press('Escape');
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);
-  expect((await page.locator('#cmPanel').boundingBox()).width).toBe(380);
+  expect((await page.locator('#cmPanel').boundingBox()).width).toBe(340);
 });
 
 // Lot 8 — tests 4, 7, 8 et 9 sur toute l'interface : chaque vérification passe par les mêmes étapes, en maquette (page
@@ -374,8 +376,14 @@ async function parcoursMaquette(page, nom, verifier) {
   await H.activate(page);
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);
-  await page.locator('.cm-panel-item details.cm-tech summary').first().click();
-  await verifier('liste');
+  await verifier('liste');                                            // retours réduits (V2, fiche Tiroir)
+  // c1 (V2) : un seul retour ouvert à la fois ; chacun est vérifié ouvert (statuts, détails techniques, fil, champ de réponse).
+  const lignes = page.locator('#cmPanel .cm-panel-item');
+  for (let i = 0; i < 5; i++) {
+    await H.ouvrirRetour(page, lignes.nth(i));
+    if (i === 0) await lignes.nth(0).locator('details.cm-tech summary').click();
+    await verifier('liste, retour ' + (i + 1) + ' ouvert');
+  }
   await page.locator('.cm-pin').nth(3).click();                       // fenêtre d'un complément demandé
   await expect(page.locator('.cm-popup')).toBeVisible();
   await verifier('fenêtre de complément');
@@ -397,6 +405,7 @@ async function parcoursMaquette(page, nom, verifier) {
     await page.locator('#cmPanelBtn').click();
     await page.waitForTimeout(400);
     await expect(page.locator('#cmPanel .cm-vignette')).toHaveCount(1, { timeout: 10000 });
+    await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').filter({ has: page.locator('.cm-vignette') }));   // c1 : la vignette est dans le retour ouvert
     await page.locator('#cmPanel .cm-vignette').click();
     await expect(page.locator('.cm-lightbox')).toBeVisible();
     await verifier('visionneuse');
@@ -423,6 +432,10 @@ async function parcoursLive(page, verifier) {
   await expect(page.locator('.cm-msg')).toHaveCount(2, { timeout: 15000 });
   await page.waitForTimeout(400);
   await verifier('liste live');
+  await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').nth(1));   // c1 : « à renvoyer », ouvert
+  await verifier('liste live, retour refusé ouvert');
+  await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').nth(0));   // le fil, ouvert
+  await verifier('liste live, fil ouvert');
   await page.locator('.cm-reopen-btn').click();
   await expect(page.locator('.cm-inline-reply')).toBeVisible();
   await verifier('champ rouvrir');
@@ -551,7 +564,8 @@ test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt 
   await page.locator('#cmClearPageBtn').click();
   await page.locator('#cmClearSiteBtn').click();
   await page.locator('#cmPanelBtn').click();
-  await H.activate(page);
+  // c1 (V2) : ouvrir un retour de la liste a lancé le mode annotation (son repère s'allume) ; sinon, on le lance.
+  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
   const b = await H.visibleBox(page, CIBLE2);
   await page.mouse.click(b.x + 4, b.y + 4);
   await page.locator('.cm-popup textarea').fill('pas fini');

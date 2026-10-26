@@ -42,12 +42,12 @@ test.describe('Navigation sans rechargement', () => {
     const t = await H.stored(page, KEY);
     expect(t.map((c) => c.page)).toEqual(['/accueil', '/adhesion']);
     expect(t[1].pageTitle).toBe('Adhésion — Appli');
-    await expect(page.locator('#cmPanelCount')).toHaveText('1');
+    await expect(page.locator('#cmList .cm-panel-item')).toHaveCount(1);   // un retour sur cette page (V2 : plus de compteur, la liste en a une ligne)
     // retour arrière du navigateur : on retrouve le ticket de l'accueil, seul
     await page.goBack();
     await expect(page.locator('#titre')).toHaveText('Accueil');
     await expect.poll(() => pinsCount(page)).toBe(1);
-    await expect(page.locator('#cmPanelCount')).toHaveText('1');
+    await expect(page.locator('#cmList .cm-panel-item')).toHaveCount(1);   // un retour sur cette page (V2 : plus de compteur, la liste en a une ligne)
   });
 
   test('2. « Effacer (page) » n’efface que la page affichée', async ({ page }) => {
@@ -124,7 +124,7 @@ test.describe('Mode live : la page du serveur fait foi', () => {
     state.rows = [{ id_local: t.id, page: '/accueil', statut: 'nouveau', message_retour: null, mis_a_jour_le: '2026-09-30T08:00:00Z' }];
     await page.locator('#cmPanelBtn').click();
     await expect.poll(async () => (await H.stored(page, KEY))[0].page).toBe('/accueil');
-    await expect(page.locator('#cmPanelCount')).toHaveText('1');
+    await expect(page.locator('#cmList .cm-panel-item')).toHaveCount(1);   // un retour sur cette page (V2 : plus de compteur, la liste en a une ligne)
   });
 });
 

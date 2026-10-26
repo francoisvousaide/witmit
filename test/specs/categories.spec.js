@@ -145,6 +145,7 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveText('bug fonctionnel');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toBeHidden();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les détails sont dans le retour ouvert
     await page.locator('.cm-panel-item details.cm-tech summary').click();
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toContainText('cible : main');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toContainText('boom test');
