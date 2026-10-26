@@ -140,6 +140,86 @@ test.describe('Thème suivi et matières (V2)', () => {
   });
 });
 
+test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => {
+  // Couleur rgba lue par getComputedStyle → [r, g, b, a].
+  const lire = (c) => { const n = c.match(/[\d.]+/g).map(Number); return [n[0], n[1], n[2], n.length > 3 ? n[3] : 1]; };
+  const poser = (dessus, dessous) => { const a = dessus[3]; return [0, 1, 2].map((i) => dessus[i] * a + dessous[i] * (1 - a)); };
+  const lum = (rgb) => { const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contraste = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+
+  async function fenetre(page, nom, fond) {
+    await page.goto(pageEssai(nom, { fond }));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, '#bloc');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+  }
+
+  test('É1. texte d’aide du champ de la fenêtre à 60 % : au moins 4,6:1 sur la face du champ, en clair et en sombre, focus compris', async ({ page }) => {
+    for (const [nom, fond] of [['champ-clair', '#ffffff'], ['champ-sombre', '#101010']]) {
+      await fenetre(page, nom, fond);
+      for (const focus of [false, true]) {
+        if (focus) await page.locator('.cm-popup textarea').focus();
+        const c = await page.evaluate(() => {
+          const ta = document.querySelector('.cm-popup textarea');
+          return { site: getComputedStyle(document.body).backgroundColor, verre: getComputedStyle(document.querySelector('.cm-popup > .wm-verre')).backgroundColor,
+            champ: getComputedStyle(ta).backgroundColor, aide: getComputedStyle(ta, '::placeholder').color };
+        });
+        const face = poser(lire(c.champ), poser(lire(c.verre), lire(c.site).slice(0, 3)));
+        const ratio = contraste(poser(lire(c.aide), face), face);
+        expect(c.champ, nom).toBe(nom === 'champ-clair' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.06)');
+        expect(lire(c.aide)[3], nom).toBeCloseTo(0.6, 2);
+        expect(ratio, `${nom}${focus ? ' (focus)' : ''} : ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.6);
+      }
+    }
+  });
+
+  test('É2. texte d’aide : 14 px dans le champ de la fenêtre, 13 px dans la liste (réponse)', async ({ page }) => {
+    await fenetre(page, 'aide-fenetre', '#ffffff');
+    expect(await page.locator('.cm-popup textarea').evaluate((ta) => getComputedStyle(ta, '::placeholder').fontSize)).toBe('14px');
+    await page.locator('.cm-popup textarea').fill('Un retour');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await H.deactivate(page);
+    const [c] = await H.stored(page, 'witmit_essai-aide-fenetre_v1');
+    await H.retourColle(page, [c.id + ' complement | Quelle ligne ?']);
+    await page.locator('.cm-panel-item .body .txt').click();
+    await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
+    expect(await page.locator('.cm-panel-item textarea.cm-inline-reply').evaluate((ta) => getComputedStyle(ta, '::placeholder').fontSize)).toBe('13px');
+  });
+
+  test('É3. liste : texte de la personne et champ de modification à 14 px (face du champ de la fenêtre) ; champ de réponse à 15 px', async ({ page }) => {
+    await fenetre(page, 'liste-tailles', '#ffffff');
+    await page.locator('.cm-popup textarea').fill('Un retour');
+    await page.locator('.cm-popup textarea').press('Enter');
+    await H.deactivate(page);
+    await page.locator('#cmPanelBtn').click();
+    expect(await page.locator('.cm-panel-item .txt').evaluate((el) => getComputedStyle(el).fontSize)).toBe('14px');
+    await page.locator('.cm-panel-item .body .txt').click();
+    const edition = page.locator('.cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply)');
+    await expect(edition).toBeVisible();
+    expect(await edition.evaluate((ta) => [getComputedStyle(ta).fontSize, getComputedStyle(ta).backgroundColor])).toEqual(['14px', 'rgba(255, 255, 255, 0.8)']);
+    await edition.press('Escape');
+    const [c] = await H.stored(page, 'witmit_essai-liste-tailles_v1');
+    await H.retourColle(page, [c.id + ' complement | Quelle ligne ?']);
+    await page.locator('.cm-panel-item .body .txt').click();
+    await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
+    expect(await page.locator('.cm-panel-item textarea.cm-inline-reply').evaluate((ta) => getComputedStyle(ta).fontSize)).toBe('15px');
+  });
+
+  test('É4. encart « coller un retour » : titre en graisse 500, champ en 13 px, interligne 1,5', async ({ page }) => {
+    await page.goto(pageEssai('coller-retour'));
+    await page.locator('#cmPanelBtn').click();
+    await page.locator('#cmPasteBtn').click();
+    await expect(page.locator('#cmFeedbackBox textarea')).toBeVisible();
+    const m = await page.evaluate(() => {
+      const t = getComputedStyle(document.querySelector('#cmFeedbackBox .cm-feedback-title')), ta = getComputedStyle(document.querySelector('#cmFeedbackBox textarea'));
+      return { titre: t.fontWeight, taille: ta.fontSize, interligne: ta.lineHeight };
+    });
+    expect(m).toEqual({ titre: '500', taille: '13px', interligne: '19.5px' });
+  });
+});
+
 test('5. ancienne palette absente du CSS injecté et du script', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
   const css = sansEspaces(await page.locator('#cmStyles').evaluate((el) => el.textContent));

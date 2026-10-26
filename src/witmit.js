@@ -700,10 +700,10 @@
      poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
      Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
   .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
-    border:1px solid var(--wm-line); border-radius:0; background:var(--wm-surface-raised); box-shadow:none; outline:none;
+    border:1px solid var(--wm-line); border-radius:0; background:var(--wm-champ-fond); box-shadow:none; outline:none;
     font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
-  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-champ-fond); box-shadow:none; outline:none; }
+  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
   .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:44px; }
   .cm-popup .cm-champ-reponse { margin-top:12px; }
   /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
@@ -789,7 +789,7 @@
   .cm-panel-item .zone .wm-icone { margin:0; }
   .cm-panel-item .zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
   /* Texte de la personne : police système 15 px, entre « » (posés par le style : le texte du retour reste intact). */
-  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
+  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
   .cm-panel-item .txt::before, .cm-voix::before { content:'« '; }
   .cm-panel-item .txt::after, .cm-voix::after { content:' »'; }
   /* Méta : ligne 1 = verrou, statut (ou marque d'envoi) en gras, voyant, prénom, date ; ligne 2 = catégorie. */
@@ -843,6 +843,8 @@
     background:var(--wm-surface-raised); box-shadow:none; outline:none; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; }
   .cm-ui .cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply) { border-color:var(--wm-line-strong); }
+  /* Modification en place (fiche Tiroir) : face du champ de la fenêtre (champ-fond), texte de la personne à 14 px comme la ligne. */
+  .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-edit:not(.cm-inline-reply), .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-edit:not(.cm-inline-reply):focus { background:var(--wm-champ-fond); font-size:14px; }
   .cm-ui .cm-panel-item .wm-champ > textarea:focus, .cm-ui .cm-feedback-box .wm-champ > textarea:focus { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
   .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
   .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
@@ -878,9 +880,9 @@
   /* Encart « coller un retour » (fiche Rapport) : entre la liste et le pied. */
   .cm-feedback-box { flex:none; padding:12px 24px 14px 20px; border-top:1px solid var(--wm-line); border-bottom:1px solid var(--wm-line); }
   .cm-feedback-box[hidden] { display:none; }
-  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:600; line-height:1.4; color:var(--wm-ink); }
+  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1.4; color:var(--wm-ink); }
   .cm-feedback-box .cm-feedback-title .wm-icone { margin:0; }
-  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.5; }
+  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; }   /* fiche Rapport */
   .cm-feedback-box .cm-feedback-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
   /* Pied : outils de la page et rapport (mode maquette, ou retour pas encore parti en live), puis « nouveau retour ». */
   .cm-panel-pied { flex:none; padding:12px 24px 22px 18px; border-top:1px solid var(--wm-line); }
