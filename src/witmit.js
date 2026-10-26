@@ -573,6 +573,10 @@
   .cm-pill.wm-sur-liste .wm-terminer { margin-left:auto; }
   body .cm-pill.wm-sur-liste .cm-drag-handle { cursor:default; }
   .cm-panel.wm-sous-bandeau { padding-top:60px; }   /* 8 + 44 + 8 px */
+  .cm-panel.wm-sous-bandeau > .wm-contour path:first-child { display:none; }   /* son coin haut gauche passerait sous celui du bandeau (Paula É1) */
+  /* Liste ouverte pleine largeur (sous 480 px) : aucune page n'est visible, le halo se cache (il se voyait dans les coins
+     arrondis de la liste ; Paula É3). */
+  .cm-frame.wm-sous-liste, .cm-frame.show.wm-sous-liste { visibility:hidden; opacity:0; transition:none; }
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
      Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
@@ -4064,7 +4068,7 @@
     var panel = document.getElementById('cmPanel');
     if (!panel || !panel.classList.contains('show')) return;
     if (panel.contains(e.target)) return;
-    if (e.target.closest && e.target.closest('#cmPanelBtn, .cm-lightbox')) return;   // la visionneuse s'ouvre par-dessus la liste
+    if (e.target.closest && e.target.closest('#cmPanelBtn, .cm-lightbox, #cmPill')) return;   // la visionneuse s'ouvre par-dessus la liste ; le bandeau (« terminer », poignée) n'est pas un dehors (lot 7, Léa É1)
     cmTogglePanel(false);
     swallowClick = active && !inUi(e.target);
   }, true);
@@ -4096,19 +4100,25 @@
     var pill = document.getElementById('cmPill');
     var panel = document.getElementById('cmPanel');
     var montre = !!(pill && pill.classList.contains('show'));
-    var surListe = false, vw = document.documentElement.clientWidth || window.innerWidth, libre = vw;
+    // page : la page visible (rétrécie, liste ouverte) ; libre : la place où le bandeau peut être déplacé (8 px avant la liste).
+    var surListe = false, vw = document.documentElement.clientWidth || window.innerWidth, page = vw, libre = vw;
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    var cadre = document.getElementById('cmFrame');
+    if (cadre) cadre.classList.toggle('wm-sous-liste', !!(listeOuverte() && etroit));
     if (montre) {
       pill.classList.remove('wm-sur-liste');
       pill.style.width = ''; pill.style.maxWidth = '';
       pill.style.left = '0px'; pill.style.transform = 'none';
       if (listeOuverte() && panel) {
-        var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-        if (!etroit) libre = vw - panel.offsetWidth - 8;
-        surListe = etroit || pill.offsetWidth > libre - 16;
+        if (!etroit) { page = vw - panel.offsetWidth; libre = page - 8; }
+        surListe = etroit || pill.offsetWidth > page - 16;
       }
     }
     if (panel) panel.classList.toggle('wm-sous-bandeau', surListe);
     if (!montre) return;
+    // Posé sur la liste, il ne se déplace pas : la poignée perd son info-bulle, rendue mot pour mot ensuite (Léa É2).
+    var poignee = pill.querySelector('.wm-poignee');
+    if (poignee) { if (surListe) poignee.removeAttribute('title'); else poignee.setAttribute('title', 'glisse pour déplacer le bandeau'); }
     if (surListe) {
       var lw = Math.min(panel.offsetWidth, vw);
       pill.classList.add('wm-sur-liste');
@@ -4117,13 +4127,13 @@
       pill.style.top = '8px';
       return;
     }
-    pill.style.maxWidth = (libre - 16) + 'px';
+    pill.style.maxWidth = (page - 16) + 'px';
     var w = pill.offsetWidth, h = pill.offsetHeight;
     var left, top = null;
     if (posBandeau) {
       left = Math.max(4, Math.min(posBandeau.left, libre - w - 4));
       top = Math.max(4, Math.min(posBandeau.top, window.innerHeight - h - 4));
-    } else left = Math.max(8, Math.round((libre - w) / 2));
+    } else left = Math.max(8, Math.round((page - w) / 2));   // centré sur la page visible (Paula É2)
     pill.style.left = left + 'px';
     pill.style.top = top === null ? '' : top + 'px';
   }

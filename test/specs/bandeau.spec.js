@@ -150,11 +150,15 @@ test.describe('Bandeau (fiche Bandeau, décision b3)', () => {
       const r = await recouvrements(page);
       expect(r.fautes).toEqual([]);
       expect(r.croixLibre).toBe(true);
-      // Posé en haut de la liste, de 8 px à 8 px de ses bords visibles (fiche Mobile), sur une ligne de 44 px.
-      expect(r.p.top).toBe(8);
       expect(r.p.height).toBe(44);
-      expect(r.p.left).toBeGreaterThanOrEqual(r.l.left + 8 - 0.5);
-      expect(r.p.right).toBeLessThanOrEqual(Math.min(r.l.right, w) - 8 + 0.5);
+      if (w <= 480) {
+        // Posé en haut de la liste, de 8 px à 8 px de ses bords visibles (fiche Mobile).
+        expect(r.p.top).toBe(8);
+        expect(r.p.left).toBeGreaterThanOrEqual(r.l.left + 8 - 0.5);
+        expect(r.p.right).toBeLessThanOrEqual(Math.min(r.l.right, w) - 8 + 0.5);
+      } else {
+        expect(r.p.right).toBeLessThanOrEqual(r.l.left);                   // 600 px : il tient sur la page rétrécie (Paula É2), à gauche de la liste
+      }
       // La croix se clique vraiment, et la liste fermée rend sa place au bandeau.
       await page.locator('#cmPanel .cm-panel-fermer').click();
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
@@ -165,15 +169,128 @@ test.describe('Bandeau (fiche Bandeau, décision b3)', () => {
     });
   }
 
-  test('B4. 375 et 320 px, liste fermée : le bandeau d’une ligne ne recouvre pas le titre de la page', async ({ page }) => {
+  test('B4. 375 et 320 px, liste fermée : le bandeau d’une ligne ne recouvre pas le texte du titre de la page', async ({ page }) => {
+    // Police de repli imposée (la police web de la page de test vient du réseau) : le cas le plus haut pour le titre.
+    await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     for (const w of [375, 320]) {
       await page.setViewportSize({ width: w, height: 800 });
       await page.goto(H.fileUrl('tellus-accueil.html'));
       await H.clearStorage(page); await page.reload();
       await H.activate(page);
-      const r = await page.evaluate(() => ({ p: document.getElementById('cmPill').getBoundingClientRect().toJSON(), t: document.querySelector('h1').getBoundingClientRect().toJSON() }));
-      expect(r.p.bottom, `${w} px`).toBeLessThanOrEqual(r.t.top);
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(() => ({ t: document.querySelector('h1').getBoundingClientRect().toJSON(), bas: document.getElementById('cmPill').getBoundingClientRect().bottom }));
+      if (m.bas <= m.t.top) continue;                                      // le bandeau s'arrête au-dessus de la boîte du titre
+      // Sinon : aucune encre du titre dans les lignes que le bandeau recouvre (bandeau et halo cachés le temps de la capture).
+      await page.addStyleTag({ content: '#cmPill, #cmFrame { visibility:hidden !important; }' });
+      const clip = { x: Math.floor(m.t.left), y: Math.floor(m.t.top), width: Math.floor(Math.min(m.t.width, w - m.t.left)), height: Math.ceil(m.bas - Math.floor(m.t.top)) };
+      const png = await page.screenshot({ clip });
+      const encre = await page.evaluate(async (b64) => {
+        const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, img.width, img.height).data, fond = [d[0], d[1], d[2]];
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - fond[0]) + Math.abs(d[i + 1] - fond[1]) + Math.abs(d[i + 2] - fond[2]) > 60) n++;
+        return n;
+      }, png.toString('base64'));
+      expect(encre, `${w} px : pixels du titre sous le bandeau`).toBe(0);
     }
+  });
+});
+
+test.describe('Bandeau : corrections du renvoi', () => {
+  for (const w of [1280, 900, 600, 375, 320]) {
+    test(`Léa É1. ${w} px, liste ouverte : un appui sur la poignée ou « annotation » ne ferme pas la liste ; un clic sur « terminer » termine du premier coup, la liste reste ouverte`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 800 });
+      const nom = 'tellus-accueil.html';
+      await semer(page, nom, 'witmit_tellus_v1', ['a', 'b'].map((id) => retour(id, nom)));
+      await H.activate(page);
+      await ouvrirListe(page);
+      const centre = async (sel) => { const b = await page.locator(sel).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+      for (const sel of ['#cmPill .wm-poignee', '#cmPill .wm-bandeau-mode']) {
+        const [x, y] = await centre(sel);
+        await page.mouse.click(x, y);
+        await page.waitForTimeout(300);
+        await expect(page.locator('#cmPanel'), sel).toHaveClass(/show/);
+        await expect(page.locator('body'), sel).toHaveClass(/cm-active/);
+      }
+      const [x, y] = await centre('#cmPill .wm-terminer');
+      await page.mouse.click(x, y);
+      await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+      await expect(page.locator('#cmPill')).toBeHidden();
+      await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+    });
+  }
+
+  test('Léa É2. bandeau posé sur la liste : la poignée n’a pas d’info-bulle de déplacement ; elle revient mot pour mot quand il peut de nouveau bouger', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(H.fileUrl('tellus-accueil.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const poignee = page.locator('#cmPill .wm-poignee');
+    await expect(poignee).toHaveAttribute('title', 'glisse pour déplacer le bandeau');
+    await ouvrirListe(page);
+    await expect(page.locator('#cmPill')).toHaveClass(/wm-sur-liste/);
+    expect(await poignee.getAttribute('title')).toBe(null);
+    await page.locator('#cmPanel .cm-panel-fermer').click();
+    await expect(page.locator('#cmPill')).not.toHaveClass(/wm-sur-liste/);
+    await expect(poignee).toHaveAttribute('title', 'glisse pour déplacer le bandeau');
+  });
+
+  test('Paula É1. bandeau posé sur la liste : le coin witmit haut gauche de la liste se cache (celui du bas droit reste) ; ailleurs, les deux coins', async ({ page }) => {
+    const coins = () => page.locator('#cmPanel > .wm-contour path').evaluateAll((ps) => ps.map((p) => getComputedStyle(p).display));
+    await page.goto(H.fileUrl('tellus-accueil.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    for (const w of [375, 320, 560]) {                                     // 560 px : page rétrécie trop étroite, bandeau sur la liste
+      await page.setViewportSize({ width: w, height: 800 });
+      await ouvrirListe(page);
+      await expect(page.locator('#cmPanel')).toHaveClass(/wm-sous-bandeau/);
+      expect(await coins(), `${w} px`).toEqual(['none', 'inline']);
+      await page.locator('#cmPanel .cm-panel-fermer').click();
+      await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+    }
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await ouvrirListe(page);
+    await expect(page.locator('#cmPanel')).not.toHaveClass(/wm-sous-bandeau/);
+    expect(await coins()).toEqual(['inline', 'inline']);
+  });
+
+  test('Paula É2. liste ouverte, de 1 280 à 600 px : le bandeau est centré sur la page rétrécie ; il passe sur la liste seulement s’il est plus large que la page moins 16 px', async ({ page }) => {
+    await page.goto(H.fileUrl('tellus-accueil.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await ouvrirListe(page);
+    for (let w = 1280; w >= 600; w -= (w > 760 ? 80 : 4)) {
+      await page.setViewportSize({ width: w, height: 800 });
+      await page.waitForTimeout(60);
+      const m = await page.evaluate(() => {
+        const p = document.getElementById('cmPill'), r = p.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+        const pageVue = vw - document.getElementById('cmPanel').offsetWidth;
+        p.classList.remove('wm-sur-liste'); p.style.width = '';                 // largeur naturelle, mesurée puis rendue
+        const naturelle = p.offsetWidth;
+        window.dispatchEvent(new Event('resize'));
+        return { centre: r.left + r.width / 2, pageVue, naturelle, surListe: document.getElementById('cmPill').classList.contains('wm-sur-liste') };
+      });
+      expect(m.surListe, `${w} px`).toBe(m.naturelle > m.pageVue - 16);
+      if (!m.surListe) expect(Math.abs(m.centre - m.pageVue / 2), `${w} px`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('Paula É3. sous 480 px, liste ouverte pleine largeur : le halo se cache ; il revient liste fermée ; au-dessus de 480 px, il reste autour de la page', async ({ page }) => {
+    const halo = () => page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).visibility);
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(H.fileUrl('tellus-accueil.html'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    expect(await halo()).toBe('visible');
+    await ouvrirListe(page);
+    expect(await halo()).toBe('hidden');
+    await page.locator('#cmPanel .cm-panel-fermer').click();
+    await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+    await expect.poll(halo).toBe('visible');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await ouvrirListe(page);
+    expect(await halo()).toBe('visible');
   });
 });
 
