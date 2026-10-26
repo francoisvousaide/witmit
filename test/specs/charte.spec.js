@@ -164,9 +164,12 @@ test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => 
         const c = await page.evaluate(() => {
           const ta = document.querySelector('.cm-popup textarea');
           return { site: getComputedStyle(document.body).backgroundColor, verre: getComputedStyle(document.querySelector('.cm-popup > .wm-verre')).backgroundColor,
+            bloc: getComputedStyle(document.querySelector('.cm-popup .wm-bloc')).backgroundColor,
             champ: getComputedStyle(ta).backgroundColor, aide: getComputedStyle(ta, '::placeholder').color };
         });
-        const face = poser(lire(c.champ), poser(lire(c.verre), lire(c.site).slice(0, 3)));
+        // Face réelle : le champ, posé sur le bloc intérieur (lot 3), posé sur le verre, posé sur le site.
+        const face = poser(lire(c.champ), poser(lire(c.bloc), poser(lire(c.verre), lire(c.site).slice(0, 3))));
+        expect(c.bloc, nom).toMatch(nom === 'champ-clair' ? /^rgba\(0, 0, 0, 0\.02[78]\)$/ : /^rgba\(255, 255, 255, 0\.04\)$/);   // 2,8 % (le navigateur arrondit l'alpha au 1/255)
         const ratio = contraste(poser(lire(c.aide), face), face);
         expect(c.champ, nom).toBe(nom === 'champ-clair' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.06)');
         expect(lire(c.aide)[3], nom).toBeCloseTo(0.6, 2);
@@ -685,33 +688,44 @@ test('17. contour retracé à la taille réelle : plus de trait d’angles cass�
   expect(c.coins[1]).toBe(`M${400 - 8.4} ${n(c.H - 16.8)}V${n(c.H - 11.4)}Q${400 - 8.4} ${n(c.H - 8.4)} ${400 - 11.4} ${n(c.H - 8.4)}H${400 - 16.8}`);
 });
 
-test('18. touches : arrondi de 6 px et trait sur ::before, principale, secondaire, annuler, désactivé', async ({ page }) => {
+test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal orange, secondaire et annuler gris, désactivé', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const st = (sel, pseudo) => page.locator(sel).first().evaluate((el, ps) => {
     const cs = getComputedStyle(el, ps);
-    return { clip: cs.clipPath, rayon: cs.borderRadius, bord: cs.borderTopColor, bordL: cs.borderTopWidth, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor };
+    return { clip: cs.clipPath, rayon: cs.borderRadius, bord: cs.borderTopColor, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor, graisse: cs.fontWeight };
   }, pseudo || null);
   const jetons = await page.locator('.cm-popup').evaluate((el) => {
     const cs = getComputedStyle(el), v = (n) => cs.getPropertyValue(n).trim();
     const rgb = (c) => { const d = document.createElement('i'); d.style.color = c; el.appendChild(d); const r = getComputedStyle(d).color; d.remove(); return r; };
-    return { forte: rgb(v('--wm-line-strong')), fine: rgb(v('--wm-line')), faint: rgb(v('--wm-ink-faint')), soft: rgb(v('--wm-ink-soft')) };
+    return { faint: rgb(v('--wm-ink-faint')), ink: rgb(v('--wm-ink')), face: rgb(v('--wm-face-touche')), lisere: rgb(v('--wm-touche-lisere')) };
   });
+  const sombre = (await theme(page)) === 'client-sombre';
+  expect(jetons.face).toBe(sombre ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.07)');   // face-touche
+  expect(jetons.lisere).toBe(sombre ? 'rgba(0, 0, 0, 0)' : 'rgba(0, 0, 0, 0.08)');         // liseré à peine visible en clair, aucun en sombre
+  // Champ vide : le principal est désactivé ; on le remplit pour le voir disponible.
+  await page.locator('.cm-popup textarea').fill('Un retour');
   const save = await st('.cm-popup .cm-save'), saveAvant = await st('.cm-popup .cm-save', '::before');
   expect(save.clip).toBe('none');                                       // le bouton n'est pas découpé (son focus ne serait pas rogné)
   expect(saveAvant.clip).toBe('none');                                  // V2 : plus d'angle cassé
   expect(saveAvant.rayon).toBe('6px');                                  // arrondi radius-bouton
-  expect(saveAvant.bord).toBe(jetons.forte);                            // principale : trait line-strong
-  const sec = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)', '::before');
-  expect(sec.bord).toBe(jetons.fine);                                   // secondaire : trait line
-  const annuler = await st('.cm-popup .cm-cancel');
-  expect(annuler.bordL).toBe('0px');
-  expect(annuler.couleur).toBe(jetons.soft);                            // texte seul, ink-soft (jamais ink-faint sur le verre)
-  // désactivé (fiche Etats) : trait line, libellé ink-faint, curseur par défaut, aucune opacité
-  await page.locator('.cm-popup .cm-save').evaluate((el) => { el.disabled = true; });
+  expect(saveAvant.fond).toBe('rgb(247, 130, 26)');                     // principal disponible : orange accent (#F7821A)
+  expect(save.couleur).toBe('rgb(255, 255, 255)');                      // libellé blanc
+  expect(save.graisse).toBe('500');                                     // en graisse 500
+  const sec = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)'), secAvant = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)', '::before');
+  expect(secAvant.fond).toBe(jetons.face);                              // secondaire : face grise
+  expect(secAvant.bord).toBe(jetons.lisere);
+  expect([sec.couleur, sec.graisse]).toEqual([jetons.ink, '400']);      // libellé ink, graisse normale
+  const annuler = await st('.cm-popup .cm-cancel'), annulerAvant = await st('.cm-popup .cm-cancel', '::before');
+  expect(annulerAvant.fond).toBe(jetons.face);                          // « annuler » : un vrai bouton gris, plus un texte seul
+  expect(annulerAvant.rayon).toBe('6px');
+  expect([annuler.couleur, annuler.graisse]).toEqual([jetons.ink, '400']);
+  // désactivé (fiches Touche et Etats) : face grise au lieu de l'orange, libellé ink-faint (60 %), curseur par défaut, aucune opacité
+  await page.locator('.cm-popup textarea').fill('');
+  await expect(page.locator('.cm-popup .cm-save')).toBeDisabled();
   const off = await st('.cm-popup .cm-save'), offAvant = await st('.cm-popup .cm-save', '::before');
   expect(off.couleur).toBe(jetons.faint);
   expect(off.curseur).toBe('default');
-  expect(offAvant.bord).toBe(jetons.fine);
+  expect(offAvant.fond).toBe(jetons.face);
   expect(await page.locator('.cm-popup .cm-save').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
 });
 
@@ -733,7 +747,7 @@ test('19. focus clavier : anneau arrondi qui suit la touche, outline sur un cerc
   await expect(page.locator(envoyer)).toBeFocused();
   const a = await anneau(envoyer);
   expect(a.contenu).toBe('""');
-  expect([a.l, a.t]).toEqual(['-4px', '-4px']);
+  expect([a.l, a.t]).toEqual(['-4px', '3px']);                         // 2 px à 2 px de la face de 30 px, posée à 7 px du haut de la zone de 44 px
   expect(a.clip).toBe('none');                                          // V2 : plus de découpe
   expect(a.trait).toBe('2px solid');
   expect(a.encre).toBe(a.ink);
@@ -757,7 +771,7 @@ test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres
     return {
       jetons: ['fenetre', 'bloc', 'bouton', 'epingle', 'champ', 'message', 'coude'].map(jeton),
       fenetre: rayon('.cm-popup > .wm-verre'), liste: rayon('#cmPanel > .wm-verre'), bandeau: rayon('#cmPill > .wm-verre'), message: rayon('#cmStatus > .wm-verre'),
-      touche: rayon('.cm-popup .cm-save', '::before'), categorie: rayon('.cm-popup .cm-cat', '::before'), annuler: rayon('.cm-popup .cm-cancel'),
+      touche: rayon('.cm-popup .cm-save', '::before'), categorie: rayon('.cm-popup .cm-cat', '::before'), annuler: rayon('.cm-popup .cm-cancel', '::before'),
       champ: rayon('.cm-popup .wm-champ > textarea'), champColler: rayon('#cmFeedbackBox .wm-champ > textarea'), ligne: rayon('#cmPanel .cm-panel-item', '::before'),
       epingle: rayon('.cm-pin'), cadre: rayon('.cm-box'), traceCadre: rayon('.cm-box > .wm-cadre'),
     };
@@ -1157,5 +1171,178 @@ test('28. fenêtre : le texte d’aide du champ vide tient dans le champ, sans �
     expect(m.lignes, nom).toBeGreaterThan(1);
     expect(m.aide, nom).toBeLessThanOrEqual(m.place + 0.5);
     await page.keyboard.press('Escape');
+  }
+});
+
+// ---------- Habillage V2, lot 3 : fenêtre et boutons (fiches Fenetre et Touche) ----------
+// Pages du lot : planche-charte.html (site clair), generic-dashboard.html (site sombre).
+const PAGES_LOT3 = [['planche-charte.html', '#carteClaire p'], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)']];
+async function fenetreVide(page, nom, cible) {
+  await page.goto(H.fileUrl(nom));
+  await H.clearStorage(page); await page.reload();
+  await H.activate(page);
+  const b = await H.visibleBox(page, cible);
+  await page.mouse.click(b.x + 4, b.y + 4);
+  await expect(page.locator('.cm-popup textarea')).toBeVisible();
+}
+// Boutons visibles d'une couche de witmit, avec leur face (::before) : orange ou non, place, taille.
+const lireBoutons = (racine) => Array.from(racine.querySelectorAll('button')).filter((el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden').map((el) => {
+  const r = el.getBoundingClientRect(), f = getComputedStyle(el, '::before');
+  return { nom: el.textContent.trim() || el.getAttribute('aria-label'), touche: el.classList.contains('wm-touche'), orange: f.backgroundColor === 'rgb(247, 130, 26)',
+    gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom, largeur: r.width, hauteur: r.height, faceHaut: r.top + (parseFloat(f.top) || 0), faceBas: r.bottom - (parseFloat(f.bottom) || 0) };
+});
+
+test('29. fenêtre de saisie à 340 px ; bloc intérieur à 10 px des bords, arrondi de 7 px, fond, liseré, contour et ombre ; pas de filet ni de bande de pied (clair et sombre)', async ({ page }) => {
+  for (const [nom, cible] of PAGES_LOT3) {
+    await fenetreVide(page, nom, cible);
+    const sombre = (await theme(page)) === 'client-sombre';
+    const m = await page.evaluate(() => {
+      const pop = document.querySelector('.cm-popup'), bloc = pop.querySelector('.wm-bloc'), tete = pop.querySelector('.cm-tete');
+      const p = pop.getBoundingClientRect(), b = bloc.getBoundingClientRect(), t = tete.getBoundingClientRect(), cs = getComputedStyle(bloc), a = pop.querySelector('.cm-popup-actions').getBoundingClientRect();
+      const champ = pop.querySelector('.wm-champ').getBoundingClientRect(), titre = pop.querySelector('.cm-titre').getBoundingClientRect();
+      return { largeur: p.width, gauche: b.left - p.left, droite: p.right - b.right, sousTete: b.top - t.bottom, rayon: cs.borderRadius, fond: cs.backgroundColor, ombre: cs.boxShadow,
+        filetTete: getComputedStyle(tete).borderBottomWidth, actionsSousBloc: a.top - b.bottom, piedFond: getComputedStyle(pop.querySelector('.cm-popup-actions')).backgroundColor,
+        piedBord: getComputedStyle(pop.querySelector('.cm-popup-actions')).borderTopWidth, alignement: champ.left - titre.left, dansBloc: champ.left >= b.left && champ.right <= b.right && champ.bottom <= b.bottom };
+    });
+    expect(m.largeur, nom).toBe(340);
+    expect([m.gauche, m.droite, m.sousTete], nom).toEqual([10, 10, 8]);
+    expect(m.rayon, nom).toBe('7px');
+    expect(m.fond, nom).toMatch(sombre ? /^rgba\(255, 255, 255, 0\.04\)$/ : /^rgba\(0, 0, 0, 0\.02[78]\)$/);   // 2,8 % (alpha arrondi au 1/255)
+    // liseré intérieur (blanc à 75 % ; 8 % en sombre), contour à peine marqué (noir à 4,5 % ; 35 % en sombre), ombre très douce
+    expect(m.ombre, nom).toMatch(sombre
+      ? /^rgba\(255, 255, 255, 0\.08\) 0px 0px 0px 1px inset, rgba\(0, 0, 0, 0\.35\) 0px 0px 0px 1px, rgba\(0, 0, 0, 0\.3\) 0px 1px 6px 0px$/
+      : /^rgba\(255, 255, 255, 0\.75\) 0px 0px 0px 1px inset, rgba\(0, 0, 0, 0\.04[3-6]\) 0px 0px 0px 1px, rgba\(0, 0, 0, 0\.05\) 0px 1px 6px 0px$/);
+    expect(m.filetTete, nom).toBe('0px');                                // plus de filet sous la tête
+    expect(m.actionsSousBloc, nom).toBe(10);                             // les boutons sous le bloc
+    expect([m.piedFond, m.piedBord], nom).toEqual(['rgba(0, 0, 0, 0)', '0px']);   // sans bande de pied
+    expect(m.alignement, nom).toBe(0);                                   // le contenu du bloc reste aligné sur le titre
+    expect(m.dansBloc, nom).toBe(true);
+    await page.keyboard.press('Escape');
+  }
+});
+
+test('30. boutons de la fenêtre : 30 px dessinés, à droite, jamais pleine largeur ; un seul orange, et seulement quand il est disponible ; lecture seule sans orange', async ({ page }) => {
+  for (const [nom, cible] of PAGES_LOT3) {
+    await fenetreVide(page, nom, cible);
+    const lire = () => page.evaluate((f) => { const pop = document.querySelector('.cm-popup'); return { p: pop.getBoundingClientRect().toJSON(), b: eval(f)(pop) }; }, lireBoutons.toString());
+    // Champ vide : le principal est désactivé, gris ; aucun bouton orange.
+    let { p, b } = await lire();
+    const actions = b.filter((x) => x.touche && ['annuler', 'enregistrer'].includes(x.nom));
+    expect(actions.map((x) => x.nom), nom).toEqual(['annuler', 'enregistrer']);
+    expect(b.filter((x) => x.orange), nom).toEqual([]);
+    for (const x of actions) {
+      expect(x.faceBas - x.faceHaut, `${nom} ${x.nom}`).toBe(30);        // 30 px dessinés
+      expect(x.largeur, `${nom} ${x.nom}`).toBeLessThan(p.width / 2);   // jamais sur toute la largeur
+    }
+    expect(Math.round(p.right - actions[1].droite), nom).toBe(24);       // calés à droite, sur le bord droit du contenu
+    expect(Math.round(actions[1].gauche - actions[0].droite), nom).toBe(8);   // 8 px entre deux boutons
+    // Rempli : un seul bouton orange, le principal.
+    await page.locator('.cm-popup textarea').fill('Un retour');
+    ({ p, b } = await lire());
+    expect(b.filter((x) => x.orange).map((x) => x.nom), nom).toEqual(['enregistrer']);
+    await page.locator('.cm-popup textarea').press('Enter');
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+  }
+  // Lecture seule : une seule action, « fermer », grise ; aucun orange.
+  await page.goto(H.fileUrl('generic-dashboard.html'));
+  await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('witmit_kiosque_v1') || '[]'); d.forEach((c) => { c.status = 'resolu'; c.resolvedBy = 'moi'; }); localStorage.setItem('witmit_kiosque_v1', JSON.stringify(d)); });
+  await page.reload();
+  await H.activate(page);
+  await page.locator('.cm-pin').first().click();
+  await expect(page.locator('.cm-popup')).toHaveClass(/cm-locked/);
+  const lu = await page.evaluate((f) => eval(f)(document.querySelector('.cm-popup')), lireBoutons.toString());
+  expect(lu.filter((x) => x.touche).map((x) => [x.nom, x.orange])).toEqual([['fermer', false]]);
+});
+
+test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport, champ de réponse, coller un retour) ; il reste dans le nom accessible', async ({ page }) => {
+  // « terminer » (bandeau) garde sa puce « échap » jusqu'au lot 7 (fiche Bandeau).
+  const fautes = () => page.evaluate(() => Array.from(document.querySelectorAll('.cm-ui button:not(.wm-terminer)')).filter((el) => el.getClientRects().length)
+    .flatMap((el) => Array.from(el.querySelectorAll('.wm-repere, svg[data-icone="ArrowElbowDownLeft"], .wm-repere-double')).filter((r) => r.getClientRects().length).map(() => el.textContent.trim())));
+  await fenetreVide(page, 'generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)');
+  expect(await fautes()).toEqual([]);
+  await expect(page.locator('.cm-popup .cm-save')).toHaveAttribute('aria-keyshortcuts', 'Enter');
+  await expect(page.locator('.cm-popup .cm-cancel')).toHaveAttribute('aria-keyshortcuts', 'Escape');
+  await page.locator('.cm-popup textarea').fill('Un retour');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await H.deactivate(page);
+  const [c] = await H.stored(page, 'witmit_kiosque_v1');
+  await H.retourColle(page, [c.id + ' complement | Quelle ligne ?']);
+  await page.locator('#cmPasteBtn').click();                            // « coller un retour » rouvert : annuler, appliquer
+  await expect(page.locator('#cmFeedbackBox')).toBeVisible();
+  expect(await fautes()).toEqual([]);
+  await page.locator('#cmFeedbackBox').getByRole('button', { name: 'annuler' }).click();
+  await page.locator('.cm-panel-item .body .txt').click();              // champ de réponse au complément : annuler, enregistrer
+  await expect(page.locator('.cm-panel-item .cm-reponse-actions')).toBeVisible();
+  expect(await fautes()).toEqual([]);
+  const rep = await page.evaluate((f) => eval(f)(document.querySelector('.cm-panel-item .cm-reponse-actions')), lireBoutons.toString());
+  expect(rep.map((x) => [x.nom, x.orange])).toEqual([['annuler', false], ['enregistrer', false]]);   // deux boutons gris, pas de principal ici
+  const zone = await page.locator('.cm-panel-item .cm-reponse-actions').boundingBox();
+  expect(Math.round(zone.x + zone.width - rep[1].droite)).toBe(0);     // à droite
+  await expect(page.locator('.cm-panel-item .cm-rep-annuler')).toHaveAttribute('aria-keyshortcuts', 'Escape');
+  await expect(page.locator('.cm-panel-item .cm-rep-envoyer')).toHaveAttribute('aria-keyshortcuts', 'Enter');
+  // « nouveau retour » : à sa largeur, à droite, seul bouton orange de la liste, raccourci N dans le nom accessible
+  const liste = await page.evaluate((f) => ({ p: document.getElementById('cmPanel').getBoundingClientRect().toJSON(), b: eval(f)(document.getElementById('cmPanel')) }), lireBoutons.toString());
+  expect(liste.b.filter((x) => x.orange).map((x) => x.nom)).toEqual(['nouveau retour']);
+  const nouveau = liste.b.find((x) => x.nom === 'nouveau retour');
+  expect(nouveau.largeur).toBeLessThan(liste.p.width / 2);
+  expect(Math.round(liste.p.right - nouveau.droite)).toBe(24);
+  await expect(page.locator('#cmNewBtn')).toHaveAttribute('aria-keyshortcuts', 'N');
+});
+
+test('32. zone cliquable de 44 px au moins pour chaque bouton dessiné en 30 px (fenêtre, liste, rapport)', async ({ page }) => {
+  const mesurer = (sel, toucher) => page.evaluate(([sel, toucher]) => Array.from(document.querySelectorAll(sel)).filter((el) => el.getClientRects().length).map((el) => {
+    const b = el.getBoundingClientRect(), f = getComputedStyle(el, '::before'), x = b.left + b.width / 2;
+    const touche = (y) => { const t = document.elementFromPoint(x, y); return !!t && t.closest('button') === el; };
+    // La zone déborde de la face jusqu'à 44 px (7 px en haut et en bas pour une face de 30 px, 4 px pour 36 px) : un clic
+    // à 0,5 px du bord de la zone touche encore le bouton.
+    return { nom: el.textContent.trim(), cat: el.matches('.cm-cat, .cm-cat-choix'), zone: b.height, face: b.height - parseFloat(f.top) - parseFloat(f.bottom),
+      haut: toucher ? touche(b.top + 0.5) : null, bas: toucher ? touche(b.bottom - 0.5) : null };
+  }), [sel, toucher]);
+  await fenetreVide(page, 'generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)');
+  await page.locator('.cm-popup textarea').fill('Un retour');
+  const fenetre = await mesurer('.cm-popup .wm-touche', true);
+  expect(fenetre.map((x) => x.nom)).toEqual([expect.stringMatching(/auto/), 'annuler', 'enregistrer']);
+  await page.locator('.cm-popup textarea').press('Enter');
+  await H.deactivate(page);
+  await page.locator('#cmPanelBtn').click();
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await page.waitForTimeout(400);
+  const nouveau = await mesurer('#cmNewBtn', true);
+  // Rapport : boutons à la ligne au besoin, 8 px entre deux rangées (fiche Rapport) : la zone de 44 px de chacun est mesurée sur sa boîte.
+  const liste = await mesurer('#cmPanel .wm-touche', false);
+  expect(liste.length).toBeGreaterThan(3);
+  for (const x of [...fenetre, ...nouveau, ...liste]) {
+    expect(x.zone, x.nom).toBeGreaterThanOrEqual(44);
+    expect(x.face, x.nom).toBe(x.cat ? 36 : 30);
+    if (x.haut !== null) expect([x.haut, x.bas], x.nom).toEqual([true, true]);
+  }
+});
+
+test('33. texte d’aide du champ : au moins 4,6:1 mesuré à l’écran sur la face réelle du champ (bloc intérieur compris), en clair et en sombre', async ({ page }) => {
+  const lum = (rgb) => { const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contraste = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+  for (const [nom, fond, encre] of [['lot3-aide-clair', '#ffffff', [20, 20, 20]], ['lot3-aide-sombre', '#101010', [255, 255, 255]]]) {
+    await page.goto(pageEssai(nom, { fond }));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, '#bloc');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    const ta = page.locator('.cm-popup textarea');
+    await expect(ta).toBeVisible();
+    expect(await ta.evaluate((t) => getComputedStyle(t, '::placeholder').color)).toBe(fond === '#ffffff' ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.6)');
+    await page.mouse.move(2, 2);
+    await ta.evaluate((t) => { t.placeholder = ''; t.blur(); });         // la face nue du champ, sans le texte d'aide
+    await page.waitForTimeout(300);
+    const r = await ta.boundingBox();
+    const png = await page.screenshot({ clip: { x: r.x + 2, y: r.y + 2, width: r.width - 4, height: r.height - 4 } });
+    const pixels = await page.evaluate(async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, img.width, img.height).data, out = [];
+      for (let i = 0; i < d.length; i += 4) out.push([d[i], d[i + 1], d[i + 2]]);
+      return out;
+    }, png.toString('base64'));
+    const pire = Math.min(...pixels.map((f) => contraste([0, 1, 2].map((i) => encre[i] * 0.6 + f[i] * 0.4), f)));
+    expect(pire, `${nom} : ${pire.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.6);
   }
 });

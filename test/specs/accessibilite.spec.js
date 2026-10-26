@@ -335,13 +335,13 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
     return { marge: getComputedStyle(l).paddingBottom, couvert: dernier.bottom > fab.top && dernier.top < fab.bottom };
   });
   expect(bas).toEqual({ marge: '76px', couvert: false });
-  // Sur ordinateur, la fenêtre fait 380 px, le tiroir aussi.
+  // Sur ordinateur, la fenêtre fait 340 px (V2, fiche Fenetre) ; le tiroir, 380 px (jusqu'au lot 4, fiche Tiroir).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));
   await H.activate(page);
   const b = await H.visibleBox(page, CIBLE);
   await page.mouse.click(b.x + 4, b.y + 4);
-  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(380);
+  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(340);
   await page.keyboard.press('Escape');
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);

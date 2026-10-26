@@ -155,7 +155,8 @@ test('« envoyer » / « enregistrer » désactivée tant que le champ est vide 
     await page.mouse.click(b.x + 5, b.y + 5);
     const ta = page.locator('.cm-popup textarea'), save = page.locator('.cm-popup .cm-save'), refus = page.locator('.cm-popup .cm-refus');
     await expect(save, nom).toHaveText(touche);
-    await expect(save.locator('svg[data-icone="ArrowElbowDownLeft"]'), nom).toHaveCount(1);
+    await expect(save.locator('svg[data-icone="ArrowElbowDownLeft"], .wm-repere'), nom).toHaveCount(0);   // V2 : plus de repère ↵ dans le bouton
+    await expect(save, nom).toHaveAttribute('aria-keyshortcuts', 'Enter');                               // le raccourci reste dans le nom accessible
     await expect(save, nom).toBeDisabled();
     await expect(refus, nom).toBeHidden();
     await ta.press('Enter');                                   // rien ne part, la fenêtre reste ouverte

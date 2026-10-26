@@ -166,12 +166,10 @@
   );
   var RACC_DOUBLE_ALT = IS_MAC ? '⌥ deux fois' : 'alt deux fois';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
-  // Repère « ⌥ deux fois » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (la chasse fixe du système
-  // ne l'a pas), suivie de « deux fois » hors du carré ; lu « option deux fois » par un lecteur d'écran ; « alt deux fois » hors Mac.
+  // « masquer witmit » n'affiche plus de raccourci (V2, fiche Touche) : « ⌥ deux fois » reste dans son info-bulle et
+  // dans son nom accessible (« masquer witmit option deux fois », texte réservé aux lecteurs d'écran).
   // Repère « ⌥+A » de l'aide de l'état vide : même carré, lu « option+A » par un lecteur d'écran ; « alt+A » hors Mac.
   var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
-  var REPERE_DOUBLE_ALT = '<span class="wm-repere-double"><span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>' : 'alt') +
-    '</span><span>deux fois</span></span>';
   // Gestes du bandeau (Léa 3.2 ; fiche Bandeau) : ⌘ en icône Command (« ctrl » hors Mac) et « maj » en mot, chacun
   // dans le petit carré ; chaque « geste : effet » ne se coupe jamais. Aucun geste tactile.
   var REPERE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>';
@@ -208,6 +206,10 @@
     --wm-bloc-lisere: rgba(255,255,255,0.75);
     --wm-champ-fond: rgba(255,255,255,0.80);
     --wm-bouton-principal-texte: #ffffff;
+    /* Bloc intérieur (fiche Fenetre) : contour à peine marqué (noir à 4,5 %) ; ombre-bloc plus bas. Liseré à peine
+       visible des boutons gris en clair (fiche Touche : noir à 8 %, 0,5 px). */
+    --wm-bloc-contour: rgba(0,0,0,0.045);
+    --wm-touche-lisere: rgba(0,0,0,0.08);
     /* Cadres de sélection (fiche Selection) : d'après le fond derrière eux, comme les repères. */
     --wm-cadre-trait: rgba(0,0,0,0.30);
     --wm-cadre-trait-sombre: rgba(255,255,255,0.42);
@@ -316,6 +318,10 @@
     --wm-bloc-fond: rgba(255,255,255,0.04);
     --wm-bloc-lisere: rgba(255,255,255,0.08);
     --wm-champ-fond: rgba(255,255,255,0.06);
+    /* Bloc intérieur en sombre : contour et ombre de la maquette (feuille(), blocSombre) ; pas de liseré aux boutons gris. */
+    --wm-bloc-contour: rgba(0,0,0,0.35);
+    --wm-ombre-bloc: 0 1px 6px rgba(0,0,0,0.30);
+    --wm-touche-lisere: transparent;
     /* Lueur du thème sombre : même géométrie que l'ombre du thème clair, en blanc à 22 % ; liseré blanc à
        16 % dedans et 5 % dehors. */
     --wm-ombre-fenetre: 0 22px 56px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
@@ -375,28 +381,32 @@
   .wm-tourne { animation:wmTourne 800ms linear infinite; }
   @keyframes wmTourne { to { transform:rotate(360deg); } }
 
-  /* Touches (fiche Touche) : arrondi de 6 px (radius-bouton), face ton sur ton. La face et le trait vont sur
-     ::before ; le contour de focus (::after) suit l'arrondi, 2 px à 2 px de la face (F5). Principale : trait
-     line-strong ; secondaire : trait line. */
-  .cm-ui .wm-touche { position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:0; margin:0; padding:0 10px 0 14px;
+  /* Boutons (fiche Touche, V2) : à la manière de macOS, sans trait autour. La face (30 px, --wm-face-h) et son
+     liseré vont sur ::before, arrondis à 6 px (radius-bouton) ; le contour de focus (::after) suit l'arrondi,
+     2 px à 2 px de la face (F5). Zone cliquable (README, Accessibilité) : le bouton lui-même fait 44 px de haut
+     (cible-min), la face est centrée dedans, et des marges négatives rendent à la mise en page la seule hauteur
+     de la face (rien ne bouge autour, la zone déborde de 7 px en haut et en bas).
+     Principal (un seul par fenêtre) : face orange accent, libellé blanc en graisse 500. Secondaire : face grise
+     face-touche, libellé ink en graisse normale, liseré noir à 8 % en clair. Aucune touche de raccourci affichée :
+     le raccourci reste dans l'info-bulle et le nom accessible (aria-keyshortcuts). */
+  .cm-ui .wm-touche { --wm-face-h:30px; --wm-face-marge:calc((var(--wm-cible-min) - var(--wm-face-h)) / 2);
+    position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:var(--wm-cible-min); min-width:0;
+    margin:calc(-1 * var(--wm-face-marge)) 0; padding:0 12px;
     background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; letter-spacing:normal; text-transform:none;
     color:var(--wm-ink); white-space:nowrap; cursor:pointer; text-decoration:none; }
-  .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; border-radius:var(--wm-radius-bouton); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
-  .cm-ui .wm-touche.wm-principale::before { border-color:var(--wm-line-strong); }
-  .cm-ui .wm-touche.wm-principale { font-weight:500; }   /* bouton principal en graisse 500 (charte V2, Typographie) */
+  .cm-ui .wm-touche::before { content:''; position:absolute; left:0; right:0; top:var(--wm-face-marge); bottom:var(--wm-face-marge); z-index:-1; border-radius:var(--wm-radius-bouton);
+    background:var(--wm-face-touche); border:0.5px solid var(--wm-touche-lisere); pointer-events:none; }
   .cm-ui .wm-touche:hover::before { background:var(--wm-face-touche-survol); }
-  .cm-ui .wm-touche:active::before { background:var(--wm-surface-raised); }
-  .cm-ui .wm-touche.wm-petite { height:32px; padding:0 8px 0 12px; gap:6px; }
-  .cm-ui .wm-touche.cm-on::before, .cm-ui .wm-touche[aria-pressed="true"]::before { background:var(--wm-surface-raised); border-color:var(--wm-line-strong); }
-  /* Désactivé (fiche Etats) : trait line, libellé et repère ink-faint, face inchangée, pas d'opacité. */
+  .cm-ui .wm-touche:active::before { background:var(--wm-face-touche-survol); }
+  .cm-ui .wm-touche.cm-on::before, .cm-ui .wm-touche[aria-pressed="true"]::before { background:var(--wm-face-touche-survol); }   /* catégorie choisie : un cran plus marquée */
+  .cm-ui .wm-touche.wm-principale { font-weight:500; color:var(--wm-bouton-principal-texte); }
+  .cm-ui .wm-touche.wm-principale::before { background:var(--wm-accent); border-color:transparent; }
+  .cm-ui .wm-touche.wm-principale:hover::before, .cm-ui .wm-touche.wm-principale:active::before { background:linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.08)) var(--wm-accent); }
+  /* Désactivé (fiches Touche et Etats) : face grise face-touche au lieu de l'orange, libellé ink-faint (60 %),
+     curseur par défaut, pas d'opacité. */
   .cm-ui .wm-touche:disabled, .cm-ui .wm-touche[aria-disabled="true"] { color:var(--wm-ink-faint); cursor:default; }
-  .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { border-color:var(--wm-line); background:var(--wm-face-touche); }
-  .cm-ui .wm-touche:disabled .wm-repere, .cm-ui .wm-touche[aria-disabled="true"] .wm-repere { border-color:var(--wm-line); color:var(--wm-ink-faint); }
-  /* « annuler » et actions discrètes : texte seul, sans cadre (ink-soft : contraste sur le verre, T12). */
-  .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
-    font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
-  .cm-ui .wm-texte:hover { color:var(--wm-ink); }
-  /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
+  .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { border-color:var(--wm-touche-lisere); background:var(--wm-face-touche); }
+  /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px (aides seulement, jamais dans un bouton). */
   .cm-ui .wm-repere { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; margin-left:4px; border:1px solid var(--wm-line-strong);
     border-radius:var(--wm-radius-repere); font-family:var(--wm-font-touche); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
   /* Texte pour les lecteurs d'écran seulement (« cmd » derrière l'icône ⌘). */
@@ -421,11 +431,12 @@
      Forme ronde ou texte seul : outline de 2 px à 2 px. Un champ, lui, est toujours « :focus-visible » pour
      Chromium, même après un clic ou un focus posé par le script : son anneau ne s'affiche que si le focus
      vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul son trait passe à line-strong. */
-  .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus, .cm-ui .wm-texte:focus { outline:none; }
+  .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus { outline:none; }
   .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after {
     content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-bouton) + 4px); pointer-events:none; }
+  .cm-ui .wm-touche:focus-visible::after { top:calc(var(--wm-face-marge) - 4px); bottom:calc(var(--wm-face-marge) - 4px); }   /* autour de la face, pas de la zone cliquable */
   body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { border-radius:calc(var(--wm-radius-champ) + 4px); }
-  .cm-ui .wm-cercle:focus-visible, .cm-ui .wm-texte:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  .cm-ui .wm-cercle:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   @media (forced-colors:active) {
     .wm-contour path { stroke:CanvasText; }
     .wm-habille > .wm-verre { border:1px solid CanvasText; }   /* les ombres disparaissent en contraste forcé : le bord reste */
@@ -548,7 +559,7 @@
   .cm-pill .wm-gestes .wm-repere svg.wm-icone { vertical-align:0; }
   /* « terminer » : touche principale compacte de 32 px ; le bouton fait 44 px de haut (zone cliquable), la face
      et son contour de focus restent à 32 px. */
-  .cm-ui.cm-pill .wm-terminer { flex:none; height:44px; }
+  .cm-ui.cm-pill .wm-terminer { --wm-face-h:32px; flex:none; height:44px; margin:0; }
   .cm-ui.cm-pill .wm-terminer::before { top:6px; bottom:6px; }
   .cm-ui.cm-pill .wm-terminer:focus-visible::after { top:2px; bottom:2px; }
   /* Deux lignes : ligne 1 poignée, voyant, « annotation », « terminer » ; ligne 2 les gestes, à la ligne entre
@@ -690,12 +701,13 @@
   body.cm-active mark.cm-highlight.cm-done:not(.cm-focus)::before, body.cm-active mark.cm-highlight.cm-done:not(.cm-focus)::after { content:none; }
 
   /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
-     380 px, au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
-     poignée (titre, croix, élément visé dessous) ; corps : champ arrondi en police système, catégorie en touches
-     dépliées (I4), actions. Les marges laissent libres les deux coins witmit. */
-  .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
-  @media (max-width:480px) { .cm-popup { width:min(380px, calc(100vw - 16px)); } }
-  .cm-popup .cm-tete { position:relative; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
+     340 px (V2), au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
+     poignée (titre, croix, élément visé dessous), sans filet dessous ; corps : un bloc intérieur à la manière des
+     Réglages du Mac (champ arrondi, catégorie en touches dépliées, I4 ; ou lecture seule), puis les boutons
+     dessous, à droite, sans bande de pied. Les marges laissent libres les deux coins witmit. */
+  .cm-popup { position:absolute; z-index:950; width:340px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
+  @media (max-width:480px) { .cm-popup { width:min(340px, calc(100vw - 16px)); } }
+  .cm-popup .cm-tete { position:relative; padding:14px 14px 6px 22px; border-bottom:0; cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
   .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
   .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
@@ -703,7 +715,14 @@
   .cm-popup .cm-zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
   .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:13px; color:var(--wm-ink-soft); white-space:nowrap; }
   .cm-popup .cm-aide-multi .wm-repere { margin:0; }
-  .cm-popup .cm-corps { position:relative; padding:12px 24px 20px 20px; }
+  /* Corps : le bloc à 10 px des bords gauche et droit, 8 px sous la tête ; le contenu du bloc reste aligné sur le
+     titre (22 px du bord gauche, 24 px du bord droit). Bloc (fiche Fenetre, tokens.json, maquette feuille()) :
+     arrondi radius-bloc (7 px), fond bloc-fond (noir à 2,8 %, blanc à 4 % en sombre), liseré bloc-lisere à
+     l'intérieur, contour bloc-contour à peine marqué, ombre-bloc très douce. Pas de filet ni de bande de pied. */
+  .cm-popup .cm-corps { position:relative; padding:8px 10px 14px; }
+  .cm-popup .wm-bloc { position:relative; padding:12px 14px 14px 12px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
+    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc); }
+  .cm-popup .cm-cat-bloc { display:flex; flex-direction:column; }   /* marges des boutons (zone de 44 px) sans fusion avec celles des voisins */
   .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
   .cm-popup .cm-libelle-cat { margin-top:12px; }
   /* Champ (fiche Fenetre, fiche Etats) : arrondi de 5 px, trait line (line-strong au focus), police système 15 px. Sans
@@ -728,11 +747,11 @@
   .cm-popup .cm-vignette-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
      touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
-  .cm-popup .cm-cat.wm-touche { display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:14px; font-weight:400; }
+  .cm-popup .cm-cat.wm-touche { --wm-face-h:36px; display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:14px; font-weight:400; }
   .cm-popup .cm-cat-nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
   .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
   .cm-popup .cm-cat-liste { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .cm-popup .cm-cat-choix.wm-touche { max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:13px; font-weight:400; }
+  .cm-popup .cm-cat-choix.wm-touche { --wm-face-h:36px; max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:13px; font-weight:400; }
   .cm-popup .cm-cat-choix span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
   /* Lecture seule : verrou, texte de la personne entre « », catégorie en méta. Complément : zone en creux. */
   .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
@@ -743,11 +762,11 @@
   .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); border-radius:var(--wm-radius-champ); }
   .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  /* Actions : supprimer (cercle, jamais rouge) à gauche ; « annuler » en texte et la touche principale à droite. */
-  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:16px; }
+  /* Actions, sous le bloc et à droite (fiche Fenetre) : 10 px sous le bloc (24 px sous son contenu), 14 px au-dessus
+     du bas ; supprimer (cercle, jamais rouge) à gauche ; « annuler » (bouton gris) et le bouton principal orange à
+     droite, 8 px d'écart, alignés sur le contenu du bloc. */
+  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; padding:0 14px 0 12px; }
   .cm-popup .cm-delete { margin-right:auto; }
-  .cm-popup .cm-popup-actions .wm-texte { padding:0 6px; }
-  .cm-popup .cm-popup-actions .wm-touche { padding:0 8px 0 12px; }
 
   /* ---------- Liste des retours (fiches Tiroir, FilDeMessages, Rapport ; C7, M1) ----------
      Fenêtre witmit de 380 px sur toute la hauteur, collée à droite (pleine largeur, en surimpression, sous
@@ -775,10 +794,6 @@
   .cm-ui .cm-filtre:hover { color:var(--wm-ink); }
   .cm-ui .cm-filtre:focus { outline:none; }
   .cm-ui .cm-filtre:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
-  .cm-ui .cm-filtre .wm-repere { margin-left:2px; }
-  /* « ⌥ deux fois » : le carré de la touche, puis « deux fois » collé à lui. */
-  .cm-ui .wm-repere-double { display:inline-flex; align-items:center; gap:4px; }
-  .cm-ui .wm-repere-double .wm-repere { margin-left:0; }
   .cm-ui .wm-case { position:relative; flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-repere); color:var(--wm-ink); background:transparent; }
   .cm-ui .wm-case .wm-icone { display:none; }
   .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
@@ -871,7 +886,7 @@
   .cm-panel-item .cm-msg-who .cm-msg-drop { vertical-align:middle; }
   .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-panel-item .cm-msg-drop { margin-left:2px; }
-  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; margin-right:-42px; }
+  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; margin-right:-42px; }
   /* -42 px : la rangée sous le fil passe sous la colonne des cercles (30 px + 12 px d'écart), pour que « ça ne convient pas ?
      rouvrir » garde ses marges intérieures à 380 et 375 px. En live, un retour envoyé n'a plus que son cercle du haut de ligne :
      rien ne se chevauche (relecture de Paula, lot 5). */
@@ -880,9 +895,8 @@
   .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
   .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-reponse-libelle .wm-icone { margin:0; }
-  .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
-  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte { padding:0 6px 0 0; font-size:13px; }
-  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte .wm-repere { margin-left:6px; }
+  .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
+  .cm-ui .cm-panel-item .cm-reponse-actions .wm-touche { font-size:13px; }
   .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
   .cm-panel-item .cm-refus[hidden] { display:none; }
   /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : 13 px, ink-soft, centrées. */
@@ -906,16 +920,16 @@
   .cm-ui .cm-panel-tools .cm-outil:hover { color:var(--wm-ink); }
   .cm-ui .cm-panel-tools .cm-outil:focus { outline:none; }
   .cm-ui .cm-panel-tools .cm-outil:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
-  .cm-panel-report { gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--wm-line); }
+  .cm-panel-report { justify-content:flex-end; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--wm-line); }
   .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; gap:6px; min-height:28px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
   .cm-panel-report .cm-scope input { position:absolute; left:0; top:50%; width:16px; height:16px; margin:-8px 0 0; padding:0; opacity:0; cursor:pointer; }
   .cm-panel-report .cm-scope input:focus-visible + .wm-case { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-panel-report .cm-scope .wm-case { pointer-events:none; }   /* la case dessinée laisse le clic à la vraie case */
   .cm-ui .cm-panel-report .wm-touche { font-size:13px; font-weight:400; }
-  .cm-panel-new { flex-direction:column; align-items:stretch; }
+  .cm-panel-new { flex-direction:column; align-items:flex-end; }   /* boutons à droite, jamais sur toute la largeur (fiche Touche) */
   .cm-panel-pied.wm-outils-visibles .cm-panel-new { margin-top:14px; }
-  .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
-  .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-new-btn { width:auto; }
+  .cm-panel-new .cm-new-aide { align-self:stretch; margin-top:8px; text-align:center; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-new .cm-new-aide[hidden] { display:none; }
   .cm-panel-new .cm-new-aide .wm-repere { margin:0 1px; vertical-align:baseline; }
 
@@ -978,14 +992,14 @@
     <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
     <div class="cm-panel-filtres">
       <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
-      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit${REPERE_DOUBLE_ALT}</button>
+      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit<span class="wm-lu"> ${IS_MAC ? 'option' : 'alt'} deux fois</span></button>
     </div>
   </div>
   <div class="cm-panel-list" id="cmList"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">${icone('ClipboardText', 14)}coller un retour</div>
     <span class="wm-champ"><textarea aria-label="coller un retour" placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea></span>
-    <div class="cm-feedback-actions"><button type="button" class="wm-texte" onclick="cmPasteFeedback(false)">annuler</button><button type="button" class="wm-touche wm-petite" onclick="cmApplyFeedback()">appliquer</button></div>
+    <div class="cm-feedback-actions"><button type="button" class="wm-touche wm-petite" onclick="cmPasteFeedback(false)">annuler</button><button type="button" class="wm-touche wm-petite" onclick="cmApplyFeedback()">appliquer</button></div>
   </div>
   <div class="cm-panel-pied" id="cmPanelPied">
     <div class="cm-panel-foot cm-panel-tools" id="cmPanelTools">
@@ -1000,7 +1014,7 @@
       <button type="button" class="wm-touche wm-petite" onclick="cmSendMail()">${icone('EnvelopeSimple', 14)}envoyer par email</button>
     </div>
     <div class="cm-panel-foot cm-panel-new">
-      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour<span class="wm-repere" aria-hidden="true">N</span></button>
+      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour</button>
       <div class="cm-new-aide" id="cmNewAide" hidden>ou ${REPERE_ANNOTER}, de n'importe où sur la page.</div>
     </div>
   </div>
@@ -2465,8 +2479,9 @@
     cmStatus('réponse enregistrée : elle partira dans le prochain rapport.', { type: 'fait' });
     return true;
   }
-  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ arrondi, puis
-     « annuler » (échap) à gauche et la touche secondaire (envoyer, rouvrir, enregistrer ↵) à droite.
+  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ arrondi, puis, à
+     droite, « annuler » (échap) et le bouton secondaire (envoyer, rouvrir, enregistrer ; entrée), deux boutons
+     gris, sans raccourci affiché (fiche Touche : le raccourci reste dans le nom accessible).
      opts (mode live, répondre / rouvrir) : libelle, placeholder, touche, required (phrase sous le champ si vide :
      le champ reste ouvert), keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir
      par mégarde), onSave(texte). Sans opts : réponse à un complément demandé (mode maquette). */
@@ -2476,13 +2491,12 @@
     var acts = item.querySelector('.cm-thread-actions');
     var bloc = document.createElement('div');
     bloc.className = 'cm-reponse-bloc';
-    var repereEntree = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
     bloc.innerHTML =
       '<div class="cm-reponse-libelle">' + (opts.libelle || icone('ArrowBendDownRight', 14) + 'ta réponse au complément') + '</div>' +
       '<span class="wm-champ"><textarea class="cm-inline-edit cm-inline-reply"></textarea></span>' +
       '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span></span></div>' +
-      '<div class="cm-reponse-actions"><button type="button" class="wm-texte cm-rep-annuler">annuler<span class="wm-repere" aria-hidden="true">échap</span></button>' +
-      '<button type="button" class="wm-touche wm-petite cm-rep-envoyer">' + (opts.touche || 'enregistrer') + repereEntree + '</button></div>';
+      '<div class="cm-reponse-actions"><button type="button" class="wm-touche wm-petite cm-rep-annuler" aria-keyshortcuts="Escape">annuler</button>' +
+      '<button type="button" class="wm-touche wm-petite cm-rep-envoyer" aria-keyshortcuts="Enter">' + (opts.touche || 'enregistrer') + '</button></div>';
     var ta = bloc.querySelector('textarea');
     ta.placeholder = opts.placeholder || 'ta réponse…';
     ta.setAttribute('aria-label', bloc.querySelector('.cm-reponse-libelle').textContent);
@@ -3051,7 +3065,7 @@
   function placePopup(pop, R, fallbackX, fallbackY) {
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    // Règle de largeur (M1) : 380 px, jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
+    // Règle de largeur (M1) : 340 px (V2), jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
     // comprise, que 100vw ne retire pas).
     if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
     var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 48; // place de l'épingle (F6 : 24 px, à 22 px au-dessus)
@@ -3151,7 +3165,6 @@
     if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + ex.id + '"]'); // (re)trouvé après un éventuel re-rendu
     if (!locked && meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
     var libelleTouche = askReply ? 'enregistrer la réponse' : LIVE ? 'envoyer' : 'enregistrer';
-    var repere = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
     var shot = isEdit && ex.shot && ex.shot.dataUrl ? ex.shot : null;
     var enCapture = isEdit && !shot && capturesEnCours[ex.id];   // fiche Etats, Léa 3.7 : « capture… » pendant la capture
     var vignette = shot ? '<div class="cm-vignette-ligne"><button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture">' +
@@ -3193,11 +3206,11 @@
         '<button type="button" class="cm-fermer wm-cercle" aria-label="annuler" title="annuler">' + icone('X', 14) + '</button></div>' +
         '<div class="cm-zone"></div><div class="cm-aide-multi" hidden>' + AIDE_MULTI + '</div>' +
       '</div>' +
-      '<div class="cm-corps">' + corps +
+      '<div class="cm-corps"><div class="wm-bloc">' + corps + '</div>' +
         '<div class="cm-popup-actions">' +
         (avecCorbeille ? '<button type="button" class="cm-delete wm-cercle" title="supprimer ce retour" aria-label="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
-        '<button type="button" class="cm-cancel wm-texte">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
-        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" disabled>' + libelleTouche + repere + '</button>') +
+        '<button type="button" class="cm-cancel wm-touche" aria-keyshortcuts="Escape">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
+        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" aria-keyshortcuts="Enter" disabled>' + libelleTouche + '</button>') +
         '</div>' +
       '</div>';
     majTete(pop, meta, zone);

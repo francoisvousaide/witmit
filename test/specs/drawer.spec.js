@@ -107,16 +107,16 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await expect(page.locator('#cmNewAide')).toBeVisible();
   await expect(page.locator('#cmNewAide')).toHaveText(/^ou (option|alt)\+A, de n'importe où sur la page\.$/);
   if (H.IS_MAC) await expect(page.locator('#cmNewAide .wm-repere svg[data-icone="Option"]')).toHaveCount(1);   // ⌥ en icône, dans son carré
-  // Live : « masquer witmit » en minuscules, avec son repère et l'info-bulle qui dit comment revenir.
+  // Live : « masquer witmit » en minuscules, sans raccourci affiché (V2, fiche Touche) ; l'info-bulle dit comment revenir,
+  // et le nom accessible garde « option deux fois ».
   await page.goto(H.fileUrl('generic-dashboard-live.html') + '?witmit=on');
   await page.locator('#cmPanelBtn').click();
   const masquer = page.locator('#cmHideBtn');
   await expect(masquer).toHaveText(/^masquer witmit/);
   await expect(masquer).toHaveAttribute('title', /^cacher witmit sur ce site\. pour le retrouver : (⌥|alt) deux fois, ou \?witmit=on dans l'adresse$/);
-  await expect(masquer.locator('.wm-repere')).toBeVisible();
-  // Repère « ⌥ deux fois » : ⌥ en icône dans son carré, « deux fois » à côté ; nom accessible « option deux fois ».
-  await expect(masquer.locator('.wm-repere-double')).toHaveText(/^(option|alt)deux fois$/);
-  if (H.IS_MAC) await expect(masquer.locator('.wm-repere svg[data-icone="Option"]')).toHaveCount(1);
+  await expect(masquer.locator('.wm-repere')).toHaveCount(0);
+  // à l'écran : le libellé seul (le texte réservé aux lecteurs d'écran, .wm-lu, est hors de la vue)
+  expect(await masquer.evaluate((el) => { const c = el.cloneNode(true); c.querySelectorAll('.wm-lu').forEach((n) => n.remove()); return c.textContent.trim(); })).toBe('masquer witmit');
   await expect(masquer).toHaveAccessibleName(H.IS_MAC ? 'masquer witmit option deux fois' : 'masquer witmit alt deux fois');
   await expect(masquer).not.toHaveAttribute('aria-keyshortcuts', /.*/);
   await masquer.click();

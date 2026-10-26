@@ -73,7 +73,8 @@ test.describe('Bulle et stockage (Kiosque)', () => {
       const p = document.querySelector('.cm-popup').getBoundingClientRect();
       return Array.from(document.querySelectorAll('.cm-popup .cm-cat-choix')).every((el) => {
         const r = el.getBoundingClientRect();
-        return r.left >= p.left && r.right <= p.right && r.top >= p.top && r.bottom <= p.bottom && r.height === 36;
+        const f = getComputedStyle(el, '::before');   // V2 : face de 36 px dans une zone cliquable de 44 px (fiche Touche)
+        return r.left >= p.left && r.right <= p.right && r.top >= p.top && r.bottom <= p.bottom && r.height === 44 && r.height - parseFloat(f.top) - parseFloat(f.bottom) === 36;
       });
     });
     expect(dedans).toBe(true);
