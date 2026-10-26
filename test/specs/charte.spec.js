@@ -1385,8 +1385,8 @@ test('30. boutons de la fenêtre : 30 px dessinés, à droite, jamais pleine lar
 });
 
 test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport, champ de réponse, coller un retour) ; il reste dans le nom accessible', async ({ page }) => {
-  // « terminer » (bandeau) garde sa puce « échap » jusqu'au lot 7 (fiche Bandeau).
-  const fautes = () => page.evaluate(() => Array.from(document.querySelectorAll('.cm-ui button:not(.wm-terminer)')).filter((el) => el.getClientRects().length)
+  // « terminer » (bandeau) compris : plus de puce « échap » (V2, décision b3, fiche Bandeau).
+  const fautes = () => page.evaluate(() => Array.from(document.querySelectorAll('.cm-ui button')).filter((el) => el.getClientRects().length)
     .flatMap((el) => Array.from(el.querySelectorAll('.wm-repere, svg[data-icone="ArrowElbowDownLeft"], .wm-repere-double')).filter((r) => r.getClientRects().length).map(() => el.textContent.trim())));
   await fenetreVide(page, 'generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)');
   expect(await fautes()).toEqual([]);

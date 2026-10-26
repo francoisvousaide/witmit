@@ -328,6 +328,7 @@ test('L9 (É1). lecteur d’écran : liste nommée, retours en éléments de lis
   await page.goto(H.fileUrl(nom)); await H.clearStorage(page); await page.reload();
   await ouvrirListe(page);
   await expect(page.locator('#cmList')).not.toHaveAttribute('role', /.+/);
+  await expect(page.locator('#cmList')).not.toHaveAttribute('aria-label', /.+/);   // ni nom sans rôle (lot 7)
 });
 
 test('L10 (É2). un seul arrêt de tabulation pour la liste : la ligne choisie, sinon la première ; mis à jour quand le choix change', async ({ page }) => {
@@ -376,15 +377,15 @@ test('L11 (É3). fermer la liste quand le focus y est (Échap, Échap ; croix ; 
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
 });
 
-test('L12. état vide : « nouveau retour » ne se coupe pas (espace insécable), à 340 px', async ({ page }) => {
+test('L12. état vide : « nouveau retour » et ses guillemets ne se coupent pas (espaces insécables), à 340 px', async ({ page }) => {
   await page.goto(H.fileUrl('tellus-accueil.html'));
   await H.clearStorage(page); await page.reload();
   await ouvrirListe(page);
   const p = page.locator('#cmList .cm-vide-mode');
-  expect(await p.evaluate((e) => e.textContent)).toBe('pour en laisser un, appuie sur « nouveau retour », puis :');
+  expect(await p.evaluate((e) => e.textContent)).toBe('pour en laisser un, appuie sur « nouveau retour », puis :');   // guillemets collés aussi (É5, lot 7)
   const coupe = await p.evaluate((e) => {
-    const t = e.firstChild, i = t.data.indexOf('nouveau'), r = document.createRange();
-    r.setStart(t, i); r.setEnd(t, i + 'nouveau retour'.length);
+    const t = e.firstChild, i = t.data.indexOf('«'), r = document.createRange();
+    r.setStart(t, i); r.setEnd(t, t.data.indexOf('»') + 1);
     return r.getClientRects().length;
   });
   expect(coupe).toBe(1);                                                 // un seul morceau : jamais coupé

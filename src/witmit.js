@@ -175,19 +175,14 @@
   // « ⌘ » sur Mac, « ctrl » ailleurs, et « maj », chacun dans le petit carré, en chasse fixe du système (fiche Tiroir).
   var ETAT_VIDE_HTML = '<div class="cm-panel-empty cm-panel-vide">' +
     "<p>aucun retour sur cette page pour l'instant.</p>" +
-    '<p class="cm-vide-mode">pour en laisser un, appuie sur « nouveau\u00a0retour », puis :</p>' +
+    // « nouveau retour » et ses guillemets collés par des espaces insécables (É5, lot 7) : jamais un « seul en fin de ligne.
+    '<p class="cm-vide-mode">pour en laisser un, appuie sur «\u00a0nouveau\u00a0retour\u00a0», puis :</p>' +
     '<ul class="cm-vide-gestes">' +
       '<li><b>clic</b> : un élément</li>' +
       '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
       '<li><b>glisser</b> : une zone</li>' +
       '<li><b><span class="wm-repere">maj</span>+glisser</b> : un passage de texte</li>' +
     '</ul></div>';
-  // Gestes du bandeau (Léa 3.2 ; fiche Bandeau) : ⌘ en icône Command (« ctrl » hors Mac) et « maj » en mot, chacun
-  // dans le petit carré ; chaque « geste : effet » ne se coupe jamais. Aucun geste tactile.
-  var REPERE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>';
-  // « · » collé au geste qui suit (espace insécable) : sur deux lignes, une ligne ne finit jamais par « · ».
-  var GESTES_HTML = '<span class="wm-geste"><b>clic</b> : élément</span> ·\u00a0<span class="wm-geste">' + REPERE_MULTI + '+<b>clic</b> : plusieurs</span> ·\u00a0' +
-    '<span class="wm-geste"><b>glisser</b> : zone</span> ·\u00a0<span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
 
   var CSS = `
   /* ---------- jetons de la charte V2 (design system witmit, version 6, tokens.json) ----------
@@ -530,9 +525,10 @@
   body .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
   body .cm-pill.cm-dragging, body .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
-  /* Halo du mode annotation (fiche Bandeau) : trait jaune de 3 px au bord de l'écran, filet sombre de 1 px
-     juste à l'intérieur (il cerne le jaune sur le clair et disparaît de lui-même sur le sombre), lueur
-     courte. Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
+  /* Halo du mode annotation (fiche Bandeau, V2) : trait orange de 3 px au bord de la page, filet halo-filet de 1 px
+     juste à l'intérieur (il cerne l'orange sur le clair et disparaît de lui-même sur le sombre), lueur
+     courte fixe, puis la lueur qui respire (4 s par souffle ; fixe à mi-course si les animations sont réduites).
+     Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
      ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. Elle est
      posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
   /* Apparition et disparition en fondu de 200 ms sur l'opacité de la couche ; cachée par visibility (pas display)
@@ -554,10 +550,10 @@
     .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
   }
 
-  /* Bandeau du mode annotation (fiche Bandeau ; Léa 3.2) : fenêtre de verre de 44 px, au thème du site,
+  /* Bandeau du mode annotation (fiche Bandeau ; décision b3 du 26/10) : fenêtre de verre de 44 px, au thème du site,
      coins witmit (habiller), centrée à 12 px sous la barre de navigation, déplaçable par sa poignée (position
-     gardée). Placement et passage sur deux lignes : placerBandeau() (mesure réelle : s'il ne tient pas sur une
-     ligne dans la place libre, à côté de la liste ouverte comprise). */
+     gardée). Une seule ligne, partout : la poignée, le voyant et « annotation », puis « terminer » ; plus de gestes
+     (ils sont dans la liste vide). Placement : placerBandeau(). */
   .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-weight:400; font-size:14px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
   .cm-pill.show { display:block; }
   .cm-pill .wm-bandeau-corps { position:relative; display:flex; align-items:center; gap:8px; height:44px; padding:0 22px 0 18px; }
@@ -565,26 +561,18 @@
   .cm-pill.cm-dragging .wm-poignee { color:var(--wm-ink); }
   .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:500; color:var(--wm-ink); }
   .cm-pill .wm-bandeau-mode .wm-voyant { flex:none; }
-  .cm-pill .wm-filet { flex:none; width:1px; height:20px; background:var(--wm-line); }
-  .cm-pill .wm-gestes { color:var(--wm-ink-soft); }
-  .cm-pill .wm-gestes b { font-weight:500; color:var(--wm-ink); }
-  .cm-pill .wm-geste { white-space:nowrap; }
-  .cm-pill .wm-gestes .wm-repere { display:inline-flex; vertical-align:middle; margin:0 1px; }
-  .cm-pill .wm-gestes .wm-repere svg.wm-icone { vertical-align:0; }
-  /* « terminer » : touche principale compacte de 32 px ; le bouton fait 44 px de haut (zone cliquable), la face
-     et son contour de focus restent à 32 px. */
-  .cm-ui.cm-pill .wm-terminer { --wm-face-h:32px; flex:none; height:44px; margin:0; }
-  .cm-ui.cm-pill .wm-terminer::before { top:6px; bottom:6px; }
-  .cm-ui.cm-pill .wm-terminer:focus-visible::after { top:2px; bottom:2px; }
-  /* Deux lignes : ligne 1 poignée, voyant, « annotation », « terminer » ; ligne 2 les gestes, à la ligne entre
-     deux gestes seulement. */
-  .cm-pill.wm-deux-lignes { white-space:normal; }
-  .cm-pill.wm-deux-lignes .wm-bandeau-corps { display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:"poignee mode . terminer" "gestes gestes gestes gestes"; column-gap:8px; height:auto; padding:0 22px 16px 14px; }
-  .cm-pill.wm-deux-lignes .wm-poignee { grid-area:poignee; }
-  .cm-pill.wm-deux-lignes .wm-bandeau-mode { grid-area:mode; }
-  .cm-pill.wm-deux-lignes .wm-filet { display:none; }
-  .cm-pill.wm-deux-lignes .wm-terminer { grid-area:terminer; }
-  .cm-pill.wm-deux-lignes .wm-gestes { grid-area:gestes; padding-left:6px; line-height:24px; }
+  /* « terminer » : bouton principal orange compact, la touche de la fiche Touche telle quelle (face de 30 px dans une
+     zone cliquable de 44 px, toute la hauteur du bandeau), sans repère « échap » : le raccourci reste dans l'info-bulle
+     et dans aria-keyshortcuts. */
+  .cm-ui.cm-pill .wm-terminer { flex:none; margin:0; }
+  /* Liste ouverte sans place à côté d'elle pour le bandeau (liste pleine largeur sous 480 px, ou page restante trop
+     étroite) : le bandeau se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), dans une place que
+     la liste lui laisse (wm-sous-bandeau) ; il ne recouvre ni la tête de la liste, ni sa croix, ni ses retours.
+     « terminer » au bout à droite ; à cette place, le bandeau ne se déplace pas. */
+  .cm-pill.wm-sur-liste { max-width:none; }
+  .cm-pill.wm-sur-liste .wm-terminer { margin-left:auto; }
+  body .cm-pill.wm-sur-liste .cm-drag-handle { cursor:default; }
+  .cm-panel.wm-sous-bandeau { padding-top:60px; }   /* 8 + 44 + 8 px */
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
      Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
@@ -833,8 +821,9 @@
      de la liste et 10 px au-dessus du pied, arrondi de 7 px, marge intérieure de 4 px ; seul ce bloc défile.
      Une ligne = numéro, corps, actions (10 px d'écart), 2 px entre deux lignes, sans filet. */
   .cm-panel-list { flex:1; min-height:0; overflow-y:auto; margin:0 10px 10px; padding:4px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
-    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc); }
-  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) */
+    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc);
+    scroll-padding:4px; }   /* la ligne choisie au clavier garde 4 px d'air au bord du bloc, en haut comme en bas */
+  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; scroll-padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) ; la ligne choisie aussi */
   .cm-panel-list:focus { outline:none; }
   .cm-panel-item { position:relative; isolation:isolate; display:flex; align-items:center; gap:10px; margin:0 0 2px; padding:9px 10px; }
   .cm-panel-item:last-child { margin-bottom:0; }
@@ -1031,9 +1020,7 @@
   <div class="wm-bandeau-corps">
     <span class="cm-drag-handle wm-poignee" title="glisse pour déplacer le bandeau">${icone('DotsSixVertical', 16)}</span>
     <span class="wm-bandeau-mode"><span class="wm-voyant" aria-hidden="true"></span>annotation</span>
-    <span class="wm-filet" aria-hidden="true"></span>
-    <span class="wm-gestes">${GESTES_HTML}</span>
-    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer<span class="wm-repere" aria-hidden="true">échap</span></button>
+    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer</button>
   </div>
 </div>
 
@@ -2497,6 +2484,7 @@
     if (!pc.length) {
       list.innerHTML = ETAT_VIDE_HTML;
       list.removeAttribute('role');
+      list.removeAttribute('aria-label');   // sans rôle, le nom ne sert à rien (relecture de Léa, lot 4)
       majPiedsTiroir();
       return;
     }
@@ -2519,7 +2507,9 @@
     var list = document.getElementById('cmList');
     if (!list) return;
     var items = Array.prototype.slice.call(list.querySelectorAll('.cm-panel-item'));
-    if (items.length) list.setAttribute('role', 'list'); else list.removeAttribute('role');
+    // Le rôle et le nom vont ensemble : posés quand la liste a des retours, retirés sinon.
+    if (items.length) { list.setAttribute('role', 'list'); list.setAttribute('aria-label', 'tes retours sur cette page'); }
+    else { list.removeAttribute('role'); list.removeAttribute('aria-label'); }
     var arret = items.filter(function (it) { return it.dataset.id === focusedId; })[0] || items[0];
     items.forEach(function (it, k) {
       var choisie = it.dataset.id === focusedId, ouverte = choisie && it.dataset.id === ouvertId;
@@ -2643,6 +2633,14 @@
     if (e.key === 'Enter') {
       // Un bouton, une case ou un résumé de la liste garde son Entrée.
       if (ae && ae !== document.body && ae !== document.documentElement && !(ae.classList && (ae.classList.contains('cm-panel-item') || ae === panel || ae.id === 'cmList'))) return false;
+      // Une ligne qui a le focus (atteinte par Tab) sans être choisie : Entrée la choisit et l'ouvre en une fois (c1, É4 du lot 4).
+      if (ae && ae.classList && ae.classList.contains('cm-panel-item') && ae.dataset.id && ae.dataset.id !== focusedId) {
+        var idLigne = ae.dataset.id;
+        e.preventDefault();
+        cmFocus(idLigne);
+        ouvrirRetour(idLigne);
+        return true;
+      }
       if (!focusedId || !ligneDe(focusedId)) return false;
       e.preventDefault();
       if (ouvertId === focusedId) refermerRetour(focusedId); else ouvrirRetour(focusedId);
@@ -4071,12 +4069,15 @@
     swallowClick = active && !inUi(e.target);
   }, true);
 
-  /* ---------- bandeau du mode annotation : place, deux lignes, déplacement (fiche Bandeau) ----------
-     Centré sur la place libre, à 12 px sous la barre de navigation (CSS). Liste ouverte (au-dessus de 480 px), la
-     place libre s'arrête à la liste : le bandeau se centre à sa gauche et ne la recouvre pas, comme les deux
-     boutons qui passent à sa gauche (relecture du lot 1). S'il ne tient pas sur une ligne dans cette place, il
-     passe sur deux lignes. Déplacé par la poignée, il garde sa position (witmit_pill_pos), ramenée dans la place
-     libre sans l'écraser. */
+  /* ---------- bandeau du mode annotation : place et déplacement (fiche Bandeau) ----------
+     Une seule ligne, partout (décision b3). Centré sur la place libre, à 12 px sous la barre de navigation (CSS).
+     Liste ouverte (au-dessus de 480 px), la place libre s'arrête à la liste : le bandeau se centre à sa gauche et
+     ne la recouvre pas, comme les deux boutons qui passent à sa gauche (relecture du lot 1). Déplacé par la
+     poignée, il garde sa position (witmit_pill_pos), ramenée dans la place libre sans l'écraser.
+     Liste ouverte sans place pour lui à côté (liste pleine largeur sous 480 px, ou page restante plus étroite que
+     le bandeau) : il se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), et la liste
+     descend d'autant (wm-sous-bandeau) : il ne recouvre ni la tête de la liste, ni sa croix « fermer », ni ses
+     retours (lot 7 ; la fiche Bandeau renvoie ce cas à la fiche Mobile, qui le laisse ouvert). */
   var PILL_POS_KEY = 'witmit_pill_pos';
   var posBandeau = null;
   try {
@@ -4093,13 +4094,30 @@
   }
   function placerBandeau() {
     var pill = document.getElementById('cmPill');
-    if (!pill || !pill.classList.contains('show')) return;
-    var libre = placeLibreBandeau();
+    var panel = document.getElementById('cmPanel');
+    var montre = !!(pill && pill.classList.contains('show'));
+    var surListe = false, vw = document.documentElement.clientWidth || window.innerWidth, libre = vw;
+    if (montre) {
+      pill.classList.remove('wm-sur-liste');
+      pill.style.width = ''; pill.style.maxWidth = '';
+      pill.style.left = '0px'; pill.style.transform = 'none';
+      if (listeOuverte() && panel) {
+        var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+        if (!etroit) libre = vw - panel.offsetWidth - 8;
+        surListe = etroit || pill.offsetWidth > libre - 16;
+      }
+    }
+    if (panel) panel.classList.toggle('wm-sous-bandeau', surListe);
+    if (!montre) return;
+    if (surListe) {
+      var lw = Math.min(panel.offsetWidth, vw);
+      pill.classList.add('wm-sur-liste');
+      pill.style.left = (vw - lw + 8) + 'px';
+      pill.style.width = (lw - 16) + 'px';
+      pill.style.top = '8px';
+      return;
+    }
     pill.style.maxWidth = (libre - 16) + 'px';
-    pill.classList.remove('wm-deux-lignes');
-    pill.style.left = '0px'; pill.style.transform = 'none';
-    var deux = pill.offsetWidth > libre - 32;
-    pill.classList.toggle('wm-deux-lignes', deux);
     var w = pill.offsetWidth, h = pill.offsetHeight;
     var left, top = null;
     if (posBandeau) {
@@ -4119,6 +4137,7 @@
     var dragOffset = null;
     pill.addEventListener('pointerdown', function (e) {
       if (e.target.closest && e.target.closest('button')) return;
+      if (pill.classList.contains('wm-sur-liste')) return;   // posé en haut de la liste : il reste à sa place
       var rect = pill.getBoundingClientRect();
       dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       pill.classList.add('cm-dragging');

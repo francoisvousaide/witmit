@@ -120,7 +120,7 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   });
   expect(e).toEqual({ w: 24, h: 24, gauche: true, droite: true, haut: true, bas: true, loin: false });
   // Bandeau (fiche Bandeau) : poignée de 20 × 44 px dans un bandeau qu'on attrape partout hors de sa touche (la zone
-  // qu'on peut saisir fait donc au moins 44 × 44 px depuis la poignée) ; « terminer » : face de 32 px, zone de 44 px.
+  // qu'on peut saisir fait donc au moins 44 × 44 px depuis la poignée) ; « terminer » : face de 30 px (V2, bouton principal compact), zone de 44 px.
   const b = await page.evaluate(() => {
     const pill = document.getElementById('cmPill'), poignee = pill.querySelector('.wm-poignee'), fin = pill.querySelector('.wm-terminer');
     const rp = poignee.getBoundingClientRect(), rf = fin.getBoundingClientRect(), face = getComputedStyle(fin, '::before');
@@ -132,19 +132,20 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
       haut: touche(rf.left + rf.width / 2, rf.top + 1), bas: touche(rf.left + rf.width / 2, rf.bottom - 1)
     };
   });
-  expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 32, largeur: true, haut: true, bas: true });
+  expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 30, largeur: true, haut: true, bas: true });
 });
 
-test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 760 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
+test('3b. bandeau (V2, b3) : nom, poignée, « annotation », « terminer » sans « échap » ; une ligne de 1 280 à 320 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
   await H.activate(page);
   const pill = page.locator('#cmPill');
   await expect(pill).toHaveAttribute('aria-label', 'witmit : mode annotation');
   await expect(pill.locator('.wm-bandeau-mode')).toHaveText('annotation');
   await expect(pill.locator('.wm-bandeau-mode .wm-voyant')).toHaveCount(1);       // le voyant jamais sans le mot
-  const multi = H.IS_MAC ? 'cmd+clic : plusieurs' : 'ctrl+clic : plusieurs';
-  await expect(pill.locator('.wm-gestes')).toHaveText('clic : élément · ' + multi + ' · glisser : zone · maj+glisser : texte');
+  await expect(pill.locator('.wm-gestes, .wm-geste, .wm-filet')).toHaveCount(0);  // plus de gestes dans le bandeau (b3)
   await expect(pill.locator('.wm-poignee')).toHaveAttribute('title', 'glisse pour déplacer le bandeau');
-  await expect(pill.locator('.wm-terminer')).toHaveText('termineréchap');
+  await expect(pill.locator('.wm-terminer')).toHaveText('terminer');
+  await expect(pill.locator('.wm-terminer .wm-repere')).toHaveCount(0);           // plus de puce « échap »
+  await expect(pill.locator('.wm-terminer')).toHaveAttribute('aria-keyshortcuts', 'Escape');
   await expect(pill.locator('.wm-terminer')).toHaveAttribute('title', "terminer l'annotation · échap ou " + (H.IS_MAC ? '⌥+A' : 'alt+A'));
   // 1 280 px : une ligne de 44 px, centrée, à 12 px sous le haut (pas de barre de navigation sur cette page)
   const ecartAuCentre = () => page.evaluate(() => { const p = document.getElementById('cmPill').getBoundingClientRect(); return Math.round(Math.abs(p.left + p.width / 2 - document.documentElement.clientWidth / 2)); });
@@ -152,15 +153,13 @@ test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 760 px ; li
   let r = await pill.boundingBox();
   expect(r.height).toBe(44);
   expect(r.y).toBe(12);
-  // 760 px : deux lignes, chaque geste entier sur sa ligne (V2 : police système plus étroite, le bandeau tient sur une ligne à 900 px)
+  // 760 px (deux lignes en 0.2.0) : toujours une seule ligne de 44 px, dans l'écran
   await page.setViewportSize({ width: 760, height: 800 });
-  await expect(pill).toHaveClass(/wm-deux-lignes/);
+  await expect.poll(async () => { const q = await pill.boundingBox(); return q.x + q.width; }).toBeLessThanOrEqual(752);   // replacé au redimensionnement
   r = await pill.boundingBox();
-  expect(r.height).toBeGreaterThan(60);
+  expect(r.height).toBe(44);
   expect(r.x).toBeGreaterThanOrEqual(8);
   expect(r.x + r.width).toBeLessThanOrEqual(752);
-  const gestesEntiers = await pill.locator('.wm-geste').evaluateAll((gs) => gs.every((g) => new Set([...g.getClientRects()].map((q) => Math.round(q.top))).size === 1));
-  expect(gestesEntiers).toBe(true);
   // Liste ouverte en mode actif (1 280 px) : le bandeau se centre sur la page restante, à gauche de la liste
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.locator('#cmPanelBtn').click();
@@ -527,7 +526,8 @@ test('7. taille de texte : aucun texte visible de witmit sous 12 px, en maquette
   const verifier = async (etape) => {
     // taille 0 : chiffre gardé dans le voyant (#cmCount) mais jamais dessiné (le voyant est un disque, décision B)
     const tous = await textesVisibles(page);
-    expect(tous.length, etape + ' : textes relevés').toBeGreaterThan(2);
+    // (V2, b3 : le bandeau seul n'a plus que deux textes, « annotation » et « terminer ».)
+    expect(tous.length, etape + ' : textes relevés').toBeGreaterThanOrEqual(2);
     const petits = tous.filter((t) => t.taille > 0 && t.taille < 12);
     expect(petits, etape).toEqual([]);
   };
