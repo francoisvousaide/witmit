@@ -436,7 +436,7 @@ test('4. focus : au clavier, un contour visible sur chaque élément de witmit a
     if (!el || !el.closest('.cm-ui, .cm-popup, .cm-lightbox')) return { hors: true, nom: el && (el.id || el.className || el.tagName) };
     const cs = getComputedStyle(el), apres = getComputedStyle(el, '::after');
     const champ = el.closest('.wm-champ'), anneauChamp = champ ? getComputedStyle(champ, '::after') : null;
-    const visible = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (apres.content !== 'none' && apres.content !== 'normal' && apres.clipPath !== 'none')
+    const visible = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (apres.content !== 'none' && apres.content !== 'normal' && parseFloat(apres.borderTopWidth) >= 2)
       || (anneauChamp && anneauChamp.content !== 'none' && anneauChamp.content !== 'normal') || (cs.boxShadow && cs.boxShadow !== 'none');
     return { hors: false, nom: el.getAttribute('aria-label') || (el.innerText || '').trim().slice(0, 30) || el.className || el.tagName, visible: !!visible, fv: el.matches(':focus-visible') };
   });

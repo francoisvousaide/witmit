@@ -230,6 +230,9 @@
     --wm-ombre-fenetre: 0 22px 56px rgba(0,0,0,0.34), 0 1px 3px rgba(0,0,0,0.14);
     --wm-ombre-copie: rgba(0,0,0,0.34);
     --wm-ombre-contact: 0 1px 3px rgba(0,0,0,0.14);
+    /* Bord du verre (fiche Fenetre) : en clair, trait de 1 px contour-fenetre (noir à 14 %) et ombre de contact ;
+       en sombre, liseré blanc à 16 % dedans et 5 % dehors. */
+    --wm-verre-bord: inset 0 0 0 1px var(--wm-contour-fenetre), var(--wm-ombre-contact);
     --wm-ombre-epingle: inset 0 1.5px 0 rgba(255,255,255,0.75), inset 0 -3px 5px rgba(0,0,0,0.26), 0 3px 10px rgba(0,0,0,0.28);
     --wm-ombre-bouton: inset 0 1px 1px rgba(255,240,220,0.45), 0 8px 18px rgba(0,0,0,0.30);
     --wm-ombre-bouton-enfonce: inset 0 3px 6px rgba(90,70,50,0.45), inset 0 -1px 0 #ffffff, 0 1px 2px rgba(0,0,0,0.40);
@@ -254,8 +257,14 @@
     --wm-radius-repere: 4px;
     --wm-radius-numero: 5px;
     --wm-radius-rond: 999px;
-    --wm-coupe-fenetre: 11px;
-    --wm-coupe-touche: 6px;
+    /* Arrondis de la V2 (tokens.json, onglet Rayons) : plus aucun angle cassé dans le widget. */
+    --wm-radius-fenetre: 9px;     /* fenêtres, bandeau, liste */
+    --wm-radius-bloc: 7px;        /* bloc intérieur à la manière d'Apple */
+    --wm-radius-bouton: 6px;      /* boutons, lignes de la liste, cadres de sélection */
+    --wm-radius-epingle: 6px;     /* les quatre coins de l'épingle */
+    --wm-radius-champ: 5px;       /* champs, vignettes, zones en creux */
+    --wm-radius-message: 8px;     /* messages passagers */
+    --wm-radius-coude: 3px;       /* coude des coins witmit (fenêtres, cadres) */
     /* Verre (fenêtres, bandeau, messages passagers) : 72 % en clair, 70 % en sombre, flou de 40 px, saturation 1,9. */
     --wm-verre-flou: 40px;
     --wm-verre-saturation: 1.9;
@@ -312,6 +321,8 @@
     --wm-ombre-fenetre: 0 22px 56px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
     --wm-ombre-copie: rgba(255,255,255,0.22);
     --wm-ombre-contact: inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
+    /* Le liseré du thème sombre porte déjà le trait intérieur : pas de second trait de contour. */
+    --wm-verre-bord: var(--wm-ombre-contact);
   }
   /* Sans flou d'arrière-plan, ou si la personne réduit la transparence : verre presque opaque (0,94). */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -331,35 +342,32 @@
   .cm-ui { font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   mark.cm-highlight { background:none; color:inherit; }
 
-  /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; décisions F1 à F5, F8, F9) ----------
-     Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas découpée
+  /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; V2 : arrondis, plus aucun angle cassé) ----------
+     Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas peinte
      elle-même : habiller() lui ajoute en premiers enfants trois couches muettes, sans clic, qui portent la
-     matière. .wm-ombre : copie floutée de la forme, posée 22 px plus bas (l'ombre d'un élément découpé
-     serait coupée avec lui). .wm-verre : la face de verre dépoli, découpée. .wm-contour : le trait de 1 px
-     et les deux coins witmit, en SVG retracé à la taille réelle. Aucun parent du verre ne porte filter,
-     opacity < 1, mask, clip-path, mix-blend-mode ni backdrop-filter, même pendant une animation : ils
-     couperaient le flou du fond (F4). Les fondus portent sur les couches enfants (F9). */
+     matière. .wm-ombre : copie floutée de la forme, posée 22 px plus bas. .wm-verre : la face de verre
+     dépoli, arrondie, avec son bord (trait ou liseré, ombre de contact). .wm-contour : les deux coins witmit,
+     en SVG retracé à la taille réelle. Arrondi de la fenêtre : --wm-rayon (9 px ; liste : seulement côté
+     page ; messages passagers : 8 px). Aucun parent du verre ne porte filter, opacity < 1, mask, clip-path,
+     mix-blend-mode ni backdrop-filter, même pendant une animation : ils couperaient le flou du fond (F4).
+     Les fondus portent sur les couches enfants (F9). */
   .cm-ui {
-    --wm-forme-fenetre: polygon(0 0, calc(100% - var(--wm-coupe-fenetre)) 0, 100% var(--wm-coupe-fenetre), 100% 100%, var(--wm-coupe-fenetre) 100%, 0 calc(100% - var(--wm-coupe-fenetre)));
-    --wm-forme-touche: polygon(var(--wm-coupe-touche) 0, 100% 0, 100% calc(100% - var(--wm-coupe-touche)), calc(100% - var(--wm-coupe-touche)) 100%, 0 100%, 0 var(--wm-coupe-touche));
-    /* Contour de focus d'une forme coupée : anneau de 2 px à 2 px de la forme, dont les coins suivent la
-       coupe (6 px + 0,586 × l'écart : 7,17 px au bord intérieur, 8,34 px au bord extérieur). */
-    --wm-anneau-touche: polygon(evenodd, 8.34px 0, 100% 0, 100% calc(100% - 8.34px), calc(100% - 8.34px) 100%, 0 100%, 0 8.34px, 8.34px 0,
-      9.17px 2px, 2px 9.17px, 2px calc(100% - 2px), calc(100% - 9.17px) calc(100% - 2px), calc(100% - 2px) calc(100% - 9.17px), calc(100% - 2px) 2px, 9.17px 2px);
     /* Survol d'un bouton secondaire : un cran plus marqué (tokens.json, face-touche-survol). */
     --wm-face-touche-survol: rgba(0,0,0,.11);
   }
   body[data-wm-theme="client-sombre"] .cm-ui { --wm-face-touche-survol: rgba(255,255,255,.20); }
   .cm-ui[hidden], .cm-ui [hidden] { display:none !important; }
-  .wm-habille { isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .wm-habille { --wm-rayon: var(--wm-radius-fenetre); isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .wm-habille.cm-panel { --wm-rayon: var(--wm-radius-fenetre) 0 0 var(--wm-radius-fenetre); }   /* liste collée au bord droit : arrondie côté page seulement */
+  .wm-habille.cm-status { --wm-rayon: var(--wm-radius-message); }
   .wm-habille > .wm-ombre, .wm-habille > .wm-verre, .wm-habille > .wm-contour { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; border:0; pointer-events:none; }
   .wm-habille > .wm-ombre { z-index:-2; top:22px; filter:blur(28px); }   /* ombre macOS : glissée de 22 px, flou ~56 px ; lueur en sombre */
-  .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; clip-path:var(--wm-forme-fenetre); background:var(--wm-ombre-copie); }
-  .wm-habille > .wm-verre { z-index:-1; clip-path:var(--wm-forme-fenetre); background:var(--wm-surface); box-shadow:var(--wm-ombre-contact);
+  .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; border-radius:var(--wm-rayon); background:var(--wm-ombre-copie); }
+  .wm-habille > .wm-verre { z-index:-1; border-radius:var(--wm-rayon); background:var(--wm-surface); box-shadow:var(--wm-verre-bord);
     backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); }
   .wm-habille > .wm-contour { z-index:1; overflow:visible; display:block; max-width:none; }
-  .wm-contour polygon { fill:none; stroke:var(--wm-contour-fenetre); stroke-width:1; }
-  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; }
+  /* Coins witmit : trait de 2,1 px à l'encre, coude arrondi de 3 px (tracé dans tracerContour). */
+  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; stroke-linejoin:round; }
   /* Toutes les icônes : taille écrite sur la balise, couleur du texte qu'elles accompagnent. */
   .cm-ui svg.wm-icone { display:inline-block; flex:none; vertical-align:-0.18em; overflow:visible; max-width:none; fill:currentColor; }
   .cm-ui svg.wm-icone.wm-devant { margin-right:6px; }
@@ -367,13 +375,13 @@
   .wm-tourne { animation:wmTourne 800ms linear infinite; }
   @keyframes wmTourne { to { transform:rotate(360deg); } }
 
-  /* Touches (fiche Touche) : coins haut gauche et bas droit cassés de 6 px, trait fin ouvert aux coins,
-     face ton sur ton. La découpe et le trait vont sur ::before, jamais sur le bouton : son contour de focus
-     (::after) n'est ainsi pas rogné (F5). Principale : trait line-strong ; secondaire : trait line. */
+  /* Touches (fiche Touche) : arrondi de 6 px (radius-bouton), face ton sur ton. La face et le trait vont sur
+     ::before ; le contour de focus (::after) suit l'arrondi, 2 px à 2 px de la face (F5). Principale : trait
+     line-strong ; secondaire : trait line. */
   .cm-ui .wm-touche { position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:0; margin:0; padding:0 10px 0 14px;
     background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; letter-spacing:normal; text-transform:none;
     color:var(--wm-ink); white-space:nowrap; cursor:pointer; text-decoration:none; }
-  .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
+  .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; border-radius:var(--wm-radius-bouton); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
   .cm-ui .wm-touche.wm-principale::before { border-color:var(--wm-line-strong); }
   .cm-ui .wm-touche.wm-principale { font-weight:500; }   /* bouton principal en graisse 500 (charte V2, Typographie) */
   .cm-ui .wm-touche:hover::before { background:var(--wm-face-touche-survol); }
@@ -385,7 +393,7 @@
   .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { border-color:var(--wm-line); background:var(--wm-face-touche); }
   .cm-ui .wm-touche:disabled .wm-repere, .cm-ui .wm-touche[aria-disabled="true"] .wm-repere { border-color:var(--wm-line); color:var(--wm-ink-faint); }
   /* « annuler » et actions discrètes : texte seul, sans cadre (ink-soft : contraste sur le verre, T12). */
-  .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:0; box-shadow:none;
+  .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
     font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .wm-texte:hover { color:var(--wm-ink); }
   /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
@@ -400,26 +408,29 @@
   .cm-ui .wm-cercle:hover { color:var(--wm-ink); border-color:var(--wm-ink); }
   .cm-ui .wm-cercle.wm-cercle-24 { width:24px; height:24px; }
   .cm-ui .wm-cercle:disabled, .cm-ui .wm-cercle.wm-inactif { border-color:var(--wm-line); color:var(--wm-ink-faint); cursor:default; }
-  /* Champs et zones en creux : même coupe que les touches, trait ouvert aux coins coupés. */
+  /* Champs et zones en creux : arrondi de 5 px (radius-champ). */
   .cm-ui .wm-champ { position:relative; display:block; }
-  .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { clip-path:var(--wm-forme-touche); border-radius:0; outline:none; }
+  .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { border-radius:var(--wm-radius-champ); outline:none; }
   .cm-ui .wm-champ > textarea:focus { border-color:var(--wm-line-strong); }
   /* Une règle de focus de la page hôte (ombre colorée, « :focus-visible { box-shadow } ») n'atteint pas nos champs. */
   .cm-ui textarea:focus, .cm-ui textarea:focus-visible, .cm-ui input:focus, .cm-ui input:focus-visible, .cm-ui select:focus, .cm-ui select:focus-visible { box-shadow:none; }
 
-  /* Focus clavier (fiche Etats), seulement en :focus-visible. Forme coupée : anneau qui suit les coins,
-     tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. Un champ, lui, est toujours
-     « :focus-visible » pour Chromium, même après un clic ou un focus posé par le script : son anneau ne
-     s'affiche que si le focus vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul
-     son trait passe à line-strong. */
+  /* Focus clavier (fiche Etats), seulement en :focus-visible : contour de 2 px à l'encre, à 2 px de la forme,
+     qui suit son arrondi (comme un outline de 2 px décalé de 2 px). Touche et champ : tracé par ::after, posé
+     autour de la face (la touche « terminer » du bandeau a une zone cliquable plus haute que sa face).
+     Forme ronde ou texte seul : outline de 2 px à 2 px. Un champ, lui, est toujours « :focus-visible » pour
+     Chromium, même après un clic ou un focus posé par le script : son anneau ne s'affiche que si le focus
+     vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul son trait passe à line-strong. */
   .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus, .cm-ui .wm-texte:focus { outline:none; }
   .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after {
-    content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+    content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-bouton) + 4px); pointer-events:none; }
+  body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { border-radius:calc(var(--wm-radius-champ) + 4px); }
   .cm-ui .wm-cercle:focus-visible, .cm-ui .wm-texte:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   @media (forced-colors:active) {
-    .wm-contour polygon, .wm-contour path { stroke:CanvasText; }
+    .wm-contour path { stroke:CanvasText; }
+    .wm-habille > .wm-verre { border:1px solid CanvasText; }   /* les ombres disparaissent en contraste forcé : le bord reste */
     .cm-ui .wm-touche::before { border-color:ButtonText; }
-    .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { background:Highlight; }
+    .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { border-color:Highlight; }
   }
 
   /* Voyant (F8) : disque net de 7 px à coordonnées entières, sans ombre ni halo ; sur fond clair (bouton
@@ -559,22 +570,21 @@
   .cm-pin, .cm-box, .wm-onde, mark.cm-highlight { --wm-encre: var(--wm-encre-repere); --wm-encre-55: var(--wm-encre-repere-55); --wm-encre-inverse: var(--wm-encre-repere-claire); }
   .cm-ui.wm-sur-sombre, mark.cm-highlight.wm-sur-sombre { --wm-encre: var(--wm-encre-repere-claire); --wm-encre-55: var(--wm-encre-repere-claire-55); --wm-encre-inverse: var(--wm-encre-repere); }
 
-  /* Épingle (F6) : touche de verre de 24 px de haut, qui s'élargit avec le numéro ; coins haut droit et bas
-     gauche arrondis à 5 px, coins witmit 7 × 2 px en haut à gauche et en bas à droite (::before), zone
-     cliquable de 44 px (::after transparent). Son bord droit s'aligne sur le cadre de l'élément, son bord bas
-     6 px au-dessus du cadre : le point posé en JS est ce coin bas droit (translate -100 %, -100 %). */
-  .cm-pin { --wm-coin-pin: 7px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:0 var(--wm-radius-numero) 0 var(--wm-radius-numero); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
+  /* Épingle (F6) : touche de verre de 24 px de haut, qui s'élargit avec le numéro ; quatre coins arrondis à
+     6 px (radius-epingle, V2) ; deux petits crochets witmit à l'intérieur, à 3 px du bord, en haut à gauche et
+     en bas à droite (::before : trait de 2 px, coude arrondi de 1,5 px, bras --wm-coin-pin) ; zone cliquable de
+     44 px (::after transparent). Son bord droit s'aligne sur le cadre de l'élément, son bord bas 6 px au-dessus
+     du cadre : le point posé en JS est ce coin bas droit (translate -100 %, -100 %). */
+  .cm-pin { --wm-coin-pin: 6px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:var(--wm-radius-epingle); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
   .cm-pin.wm-sur-sombre { background:var(--wm-epingle-verre-sombre); box-shadow:inset 0 0 0 1px var(--wm-epingle-contour-sombre), var(--wm-ombre-epingle); }
   .cm-pin.wm-dessous { transform:translate(-100%,0); }            /* pas de place au-dessus : sous le coin bas droit */
   .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début */
   .cm-pin > span { position:relative; }
-  .cm-pin::before { content:''; position:absolute; inset:0; pointer-events:none; background:
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / var(--wm-coin-pin) 2px no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / 2px var(--wm-coin-pin) no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / var(--wm-coin-pin) 2px no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / 2px var(--wm-coin-pin) no-repeat; }
+  .cm-pin::before { content:''; position:absolute; inset:3px; pointer-events:none; box-sizing:border-box; background:none; border:2px solid var(--wm-encre); border-radius:1.5px;
+    -webkit-mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat;
+    mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat; }
   .cm-pin::after { content:''; position:absolute; inset:-10px; }
-  /* Épingles secondaires d'une sélection multiple : 20 px, numéro en 12 px, coins 5 × 2 px, jamais de voyant. */
+  /* Épingles secondaires d'une sélection multiple : 20 px, numéro en 12 px, crochets de 5 px, jamais de voyant. */
   .cm-pin.cm-pin-secondary { --wm-coin-pin: 5px; height:20px; min-width:20px; padding:0 5px; }
   .cm-pin.cm-pin-secondary::after { inset:-12px; }
   /* Zone en édition : la fenêtre est déjà ouverte ; la zone élargie de l'épingle ne doit pas couvrir les poignées. */
@@ -608,11 +618,11 @@
      dans son enfant .wm-cadre : 16 px de marge autour d'un élément visé, aucune autour d'une zone encadrée.
      Coins witmit de 18 px (bras de 14,4 px, trait de 3,6 px) en haut à gauche et en bas à droite ; traits de
      1 px ouverts à 20 px des angles, centrés sur l'épaisseur des coins ; un côté de moins de 56 px n'a pas de
-     trait (classes wm-court-h et wm-court-v posées en JS). Aucun remplissage, aucun arrondi, aucune ombre.
-     En tracé (on glisse) : rectangle de 1 px en pointillés, sans coins. */
-  .cm-box { position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border:1px dashed var(--wm-encre); border-radius:0; }
+     trait (classes wm-court-h et wm-court-v posées en JS). Aucun remplissage, aucune ombre ; arrondi de 6 px
+     (radius-bouton, V2 : plus d'angle droit). En tracé (on glisse) : rectangle arrondi de 1 px en pointillés, sans coins. */
+  .cm-box { position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border:1px dashed var(--wm-encre); border-radius:var(--wm-radius-bouton); }
   .cm-box.cm-box-saved, .cm-box.cm-box-editing, .cm-box.cm-box-editable { border:0; }
-  .cm-box > .wm-cadre { --wm-th: var(--wm-encre-55); --wm-tv: var(--wm-encre-55); position:absolute; inset:0; pointer-events:none; background:
+  .cm-box > .wm-cadre { --wm-th: var(--wm-encre-55); --wm-tv: var(--wm-encre-55); position:absolute; inset:0; pointer-events:none; border-radius:var(--wm-radius-bouton); background:
     linear-gradient(var(--wm-th),var(--wm-th)) 20px 0 / calc(100% - 40px) 1px no-repeat,
     linear-gradient(var(--wm-th),var(--wm-th)) 20px 100% / calc(100% - 40px) 1px no-repeat,
     linear-gradient(var(--wm-tv),var(--wm-tv)) 0 20px / 1px calc(100% - 40px) no-repeat,
@@ -660,7 +670,7 @@
      box-shadow. Animations réduites : pas d'onde, le repère passe directement à l'état actif. Les classes
      cm-ola et cm-ola-light restent posées sur le repère le temps de l'onde (repère pour les tests). */
   .wm-onde { position:absolute; z-index:825; pointer-events:none; }
-  .wm-onde::before { content:''; position:absolute; inset:0; border:1px solid var(--wm-encre); opacity:0; animation:wmOnde 600ms ease-out 2; }
+  .wm-onde::before { content:''; position:absolute; inset:0; border:1px solid var(--wm-encre); border-radius:var(--wm-radius-bouton); opacity:0; animation:wmOnde 600ms ease-out 2; }
   @keyframes wmOnde { from { inset:0; opacity:1; } to { inset:-16px; opacity:0; } }
   @media (prefers-reduced-motion:reduce) { .wm-onde { display:none; } }
 
@@ -681,7 +691,7 @@
 
   /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
      380 px, au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
-     poignée (titre, croix, élément visé dessous) ; corps : champ coupé en police système, catégorie en touches
+     poignée (titre, croix, élément visé dessous) ; corps : champ arrondi en police système, catégorie en touches
      dépliées (I4), actions. Les marges laissent libres les deux coins witmit. */
   .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
   @media (max-width:480px) { .cm-popup { width:min(380px, calc(100vw - 16px)); } }
@@ -696,11 +706,11 @@
   .cm-popup .cm-corps { position:relative; padding:12px 24px 20px 20px; }
   .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
   .cm-popup .cm-libelle-cat { margin-top:12px; }
-  /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), police système 15 px. Sans
-     poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
+  /* Champ (fiche Fenetre, fiche Etats) : arrondi de 5 px, trait line (line-strong au focus), police système 15 px. Sans
+     poignée de redimensionnement : le champ grandit avec le texte, puis défile.
      Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
   .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
-    border:1px solid var(--wm-line); border-radius:0; background:var(--wm-champ-fond); box-shadow:none; outline:none;
+    border:1px solid var(--wm-line); border-radius:var(--wm-radius-champ); background:var(--wm-champ-fond); box-shadow:none; outline:none;
     font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-champ-fond); box-shadow:none; outline:none; }
   .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
@@ -708,13 +718,13 @@
   .cm-popup .cm-champ-reponse { margin-top:12px; }
   /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
   .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
-  /* Vignette de la capture d'une zone : 112 × 64 px, coupe de 6 px, trait line-strong. */
+  /* Vignette de la capture d'une zone : 112 × 64 px, arrondi de 5 px, trait line-strong. */
   .cm-popup .cm-vignette-ligne { display:flex; align-items:center; gap:12px; margin-top:10px; }
-  .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
-  .cm-popup .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:var(--wm-radius-champ); background:transparent; box-shadow:none; cursor:zoom-in; }
+  .cm-popup .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-popup .cm-vignette img { display:block; width:100%; height:100%; max-width:none; object-fit:cover; }
   .cm-popup .cm-vignette:focus { outline:none; }
-  .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-champ) + 4px); pointer-events:none; }
   .cm-popup .cm-vignette-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
      touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
@@ -731,7 +741,7 @@
   .cm-popup .cm-meta-lu { margin-top:8px; }
   .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-meta-lu .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
   .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
-  .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); clip-path:var(--wm-forme-touche); }
+  .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); border-radius:var(--wm-radius-champ); }
   .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Actions : supprimer (cercle, jamais rouge) à gauche ; « annuler » en texte et la touche principale à droite. */
   .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:16px; }
@@ -759,7 +769,7 @@
   .cm-panel-filtres { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12px; min-height:28px; margin-top:2px; }
   .cm-panel-filtres:not(:has(> :not([hidden]))) { display:none; }   /* maquette, page vide : aucune ligne de filtres */
   /* « masquer les terminés » (case de 16 px) et « masquer witmit » : textes seuls, zone de 44 px de haut. */
-  .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
+  .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
     font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-filtre::before { content:''; position:absolute; left:0; right:0; top:-8px; bottom:-8px; }
   .cm-ui .cm-filtre:hover { color:var(--wm-ink); }
@@ -777,7 +787,7 @@
   @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) */
   .cm-panel-item { position:relative; isolation:isolate; display:flex; gap:12px; padding:12px 8px; border-bottom:1px solid var(--wm-line); }
   .cm-panel-item:last-child { border-bottom:0; }
-  .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:transparent; pointer-events:none; }
+  .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; border-radius:var(--wm-radius-bouton); background:transparent; pointer-events:none; }
   .cm-panel-item:hover::before, .cm-panel-item.cm-current::before { background:var(--wm-surface-raised); }
   .cm-panel-item .num { flex:none; display:flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 5px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-numero);
     background:transparent; font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; color:var(--wm-ink); }
@@ -805,7 +815,7 @@
   .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:500; gap:5px; }
   .cm-panel-item .cm-nouveau .wm-voyant { display:inline-block; }
   /* « à renvoyer » : un bouton ; icône et soulignement rouges, mot à l'encre ; zone de 44 px de haut. */
-  .cm-ui button.cm-sync-error { position:relative; cursor:pointer; }
+  .cm-ui button.cm-sync-error { position:relative; cursor:pointer; border-radius:var(--wm-radius-bouton); }
   .cm-ui button.cm-sync-error::before { content:''; position:absolute; left:0; right:0; top:-13px; bottom:-13px; }
   .cm-ui .cm-sync-error b { text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
   .cm-ui .cm-sync-error.wm-sans-renvoi b { text-decoration:none; }   /* refus définitif : pas un bouton, pas de soulignement */
@@ -818,28 +828,28 @@
   .cm-panel-item details.cm-tech summary::-webkit-details-marker { display:none; }
   .cm-panel-item details.cm-tech .wm-ouvert, .cm-panel-item details.cm-tech[open] .wm-ferme { display:none; }
   .cm-panel-item details.cm-tech[open] .wm-ouvert { display:inline-block; }
-  .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:0; border-radius:0;
+  .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; background:var(--wm-surface-raised); border:0; border-radius:var(--wm-radius-champ);
     font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
   /* Actions : cercles de 30 px empilés, 14 px d'écart (zones de 44 px sans chevauchement). */
   .cm-panel-item .cm-item-actions { flex:none; display:flex; flex-direction:column; align-items:center; gap:14px; }
   .cm-panel-item.cm-done .num { border-color:var(--wm-line); color:var(--wm-ink-soft); }
   .cm-panel-item.cm-done .txt { color:var(--wm-ink-soft); }
-  /* Vignette de capture : 112 × 64 px, coupe de 6 px ; au survol, la loupe dans un rond posé sur l'image. */
-  .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
+  /* Vignette de capture : 112 × 64 px, arrondi de 5 px ; au survol, la loupe dans un rond posé sur l'image. */
+  .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:var(--wm-radius-champ); background:transparent; box-shadow:none; cursor:zoom-in; }
   .cm-panel-item .cm-vignette { margin-top:8px; }
-  .cm-ui .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-ui .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-ui .cm-vignette img { display:block; width:100%; height:100%; max-width:none; margin:0; border:0; border-radius:0; object-fit:cover; background:none; }
   .cm-ui .cm-loupe { position:absolute; right:4px; bottom:4px; z-index:1; display:none; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--wm-loupe-fond); color:var(--wm-encre-repere-claire); pointer-events:none; }
   .cm-ui .cm-vignette:hover .cm-loupe, .cm-ui .cm-vignette:focus-visible .cm-loupe { display:flex; }
   .cm-ui .cm-vignette:focus { outline:none; }
-  .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-champ) + 4px); pointer-events:none; }
   /* Capture en cours (fiche Etats) : zone en creux, CircleNotch centré, « capture… » à côté. */
   .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
+  .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; border-radius:var(--wm-radius-champ); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
   .cm-popup .cm-capture-boite { width:112px; height:64px; }
-  /* Modification en place : champ coupé (comme celui de la fenêtre), aide en dessous. */
+  /* Modification en place : champ arrondi (comme celui de la fenêtre), aide en dessous. */
   .cm-panel-item .cm-edit-bloc { margin-top:4px; }
-  .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:0;
+  .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:var(--wm-radius-champ);
     background:var(--wm-surface-raised); box-shadow:none; outline:none; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; }
   .cm-ui .cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply) { border-color:var(--wm-line-strong); }
@@ -852,7 +862,7 @@
   /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta et messages en police système, messages entre « ». */
   .cm-panel-item .cm-thread { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
   .cm-panel-item .cm-msg { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); }
+  .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; border-radius:var(--wm-radius-champ); background:var(--wm-surface-raised); }
   .cm-panel-item .cm-msg-auteur, .cm-panel-item .cm-reply { margin-left:16px; }
   .cm-panel-item .cm-msg-who { display:block; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
   .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:500; }
@@ -890,7 +900,7 @@
   .cm-panel-foot { display:flex; flex-wrap:wrap; align-items:center; }
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden], .cm-panel-foot label[hidden] { display:none; }
   .cm-panel-tools { gap:0 16px; }
-  .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
+  .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
     font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-panel-tools .cm-outil::before { content:''; position:absolute; left:0; right:0; top:-6px; bottom:-6px; }
   .cm-ui .cm-panel-tools .cm-outil:hover { color:var(--wm-ink); }
@@ -920,7 +930,7 @@
   .cm-lightbox .cm-lb-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cm-lightbox .cm-lb-corps { position:relative; display:flex; flex-direction:column; min-height:0; padding:14px 24px 20px 20px; }
   .cm-lightbox .cm-lb-image { position:relative; isolation:isolate; display:flex; justify-content:center; min-height:0; }
-  .cm-lightbox .cm-lb-face { position:relative; display:block; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-lightbox .cm-lb-face { position:relative; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-lightbox img { display:block; max-width:100%; max-height:calc(86vh - 150px); width:auto; height:auto; margin:0; border:0; border-radius:0; object-fit:contain; }
   .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-lightbox .cm-lightbox-hint .wm-repere { margin:0; }
@@ -1010,7 +1020,8 @@
 
   /* ---------- habillage des fenêtres (F2, F3) ----------
      habiller(el) pose en premiers enfants de el trois couches muettes (aria-hidden, sans clic) : l'ombre,
-     le verre et le contour (trait de 1 px + coins witmit, sauf sansCoins pour les messages passagers).
+     le verre (qui porte aussi le bord) et le contour (les deux coins witmit ; vide, sansCoins, pour les
+     messages passagers).
      Le contenu ne change pas de place dans le DOM. Un seul ResizeObserver retrace les contours quand une
      fenêtre change de taille, et une fois de plus quand les polices sont arrivées. */
   var habilles = [];
@@ -1021,25 +1032,30 @@
     if (!el.isConnected) { if (formeObs) formeObs.unobserve(el); habilles = habilles.filter(function (x) { return x !== el; }); return; } // fenêtre retirée
     var svg = el.querySelector(':scope > .wm-contour');
     if (!svg) return;
-    var W = el.offsetWidth, H = el.offsetHeight, c = 11;
+    var W = el.offsetWidth, H = el.offsetHeight;
     if (!W || !H) return;                                           // caché : retracé quand il apparaît
     svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    // Trait à 0,5 px du bord (net sur un pixel), angles haut droit et bas gauche cassés de 11 px.
-    svg.querySelector('polygon').setAttribute('points', '0.5,0.5 ' + (W - c - 0.2) + ',0.5 ' + (W - 0.5) + ',' + (c + 0.2) + ' ' +
-      (W - 0.5) + ',' + (H - 0.5) + ' ' + (c + 0.2) + ',' + (H - 0.5) + ' 0.5,' + (H - c - 0.2));
-    // Coins witmit : équerres de 14 px posées à 7 px des angles droits (haut gauche, bas droit).
+    // Coins witmit (haut gauche, bas droit) : bras de 8,4 px depuis un coude posé à 8,4 px des bords, coude
+    // arrondi en quart de cercle de 3 px (radius-coude ; même géométrie que la maquette V2). Le bord de la
+    // fenêtre est porté par le verre (border-radius et box-shadow) : plus de contour tracé ici.
     var coins = svg.querySelectorAll('path');
     if (coins.length === 2) {
-      coins[0].setAttribute('d', 'M8.4 16.8V8.4H16.8');
-      coins[1].setAttribute('d', 'M' + (W - 8.4) + ' ' + (H - 16.8) + 'V' + (H - 8.4) + 'H' + (W - 16.8));
+      coins[0].setAttribute('d', coinWitmit(8.4, 16.8, 8.4, 16.8));
+      coins[1].setAttribute('d', coinWitmit(W - 8.4, H - 16.8, H - 8.4, W - 16.8));
     }
+  }
+  // Un coin witmit de (x, y1) à (x2, y2) par un coude en (x, y2), arrondi de 3 px. Coordonnées arrondies au
+  // centième (pas de 331.59999999 dans le tracé).
+  function coinWitmit(x, y1, y2, x2) {
+    var r = 3, sy = y2 > y1 ? 1 : -1, sx = x2 > x ? 1 : -1, n = function (v) { return +v.toFixed(2); };
+    return 'M' + n(x) + ' ' + n(y1) + 'V' + n(y2 - sy * r) + 'Q' + n(x) + ' ' + n(y2) + ' ' + n(x + sx * r) + ' ' + n(y2) + 'H' + n(x2);
   }
   function habiller(el, sansCoins) {
     if (!el || el.querySelector(':scope > .wm-verre')) return el;
     el.classList.add('wm-habille');
     el.insertAdjacentHTML('afterbegin',
       '<span class="wm-ombre" aria-hidden="true"><i></i></span><span class="wm-verre" aria-hidden="true"></span>' +
-      '<svg class="wm-contour" aria-hidden="true" focusable="false"><polygon points=""></polygon>' + (sansCoins ? '' : '<path d=""></path><path d=""></path>') + '</svg>');
+      '<svg class="wm-contour" aria-hidden="true" focusable="false">' + (sansCoins ? '' : '<path d=""></path><path d=""></path>') + '</svg>');
     habilles.push(el);
     if (el.isConnected) tracerContour(el);                         // sinon : tracé par l'observateur à l'insertion
     if (formeObs) formeObs.observe(el);
@@ -2449,7 +2465,7 @@
     cmStatus('réponse enregistrée : elle partira dans le prochain rapport.', { type: 'fait' });
     return true;
   }
-  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ coupé, puis
+  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ arrondi, puis
      « annuler » (échap) à gauche et la touche secondaire (envoyer, rouvrir, enregistrer ↵) à droite.
      opts (mode live, répondre / rouvrir) : libelle, placeholder, touche, required (phrase sous le champ si vide :
      le champ reste ouvert), keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir
@@ -2497,7 +2513,7 @@
     bloc.querySelector('.cm-rep-envoyer').onclick = function (e) { e.stopPropagation(); finish(true); };
   }
 
-  /* Modification du texte directement dans la liste (fiche Tiroir, « en modification ») : champ coupé en
+  /* Modification du texte directement dans la liste (fiche Tiroir, « en modification ») : champ arrondi en
      place, aide « ↵ envoyer · échap annuler » dessous. Entrée = enregistrer, Maj+Entrée = nouvelle ligne,
      Échap = annuler, clic ailleurs = enregistrer (comportement inchangé). */
   function editInList(id) {

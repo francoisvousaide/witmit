@@ -252,8 +252,8 @@ test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la 
     const cs = getComputedStyle(el), anneau = getComputedStyle(el.parentNode, '::after');
     const t = document.createElement('span'); t.style.color = getComputedStyle(el).getPropertyValue('--wm-line-strong'); el.parentNode.appendChild(t);
     const fort = getComputedStyle(t).color; t.remove();
-    return { ombre: cs.boxShadow, contour: cs.outlineStyle, resize: cs.resize, police: cs.fontFamily, coupe: cs.clipPath,
-      trait: cs.borderTopColor, fort, anneau: anneau.content, anneauClip: anneau.clipPath };
+    return { ombre: cs.boxShadow, contour: cs.outlineStyle, resize: cs.resize, police: cs.fontFamily, coupe: cs.clipPath, rayon: cs.borderRadius,
+      trait: cs.borderTopColor, fort, anneau: anneau.content, anneauClip: anneau.clipPath, anneauTrait: anneau.borderTopWidth, anneauRayon: anneau.borderRadius };
   });
   // 1. Après le clic : seulement le trait line-strong (fiche Etats : jamais d'anneau au clic souris).
   let st = await etat();
@@ -263,7 +263,8 @@ test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la 
   expect(st.contour).toBe('none');
   expect(st.resize).toBe('none');                              // pas de poignée rognée par le coin coupé
   expect(st.police).toMatch(/^-apple-system, /);                 // V2 : police système, texte de la personne compris
-  expect(st.coupe).toContain('polygon');
+  expect(st.coupe).toBe('none');                               // V2 : plus d'angle cassé
+  expect(st.rayon).toBe('5px');                                // arrondi radius-champ
   await ta.pressSequentially('du texte');                      // taper ne fait pas apparaître l'anneau
   expect((await etat()).anneau).toBe('none');
   // 2. Tab vers la catégorie, puis maj+Tab vers le champ : l'anneau de la charte, qui suit les coins.
@@ -273,7 +274,9 @@ test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la 
   await expect(ta).toBeFocused();
   st = await etat();
   expect(st.anneau).not.toBe('none');
-  expect(st.anneauClip).toContain('polygon');
+  expect(st.anneauClip).toBe('none');                          // anneau arrondi : 2 px, à 2 px du champ (5 + 4 px)
+  expect(st.anneauTrait).toBe('2px');
+  expect(st.anneauRayon).toBe('9px');
   expect(st.ombre).toBe('none');
   // 3. Un nouveau clic dans le champ retire l'anneau.
   const r = await ta.boundingBox();

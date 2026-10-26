@@ -600,7 +600,7 @@ async function ouvrirFenetres(page, nom, cible) {
 }
 const PAGES_LOT2 = [['planche-charte.html', '#carteClaire p'], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)']];
 
-test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse portent ombre, verre et contour', async ({ page }) => {
+test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse portent ombre, verre et contour, arrondis sans angle cassé', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmPill', '#cmStatus'].map((sel) => {
     const el = document.querySelector(sel);
@@ -611,7 +611,8 @@ test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse p
       premiers: kids.map((k) => k.classList[0]),
       muets: kids.every((k) => k.getAttribute('aria-hidden') === 'true' && getComputedStyle(k).pointerEvents === 'none'),
       coins: el.querySelectorAll(':scope > .wm-contour path').length,
-      clip: cs.clipPath, flou: cs.backdropFilter || cs.webkitBackdropFilter,
+      clip: cs.clipPath, rayon: cs.borderRadius, rayonOmbre: getComputedStyle(el.querySelector(':scope > .wm-ombre > i')).borderRadius,
+      clipOmbre: getComputedStyle(el.querySelector(':scope > .wm-ombre > i')).clipPath, flou: cs.backdropFilter || cs.webkitBackdropFilter,
       parentNu: getComputedStyle(el).clipPath === 'none' && getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)',
     };
   }));
@@ -619,7 +620,12 @@ test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse p
     expect(f.premiers, f.sel).toEqual(['wm-ombre', 'wm-verre', 'wm-contour']);
     expect(f.muets, f.sel).toBe(true);
     expect(f.coins, f.sel).toBe(f.sel === '#cmStatus' ? 0 : 2);      // messages passagers : sans coins witmit
-    expect(f.clip, f.sel).toContain('calc(100% - 11px)');            // coupe fixe de 11 px (F1)
+    // V2 : plus d'angle cassé ; arrondi de 9 px (liste : côté page seulement ; message passager : 8 px), copie d'ombre comprise.
+    const rayon = { '#cmPanel': '9px 0px 0px 9px', '#cmStatus': '8px' }[f.sel] || '9px';
+    expect(f.clip, f.sel).toBe('none');
+    expect(f.clipOmbre, f.sel).toBe('none');
+    expect(f.rayon, f.sel).toBe(rayon);
+    expect(f.rayonOmbre, f.sel).toBe(rayon);
     expect(f.flou, f.sel).toBe('blur(40px) saturate(1.9)');
     expect(f.parentNu, f.sel).toBe(true);                            // la fenêtre elle-même n'est ni découpée ni peinte
   }
@@ -659,29 +665,31 @@ test('16. aucun parent du verre ne coupe le flou (F4), message passager compris 
   }
 });
 
-test('17. contour retracé à la taille réelle : trait à 0,5 px, angles cassés de 11 px, coins witmit', async ({ page }) => {
+test('17. contour retracé à la taille réelle : plus de trait d’angles cassés, coins witmit au coude arrondi de 3 px', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const lire = () => page.locator('.cm-popup').evaluate((el) => {
     const svg = el.querySelector(':scope > .wm-contour');
     return { W: el.offsetWidth, H: el.offsetHeight, w: +svg.getAttribute('width'), h: +svg.getAttribute('height'),
-      pts: svg.querySelector('polygon').getAttribute('points'), coins: Array.from(svg.querySelectorAll('path')).map((p) => p.getAttribute('d')) };
+      polygones: svg.querySelectorAll('polygon').length, coins: Array.from(svg.querySelectorAll('path')).map((p) => p.getAttribute('d')) };
   });
+  const n = (v) => +v.toFixed(2);
   let c = await lire();
   expect([c.w, c.h]).toEqual([c.W, c.H]);
-  expect(c.pts).toBe(`0.5,0.5 ${c.W - 11.2},0.5 ${c.W - 0.5},11.2 ${c.W - 0.5},${c.H - 0.5} 11.2,${c.H - 0.5} 0.5,${c.H - 11.2}`);
-  expect(c.coins[0]).toBe('M8.4 16.8V8.4H16.8');
+  expect(c.polygones).toBe(0);                                          // V2 : le bord est porté par le verre arrondi
+  expect(c.coins[0]).toBe('M8.4 16.8V11.4Q8.4 8.4 11.4 8.4H16.8');       // haut gauche : coude en quart de cercle de 3 px
+  expect(c.coins[1]).toBe(`M${n(c.W - 8.4)} ${n(c.H - 16.8)}V${n(c.H - 11.4)}Q${n(c.W - 8.4)} ${n(c.H - 8.4)} ${n(c.W - 11.4)} ${n(c.H - 8.4)}H${n(c.W - 16.8)}`);
   // la fenêtre grandit : le même ResizeObserver retrace le contour
-  await page.locator('.cm-popup').evaluate((el) => { el.style.width = '340px'; });
-  await expect.poll(async () => (await lire()).w).toBe(340);
+  await page.locator('.cm-popup').evaluate((el) => { el.style.width = '400px'; });
+  await expect.poll(async () => (await lire()).w).toBe(400);
   c = await lire();
-  expect(c.coins[1]).toBe(`M${340 - 8.4} ${c.H - 16.8}V${c.H - 8.4}H${340 - 16.8}`);
+  expect(c.coins[1]).toBe(`M${400 - 8.4} ${n(c.H - 16.8)}V${n(c.H - 11.4)}Q${400 - 8.4} ${n(c.H - 8.4)} ${400 - 11.4} ${n(c.H - 8.4)}H${400 - 16.8}`);
 });
 
-test('18. touches : coupe de 6 px et trait sur ::before, principale, secondaire, annuler, désactivé', async ({ page }) => {
+test('18. touches : arrondi de 6 px et trait sur ::before, principale, secondaire, annuler, désactivé', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const st = (sel, pseudo) => page.locator(sel).first().evaluate((el, ps) => {
     const cs = getComputedStyle(el, ps);
-    return { clip: cs.clipPath, bord: cs.borderTopColor, bordL: cs.borderTopWidth, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor };
+    return { clip: cs.clipPath, rayon: cs.borderRadius, bord: cs.borderTopColor, bordL: cs.borderTopWidth, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor };
   }, pseudo || null);
   const jetons = await page.locator('.cm-popup').evaluate((el) => {
     const cs = getComputedStyle(el), v = (n) => cs.getPropertyValue(n).trim();
@@ -690,7 +698,8 @@ test('18. touches : coupe de 6 px et trait sur ::before, principale, secondaire,
   });
   const save = await st('.cm-popup .cm-save'), saveAvant = await st('.cm-popup .cm-save', '::before');
   expect(save.clip).toBe('none');                                       // le bouton n'est pas découpé (son focus ne serait pas rogné)
-  expect(saveAvant.clip).toContain('polygon(6px 0px');                  // coins haut gauche et bas droit cassés
+  expect(saveAvant.clip).toBe('none');                                  // V2 : plus d'angle cassé
+  expect(saveAvant.rayon).toBe('6px');                                  // arrondi radius-bouton
   expect(saveAvant.bord).toBe(jetons.forte);                            // principale : trait line-strong
   const sec = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)', '::before');
   expect(sec.bord).toBe(jetons.fine);                                   // secondaire : trait line
@@ -706,17 +715,18 @@ test('18. touches : coupe de 6 px et trait sur ::before, principale, secondaire,
   expect(await page.locator('.cm-popup .cm-save').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
 });
 
-test('19. focus clavier : anneau qui suit les coins sur une touche, outline sur un cercle, rien au clic souris', async ({ page }) => {
+test('19. focus clavier : anneau arrondi qui suit la touche, outline sur un cercle, rien au clic souris', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const anneau = (sel) => page.locator(sel).evaluate((el) => {
     const cs = getComputedStyle(el, '::after');
-    return { contenu: cs.content, clip: cs.clipPath, fond: cs.backgroundColor, l: cs.left, t: cs.top };
+    return { contenu: cs.content, clip: cs.clipPath, fond: cs.backgroundColor, l: cs.left, t: cs.top, trait: cs.borderTopWidth + ' ' + cs.borderTopStyle, encre: cs.borderTopColor, rayon: cs.borderRadius,
+      ink: (() => { const d = document.createElement('i'); d.style.color = getComputedStyle(el).getPropertyValue('--wm-ink'); el.appendChild(d); const r = getComputedStyle(d).color; d.remove(); return r; })() };
   });
   // au clic souris : pas d'anneau
   await page.locator('#cmPanel .cm-panel-foot .wm-touche', { hasText: 'Copier' }).hover();
   await page.mouse.down(); await page.mouse.up();
   expect((await anneau('#cmPanel .cm-panel-foot .wm-touche >> text=Copier')).contenu).toBe('none');
-  // au clavier : Tab jusqu'à « envoyer par email », anneau de 2 px à 2 px de la forme, coins coupés
+  // au clavier : Tab jusqu'à « envoyer par email », anneau de 2 px à 2 px de la forme, qui suit son arrondi
   await page.locator('#cmPanel .cm-panel-foot .wm-touche', { hasText: 'Copier' }).focus();
   await page.keyboard.press('Tab');
   const envoyer = '#cmPanel .cm-panel-report .wm-touche >> text=envoyer par email';
@@ -724,13 +734,97 @@ test('19. focus clavier : anneau qui suit les coins sur une touche, outline sur 
   const a = await anneau(envoyer);
   expect(a.contenu).toBe('""');
   expect([a.l, a.t]).toEqual(['-4px', '-4px']);
-  expect(a.clip).toContain('evenodd');
-  expect(a.clip).toContain('8.34px 0px');                              // coupe de 6 px + 2,34 px au bord extérieur
+  expect(a.clip).toBe('none');                                          // V2 : plus de découpe
+  expect(a.trait).toBe('2px solid');
+  expect(a.encre).toBe(a.ink);
+  expect(a.rayon).toBe('10px');                                         // 6 px de la touche + 4 px d'écart
   // forme ronde : outline de 2 px à 2 px
   await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').focus();
   await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
   const o = await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').evaluate((el) => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth, getComputedStyle(el).outlineOffset]);
   expect(o).toEqual(['solid', '2px', '2px']);
+});
+
+// ---------- Habillage V2, lot 2 : formes (README « Formes », tokens.json onglet Rayons, fiches Fenetre, Touche, Epingle) ----------
+
+test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres, liste, bandeau, message, touche, champ, ligne, épingle, cadre)', async ({ page }) => {
+  await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
+  await page.evaluate(() => document.getElementById('cmStatus').classList.add('show'));
+  const r = await page.evaluate(() => {
+    const cs = getComputedStyle(document.querySelector('.cm-popup'));
+    const jeton = (n) => cs.getPropertyValue('--wm-radius-' + n).trim();
+    const rayon = (sel, ps) => { const el = document.querySelector(sel); return el ? getComputedStyle(el, ps || null).borderRadius : null; };
+    return {
+      jetons: ['fenetre', 'bloc', 'bouton', 'epingle', 'champ', 'message', 'coude'].map(jeton),
+      fenetre: rayon('.cm-popup > .wm-verre'), liste: rayon('#cmPanel > .wm-verre'), bandeau: rayon('#cmPill > .wm-verre'), message: rayon('#cmStatus > .wm-verre'),
+      touche: rayon('.cm-popup .cm-save', '::before'), categorie: rayon('.cm-popup .cm-cat', '::before'), annuler: rayon('.cm-popup .cm-cancel'),
+      champ: rayon('.cm-popup .wm-champ > textarea'), champColler: rayon('#cmFeedbackBox .wm-champ > textarea'), ligne: rayon('#cmPanel .cm-panel-item', '::before'),
+      epingle: rayon('.cm-pin'), cadre: rayon('.cm-box'), traceCadre: rayon('.cm-box > .wm-cadre'),
+    };
+  });
+  expect(r.jetons).toEqual(['9px', '7px', '6px', '6px', '5px', '8px', '3px']);
+  expect(r).toMatchObject({ fenetre: '9px', liste: '9px 0px 0px 9px', bandeau: '9px', message: '8px', touche: '6px', categorie: '6px', annuler: '6px',
+    champ: '5px', champColler: '5px', ligne: '6px', epingle: '6px', cadre: '6px', traceCadre: '6px' });
+});
+
+test('19c. plus aucun angle cassé : aucun clip-path sur une couche de witmit, pseudo-éléments compris (clair et sombre)', async ({ page }) => {
+  for (const [nom, cible] of PAGES_LOT2) {
+    await ouvrirFenetres(page, nom, cible);
+    await page.evaluate(() => document.getElementById('cmStatus').classList.add('show'));
+    const fautes = await page.evaluate(() => {
+      const out = [];
+      document.querySelectorAll('.cm-ui, .cm-ui *').forEach((el) => {
+        for (const ps of [null, '::before', '::after']) {
+          const c = getComputedStyle(el, ps).clipPath;
+          if (c && c !== 'none') out.push((el.id || el.className.baseVal || el.className) + (ps || '') + ' : ' + c);
+        }
+      });
+      return out;
+    });
+    expect(fautes, nom).toEqual([]);
+  }
+});
+
+test('19d. coins witmit : haut gauche et bas droit de la fenêtre, de la liste et du bandeau, trait de 2,1 px, coude arrondi de 3 px ; aucun sur le message passager', async ({ page }) => {
+  await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
+  const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmPill', '#cmStatus'].map((sel) => {
+    const el = document.querySelector(sel), W = el.offsetWidth, H = el.offsetHeight;
+    const paths = Array.from(el.querySelectorAll(':scope > .wm-contour path'));
+    return { sel, W, H, d: paths.map((p) => p.getAttribute('d')), trait: paths.map((p) => getComputedStyle(p).strokeWidth), joint: paths.map((p) => getComputedStyle(p).strokeLinejoin),
+      encre: paths.map((p) => getComputedStyle(p).stroke), ink: getComputedStyle(el).color };
+  }));
+  for (const f of r) {
+    if (f.sel === '#cmStatus') { expect(f.d, f.sel).toEqual([]); continue; }
+    expect(f.d.length, f.sel).toBe(2);
+    // haut gauche : de (8,4 ; 16,8) au coude (8,4 ; 8,4), arrondi en quart de cercle de 3 px, puis jusqu'à (16,8 ; 8,4)
+    expect(f.d[0], f.sel).toBe('M8.4 16.8V11.4Q8.4 8.4 11.4 8.4H16.8');
+    // bas droit : même coin retourné, à 8,4 px des bords droit et bas
+    const m = f.d[1].match(/^M([\d.]+) ([\d.]+)V([\d.]+)Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)H([\d.]+)$/).slice(1).map(Number);
+    const attendu = [f.W - 8.4, f.H - 16.8, f.H - 11.4, f.W - 8.4, f.H - 8.4, f.W - 11.4, f.H - 8.4, f.W - 16.8];
+    m.forEach((v, i) => expect(v, f.sel + ' ' + i).toBeCloseTo(attendu[i], 2));
+    expect(f.trait, f.sel).toEqual(['2.1px', '2.1px']);
+    expect(f.joint, f.sel).toEqual(['round', 'round']);
+    expect(f.encre, f.sel).toEqual([f.ink, f.ink]);
+  }
+});
+
+test('19e. bord du verre visible sans découpe : trait de 1 px et ombre de contact en clair ; liseré 16 % dedans et 5 % dehors en sombre', async ({ page }) => {
+  for (const [nom, fond] of [['bord-clair', '#ffffff'], ['bord-sombre', '#101010']]) {
+    await page.goto(pageEssai(nom, { fond }));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    const b = await H.visibleBox(page, '#bloc');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+    const v = await page.locator('.cm-popup > .wm-verre').evaluate((el) => ({ clip: getComputedStyle(el).clipPath, ombre: getComputedStyle(el).boxShadow.replace(/\s+/g, ' ') }));
+    expect(v.clip, nom).toBe('none');                                  // rien ne rogne plus l'ombre ni le liseré
+    if (nom === 'bord-clair') {
+      expect(v.ombre).toContain('rgba(0, 0, 0, 0.14) 0px 0px 0px 1px inset');   // trait contour-fenetre
+      expect(v.ombre).toContain('rgba(0, 0, 0, 0.14) 0px 1px 3px 0px');         // ombre de contact
+    } else {
+      expect(v.ombre).toBe('rgba(255, 255, 255, 0.16) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.05) 0px 0px 0px 1px');   // un seul trait dedans
+    }
+  }
 });
 
 test('20. icônes Phosphor : SVG intégrés, viewBox 256, couleur du texte, muets ; avis MIT en tête du fichier', async ({ page }) => {
