@@ -172,7 +172,7 @@
   // « ⌘ » sur Mac, « ctrl » ailleurs, et « maj », chacun dans le petit carré, en chasse fixe du système (fiche Tiroir).
   var ETAT_VIDE_HTML = '<div class="cm-panel-empty cm-panel-vide">' +
     "<p>aucun retour sur cette page pour l'instant.</p>" +
-    '<p class="cm-vide-mode">pour en laisser un, appuie sur « nouveau retour », puis :</p>' +
+    '<p class="cm-vide-mode">pour en laisser un, appuie sur « nouveau\u00a0retour », puis :</p>' +
     '<ul class="cm-vide-gestes">' +
       '<li><b>clic</b> : un élément</li>' +
       '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
@@ -827,7 +827,7 @@
   .cm-panel-item:hover:not(.cm-current)::before { background:rgba(127,127,127,.06); }
   .cm-panel-item.cm-current::before { background:var(--wm-selection-ligne); }
   .cm-panel-item:focus { outline:none; }
-  .cm-panel-item:focus-visible::after { content:''; position:absolute; inset:0; border-radius:var(--wm-radius-bouton); box-shadow:inset 0 0 0 2px var(--wm-ink); pointer-events:none; }
+  .cm-panel-item:focus-visible::after { content:''; position:absolute; inset:0; border:2px solid var(--wm-ink); border-radius:var(--wm-radius-bouton); pointer-events:none; }
   .cm-panel-item.wm-ouvert { align-items:flex-start; }
   /* Réduite : deux lignes (le texte, puis l'élément visé) ; tout le reste attend l'ouverture. */
   .cm-panel-item:not(.wm-ouvert) .body > :not(.txt):not(.zone), .cm-panel-item:not(.wm-ouvert) .cm-item-actions { display:none; }
@@ -1034,7 +1034,7 @@
       <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit<span class="wm-lu"> ${IS_MAC ? 'option' : 'alt'} deux fois</span></button>
     </div>
   </div>
-  <div class="cm-panel-list" id="cmList"></div>
+  <div class="cm-panel-list" id="cmList" aria-label="tes retours sur cette page"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">${icone('ClipboardText', 14)}coller un retour</div>
     <span class="wm-champ"><textarea aria-label="coller un retour" placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea></span>
@@ -2452,6 +2452,7 @@
     if (caseEl) { caseEl.hidden = !pc.length; caseEl.setAttribute('aria-checked', hideDone() ? 'true' : 'false'); }
     if (!pc.length) {
       list.innerHTML = ETAT_VIDE_HTML;
+      list.removeAttribute('role');
       majPiedsTiroir();
       return;
     }
@@ -2464,7 +2465,29 @@
     });
     if (!html) html = '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';
     list.innerHTML = html;
+    majEtatsLignes();
     majPiedsTiroir();
+  }
+  /* Lecteurs d'écran et clavier (relecture de Léa, lot 4) : la liste est une liste nommée, chaque retour un élément de
+     liste avec sa position ; le retour choisi porte aria-current et un seul arrêt de tabulation (tabindex 0 sur la ligne
+     choisie, sinon la première ; -1 sur les autres) ; son état se lit en fin de ligne (« choisi, ouvert » ou « réduit »). */
+  function majEtatsLignes() {
+    var list = document.getElementById('cmList');
+    if (!list) return;
+    var items = Array.prototype.slice.call(list.querySelectorAll('.cm-panel-item'));
+    if (items.length) list.setAttribute('role', 'list'); else list.removeAttribute('role');
+    var arret = items.filter(function (it) { return it.dataset.id === focusedId; })[0] || items[0];
+    items.forEach(function (it, k) {
+      var choisie = it.dataset.id === focusedId, ouverte = choisie && it.dataset.id === ouvertId;
+      it.setAttribute('role', 'listitem');
+      it.setAttribute('aria-posinset', k + 1);
+      it.setAttribute('aria-setsize', items.length);
+      it.setAttribute('tabindex', it === arret ? '0' : '-1');
+      if (choisie) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
+      var lu = it.querySelector(':scope > .cm-etat-lu');
+      if (!lu) { lu = document.createElement('span'); lu.className = 'wm-lu cm-etat-lu'; it.appendChild(lu); }
+      lu.textContent = (choisie ? ', choisi' : '') + (ouverte ? ', ouvert' : ', réduit');
+    });
   }
 
   /* Liste, décision c1 de François (26/10, ZB-295) : un clic choisit un retour (fond gris, son repère s'allume sur la
@@ -2540,6 +2563,7 @@
     if (!item) return;
     ouvertId = id;
     item.classList.add('wm-ouvert');
+    majEtatsLignes();
     editInList(id);
     if (!item.contains(document.activeElement)) focusLigne(id);
   }
@@ -2549,6 +2573,7 @@
     var item = ligneDe(id);
     if (!item) return;
     item.classList.remove('wm-ouvert');
+    majEtatsLignes();
     // Un champ de réponse du fil resté ouvert (en live, il n'envoie rien en sortant) est seulement caché avec le retour :
     // ce qui y est écrit se retrouve à la réouverture.
     focusLigne(id);
@@ -2747,6 +2772,7 @@
       items[i].classList.toggle('cm-current', items[i].dataset.id === focusedId);
       items[i].classList.toggle('wm-ouvert', !!ouvertId && items[i].dataset.id === ouvertId);
     }
+    majEtatsLignes();
   }
 
   /* Le fond derrière un repère est-il sombre ? (premier ancêtre avec une couleur de fond opaque) */
@@ -3843,6 +3869,7 @@
       flushPending(); refreshStatuses();
     }
     var etaitOuverte = panel.classList.contains('show');
+    var focusDedans = etaitOuverte && !show && panel.contains(document.activeElement);
     panel.classList.toggle('show', show);
     if (!show && !pendingPopup) setFocused(null);
     if (!show && etaitOuverte) marquerVus();                      // le voyant s'éteint quand on ferme la liste après l'avoir vue (C5)
@@ -3853,6 +3880,8 @@
     placerBandeau();
     placerStatus();
     majBoutons();
+    // Liste fermée alors que le focus y était (Échap, croix, « nouveau retour ») : il revient au bouton witmit, pas à la page.
+    if (focusDedans) { var pbf = document.getElementById('cmPanelBtn'); if (pbf) { try { pbf.focus({ preventScroll: true }); } catch (e) { pbf.focus(); } } }
   };
   function placerBoutons() {
     var fab = document.querySelector('.cm-fab');

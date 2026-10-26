@@ -299,3 +299,93 @@ test('L8. coins arrondis de la liste côté page (9 px) : on y voit la page, rie
   }, png.toString('base64'));
   expect(coin).not.toEqual([250, 250, 250]);
 });
+
+// Relecture de Léa (lot 4) : accessibilité de la liste.
+test('L9 (É1). lecteur d’écran : liste nommée, retours en éléments de liste avec leur position ; le choisi porte aria-current, son état se lit (« choisi, ouvert » ou « réduit »)', async ({ page }) => {
+  const nom = 'tellus-accueil.html';
+  await semer(page, nom, 'witmit_tellus_v1', ['a', 'b', 'c'].map((id) => retour(id, nom)));
+  await ouvrirListe(page);
+  const liste = page.locator('#cmList');
+  await expect(liste).toHaveAttribute('role', 'list');
+  await expect(liste).toHaveAccessibleName('tes retours sur cette page');
+  const etat = () => page.locator('#cmList .cm-panel-item').evaluateAll((els) => els.map((e) => [e.getAttribute('role'), e.getAttribute('aria-posinset'), e.getAttribute('aria-setsize'),
+    e.getAttribute('aria-current'), e.querySelector(':scope > .cm-etat-lu').textContent]));
+  expect(await etat()).toEqual([['listitem', '1', '3', null, ', réduit'], ['listitem', '2', '3', null, ', réduit'], ['listitem', '3', '3', null, ', réduit']]);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  expect((await etat())[1]).toEqual(['listitem', '2', '3', 'true', ', choisi, réduit']);
+  expect((await etat())[0][3]).toBe(null);
+  // Ce qu'on entend sur la ligne qui a le focus : la position, le texte, puis l'état.
+  const lu = await ligne(page, 1).evaluate((e) => e.textContent.replace(/\s+/g, ' ').trim());
+  expect(lu.startsWith('2')).toBe(true);
+  expect(lu).toContain(LONG + ' (b)');
+  expect(lu.endsWith(', choisi, réduit')).toBe(true);
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');                                   // (le champ s'est ouvert : Échap le referme)
+  await page.keyboard.press('Enter');
+  expect((await etat())[1][4]).toBe(', choisi, ouvert');
+  // État vide : pas de rôle de liste (aucun élément).
+  await page.goto(H.fileUrl(nom)); await H.clearStorage(page); await page.reload();
+  await ouvrirListe(page);
+  await expect(page.locator('#cmList')).not.toHaveAttribute('role', /.+/);
+});
+
+test('L10 (É2). un seul arrêt de tabulation pour la liste : la ligne choisie, sinon la première ; mis à jour quand le choix change', async ({ page }) => {
+  const nom = 'tellus-accueil.html';
+  await semer(page, nom, 'witmit_tellus_v1', ['a', 'b', 'c'].map((id) => retour(id, nom)));
+  await ouvrirListe(page);
+  const arrets = () => page.locator('#cmList .cm-panel-item').evaluateAll((els) => els.map((e) => e.getAttribute('tabindex')));
+  expect(await arrets()).toEqual(['0', '-1', '-1']);
+  // Au clavier : depuis « masquer les terminés », Tab arrive sur la liste (sa première ligne), puis Tab en sort.
+  await page.locator('#cmPanel .cm-hide-done').focus();
+  await page.keyboard.press('Tab');
+  await expect(ligne(page, 0)).toBeFocused();
+  await page.keyboard.press('ArrowDown');                                // rien de choisi : la ligne qui a le focus est choisie
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  expect(await arrets()).toEqual(['-1', '-1', '0']);
+  await expect(ligne(page, 2)).toBeFocused();
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => !!document.activeElement.closest('.cm-panel-item'))).toBe(false);
+  await page.keyboard.press('Shift+Tab');
+  await expect(ligne(page, 2)).toBeFocused();                            // retour sur la ligne choisie
+  await ligne(page, 1).locator('.zone').click();                         // un clic change le choix : l'arrêt suit
+  expect(await arrets()).toEqual(['-1', '0', '-1']);
+});
+
+test('L11 (É3). fermer la liste quand le focus y est (Échap, Échap ; croix ; « nouveau retour ») rend le focus au bouton witmit', async ({ page }) => {
+  const nom = 'tellus-accueil.html';
+  await semer(page, nom, 'witmit_tellus_v1', [retour('a', nom, { status: 'signale', signaledAt: new Date().toISOString() })]);
+  await ouvrirListe(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(ligne(page, 0)).toHaveClass(/wm-ouvert/);
+  await page.keyboard.press('Escape');                                   // le retour ouvert
+  await page.keyboard.press('Escape');                                   // puis la liste
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('#cmPanelBtn')).toBeFocused();
+  await ouvrirListe(page);
+  await page.locator('#cmPanel .cm-panel-fermer').click();               // la croix
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('#cmPanelBtn')).toBeFocused();
+  await ouvrirListe(page);
+  await page.locator('#cmNewBtn').focus();
+  await page.keyboard.press('Enter');                                    // « nouveau retour » au clavier
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('#cmPanelBtn')).toBeFocused();
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
+});
+
+test('L12. état vide : « nouveau retour » ne se coupe pas (espace insécable), à 340 px', async ({ page }) => {
+  await page.goto(H.fileUrl('tellus-accueil.html'));
+  await H.clearStorage(page); await page.reload();
+  await ouvrirListe(page);
+  const p = page.locator('#cmList .cm-vide-mode');
+  expect(await p.evaluate((e) => e.textContent)).toBe('pour en laisser un, appuie sur « nouveau retour », puis :');
+  const coupe = await p.evaluate((e) => {
+    const t = e.firstChild, i = t.data.indexOf('nouveau'), r = document.createRange();
+    r.setStart(t, i); r.setEnd(t, i + 'nouveau retour'.length);
+    return r.getClientRects().length;
+  });
+  expect(coupe).toBe(1);                                                 // un seul morceau : jamais coupé
+});
