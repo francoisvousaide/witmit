@@ -100,6 +100,7 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.waitForTimeout(400);                                       // fin du glissement de la liste
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les icônes seules sont dans le retour ouvert
   const cercles = await page.evaluate(() => Array.from(document.querySelectorAll('#cmPanel .wm-cercle')).filter((el) => el.offsetParent).map((el) => {
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const e = document.elementFromPoint(cx + 21, cy);
@@ -119,7 +120,7 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
   });
   expect(e).toEqual({ w: 24, h: 24, gauche: true, droite: true, haut: true, bas: true, loin: false });
   // Bandeau (fiche Bandeau) : poignée de 20 × 44 px dans un bandeau qu'on attrape partout hors de sa touche (la zone
-  // qu'on peut saisir fait donc au moins 44 × 44 px depuis la poignée) ; « terminer » : face de 32 px, zone de 44 px.
+  // qu'on peut saisir fait donc au moins 44 × 44 px depuis la poignée) ; « terminer » : face de 30 px (V2, bouton principal compact), zone de 44 px.
   const b = await page.evaluate(() => {
     const pill = document.getElementById('cmPill'), poignee = pill.querySelector('.wm-poignee'), fin = pill.querySelector('.wm-terminer');
     const rp = poignee.getBoundingClientRect(), rf = fin.getBoundingClientRect(), face = getComputedStyle(fin, '::before');
@@ -131,19 +132,20 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, bouton du mode, croix e
       haut: touche(rf.left + rf.width / 2, rf.top + 1), bas: touche(rf.left + rf.width / 2, rf.bottom - 1)
     };
   });
-  expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 32, largeur: true, haut: true, bas: true });
+  expect(b).toEqual({ poignee: [20, 44], saisie44: true, terminer: 44, face: 30, largeur: true, haut: true, bas: true });
 });
 
-test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 900 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
+test('3b. bandeau (V2, b3) : nom, poignée, « annotation », « terminer » sans « échap » ; une ligne de 1 280 à 320 px ; liste ouverte, il ne la recouvre pas', async ({ page }) => {
   await H.activate(page);
   const pill = page.locator('#cmPill');
   await expect(pill).toHaveAttribute('aria-label', 'witmit : mode annotation');
   await expect(pill.locator('.wm-bandeau-mode')).toHaveText('annotation');
   await expect(pill.locator('.wm-bandeau-mode .wm-voyant')).toHaveCount(1);       // le voyant jamais sans le mot
-  const multi = H.IS_MAC ? 'cmd+clic : plusieurs' : 'ctrl+clic : plusieurs';
-  await expect(pill.locator('.wm-gestes')).toHaveText('clic : élément · ' + multi + ' · glisser : zone · maj+glisser : texte');
+  await expect(pill.locator('.wm-gestes, .wm-geste, .wm-filet')).toHaveCount(0);  // plus de gestes dans le bandeau (b3)
   await expect(pill.locator('.wm-poignee')).toHaveAttribute('title', 'glisse pour déplacer le bandeau');
-  await expect(pill.locator('.wm-terminer')).toHaveText('termineréchap');
+  await expect(pill.locator('.wm-terminer')).toHaveText('terminer');
+  await expect(pill.locator('.wm-terminer .wm-repere')).toHaveCount(0);           // plus de puce « échap »
+  await expect(pill.locator('.wm-terminer')).toHaveAttribute('aria-keyshortcuts', 'Escape');
   await expect(pill.locator('.wm-terminer')).toHaveAttribute('title', "terminer l'annotation · échap ou " + (H.IS_MAC ? '⌥+A' : 'alt+A'));
   // 1 280 px : une ligne de 44 px, centrée, à 12 px sous le haut (pas de barre de navigation sur cette page)
   const ecartAuCentre = () => page.evaluate(() => { const p = document.getElementById('cmPill').getBoundingClientRect(); return Math.round(Math.abs(p.left + p.width / 2 - document.documentElement.clientWidth / 2)); });
@@ -151,15 +153,13 @@ test('3b. bandeau : nom, gestes, « terminer » ; sur deux lignes à 900 px ; li
   let r = await pill.boundingBox();
   expect(r.height).toBe(44);
   expect(r.y).toBe(12);
-  // 900 px : deux lignes, chaque geste entier sur sa ligne
-  await page.setViewportSize({ width: 900, height: 800 });
-  await expect(pill).toHaveClass(/wm-deux-lignes/);
+  // 760 px (deux lignes en 0.2.0) : toujours une seule ligne de 44 px, dans l'écran
+  await page.setViewportSize({ width: 760, height: 800 });
+  await expect.poll(async () => { const q = await pill.boundingBox(); return q.x + q.width; }).toBeLessThanOrEqual(752);   // replacé au redimensionnement
   r = await pill.boundingBox();
-  expect(r.height).toBeGreaterThan(60);
+  expect(r.height).toBe(44);
   expect(r.x).toBeGreaterThanOrEqual(8);
-  expect(r.x + r.width).toBeLessThanOrEqual(892);
-  const gestesEntiers = await pill.locator('.wm-geste').evaluateAll((gs) => gs.every((g) => new Set([...g.getClientRects()].map((q) => Math.round(q.top))).size === 1));
-  expect(gestesEntiers).toBe(true);
+  expect(r.x + r.width).toBeLessThanOrEqual(752);
   // Liste ouverte en mode actif (1 280 px) : le bandeau se centre sur la page restante, à gauche de la liste
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.locator('#cmPanelBtn').click();
@@ -207,6 +207,7 @@ test('5b. visionneuse : Échap, croix et clic à côté la ferment (le clic à c
   });
   await page.reload();
   await page.locator('#cmPanelBtn').click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
   const vignette = page.locator('.cm-panel-item .cm-vignette');
   await expect(vignette).toHaveAccessibleName('agrandir la capture');
   const ouvrir = async () => { await vignette.click(); await expect(page.locator('.cm-lightbox')).toHaveCount(1); };
@@ -335,17 +336,17 @@ test('11. largeurs : à 375 px, la fenêtre de saisie tient dans l’écran, cat
     return { marge: getComputedStyle(l).paddingBottom, couvert: dernier.bottom > fab.top && dernier.top < fab.bottom };
   });
   expect(bas).toEqual({ marge: '76px', couvert: false });
-  // Sur ordinateur, la fenêtre fait 380 px, le tiroir aussi.
+  // Sur ordinateur, la fenêtre fait 340 px (V2, fiche Fenetre) ; la liste aussi (V2, fiche Tiroir).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));
   await H.activate(page);
   const b = await H.visibleBox(page, CIBLE);
   await page.mouse.click(b.x + 4, b.y + 4);
-  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(380);
+  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(340);
   await page.keyboard.press('Escape');
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);
-  expect((await page.locator('#cmPanel').boundingBox()).width).toBe(380);
+  expect((await page.locator('#cmPanel').boundingBox()).width).toBe(340);
 });
 
 // Lot 8 — tests 4, 7, 8 et 9 sur toute l'interface : chaque vérification passe par les mêmes étapes, en maquette (page
@@ -374,8 +375,14 @@ async function parcoursMaquette(page, nom, verifier) {
   await H.activate(page);
   await page.locator('#cmPanelBtn').click();
   await page.waitForTimeout(400);
-  await page.locator('.cm-panel-item details.cm-tech summary').first().click();
-  await verifier('liste');
+  await verifier('liste');                                            // retours réduits (V2, fiche Tiroir)
+  // c1 (V2) : un seul retour ouvert à la fois ; chacun est vérifié ouvert (statuts, détails techniques, fil, champ de réponse).
+  const lignes = page.locator('#cmPanel .cm-panel-item');
+  for (let i = 0; i < 5; i++) {
+    await H.ouvrirRetour(page, lignes.nth(i));
+    if (i === 0) await lignes.nth(0).locator('details.cm-tech summary').click();
+    await verifier('liste, retour ' + (i + 1) + ' ouvert');
+  }
   await page.locator('.cm-pin').nth(3).click();                       // fenêtre d'un complément demandé
   await expect(page.locator('.cm-popup')).toBeVisible();
   await verifier('fenêtre de complément');
@@ -397,6 +404,7 @@ async function parcoursMaquette(page, nom, verifier) {
     await page.locator('#cmPanelBtn').click();
     await page.waitForTimeout(400);
     await expect(page.locator('#cmPanel .cm-vignette')).toHaveCount(1, { timeout: 10000 });
+    await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').filter({ has: page.locator('.cm-vignette') }));   // c1 : la vignette est dans le retour ouvert
     await page.locator('#cmPanel .cm-vignette').click();
     await expect(page.locator('.cm-lightbox')).toBeVisible();
     await verifier('visionneuse');
@@ -423,6 +431,10 @@ async function parcoursLive(page, verifier) {
   await expect(page.locator('.cm-msg')).toHaveCount(2, { timeout: 15000 });
   await page.waitForTimeout(400);
   await verifier('liste live');
+  await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').nth(1));   // c1 : « à renvoyer », ouvert
+  await verifier('liste live, retour refusé ouvert');
+  await H.ouvrirRetour(page, page.locator('#cmPanel .cm-panel-item').nth(0));   // le fil, ouvert
+  await verifier('liste live, fil ouvert');
   await page.locator('.cm-reopen-btn').click();
   await expect(page.locator('.cm-inline-reply')).toBeVisible();
   await verifier('champ rouvrir');
@@ -436,7 +448,7 @@ test('4. focus : au clavier, un contour visible sur chaque élément de witmit a
     if (!el || !el.closest('.cm-ui, .cm-popup, .cm-lightbox')) return { hors: true, nom: el && (el.id || el.className || el.tagName) };
     const cs = getComputedStyle(el), apres = getComputedStyle(el, '::after');
     const champ = el.closest('.wm-champ'), anneauChamp = champ ? getComputedStyle(champ, '::after') : null;
-    const visible = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (apres.content !== 'none' && apres.content !== 'normal' && apres.clipPath !== 'none')
+    const visible = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (apres.content !== 'none' && apres.content !== 'normal' && parseFloat(apres.borderTopWidth) >= 2)
       || (anneauChamp && anneauChamp.content !== 'none' && anneauChamp.content !== 'normal') || (cs.boxShadow && cs.boxShadow !== 'none');
     return { hors: false, nom: el.getAttribute('aria-label') || (el.innerText || '').trim().slice(0, 30) || el.className || el.tagName, visible: !!visible, fv: el.matches(':focus-visible') };
   });
@@ -498,6 +510,9 @@ const textesVisibles = (page) => page.evaluate(() => {
   document.querySelectorAll('.cm-ui, .cm-popup, .cm-lightbox').forEach((root) => {
     [root, ...root.querySelectorAll('*')].forEach((el) => {
       if (el.closest('[data-wm-fourni="page"]')) return;
+      // Toutes les couches de witmit vivent dans #wmRacine (lot 8) : un bloc de la page qui porte la classe cm-ui
+      // (maquettes TellUs : .mock-controls et sa touche de thème, 12 px) reste du texte de la page.
+      if (!el.closest('#wmRacine')) return;
       if (!Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.nodeValue.trim())) return;
       if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) return;
       const r = el.getBoundingClientRect();
@@ -509,13 +524,14 @@ const textesVisibles = (page) => page.evaluate(() => {
   return out;
 });
 
-test('7. taille de texte : aucun texte visible de witmit sous 12 px, en maquette (page sombre et claire) et en live', async ({ page }) => {
+test('7. taille de texte : aucun texte visible de witmit sous 13 px (V2), en maquette (page sombre et claire) et en live', async ({ page }) => {
   test.setTimeout(60000);
   const verifier = async (etape) => {
     // taille 0 : chiffre gardé dans le voyant (#cmCount) mais jamais dessiné (le voyant est un disque, décision B)
     const tous = await textesVisibles(page);
-    expect(tous.length, etape + ' : textes relevés').toBeGreaterThan(2);
-    const petits = tous.filter((t) => t.taille > 0 && t.taille < 12);
+    // (V2, b3 : le bandeau seul n'a plus que deux textes, « annotation » et « terminer ».)
+    expect(tous.length, etape + ' : textes relevés').toBeGreaterThanOrEqual(2);
+    const petits = tous.filter((t) => t.taille > 0 && t.taille < 13);
     expect(petits, etape).toEqual([]);
   };
   await parcoursMaquette(page, MAQUETTE, verifier);
@@ -551,9 +567,12 @@ test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt 
   await page.locator('#cmClearPageBtn').click();
   await page.locator('#cmClearSiteBtn').click();
   await page.locator('#cmPanelBtn').click();
-  await H.activate(page);
+  // c1 (V2) : ouvrir un retour de la liste a lancé le mode annotation (son repère s'allume) ; sinon, on le lance.
+  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
   const b = await H.visibleBox(page, CIBLE2);
-  await page.mouse.click(b.x + 4, b.y + 4);
+  // Au milieu de la cellule (V2) : son coin haut gauche est sous la zone de 44 px de l'épingle de la cellule
+  // voisine, à cheval sur le coin de son cadre (fiche Epingle).
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.locator('.cm-popup textarea').fill('pas fini');
   await page.locator('#cmToggleBtn').click();
   await expect.poll(() => dialogues.length).toBeGreaterThanOrEqual(3);

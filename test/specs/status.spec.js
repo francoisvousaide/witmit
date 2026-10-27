@@ -38,6 +38,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
   test('✓ = résolu par moi : verrouillé, grisé, compteurs, persistant ; pas de retour arrière', async ({ page }) => {
     await setup(page);
     await expect(page.locator('#cmPanelSub')).toContainText('2 à suivre');            // le nombre « à suivre » (Léa 2.1)
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(0));               // c1 (V2) : les actions sont dans le retour ouvert
     await page.locator('.cm-panel-item').nth(0).locator('.st').click();
     await expect(page.locator('.cm-panel-item').nth(0)).toHaveClass(/cm-done/);
     await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-status-chip')).toHaveText('résolu par moi');
@@ -51,7 +52,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     expect(data[0].history[0].status).toBe('resolu');
     // verrouillé : la bulle est en lecture seule, la liste ne propose pas l'édition
     await page.mouse.click(30, 600);
-    await H.activate(page);
+    await H.assurerMode(page);                                            // (le retour ouvert dans la liste a lancé le mode)
     await expect(page.locator('.cm-pin').nth(0)).toHaveClass(/cm-done/);
     await page.locator('.cm-pin').nth(0).click();
     await expect(page.locator('.cm-popup')).toHaveClass(/cm-locked/);
@@ -64,7 +65,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await page.keyboard.press('Escape');
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
-    await page.locator('.cm-panel-item').nth(0).locator('.body').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(0));               // c1 (V2) : ouvert en lecture, sans champ
     await expect(page.locator('.cm-panel-item textarea')).toHaveCount(0);
     await expect(page.locator('#cmStatus')).toContainText('non modifiable');
     await page.reload();
@@ -108,12 +109,13 @@ test.describe('Cycle de vie (Kiosque)', () => {
   test('rouvrir un signalé : redevient modifiable, renvoyé avec « remplace la version du »', async ({ page }) => {
     await setup(page);
     await copyReport(page, true);
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(0));               // c1 (V2) : « rouvrir » est dans le retour ouvert
     await page.locator('.cm-panel-item').nth(0).locator('.reopen').click();
     let data = await H.stored(page, KEY);
     expect(data[0].status).toBe('nouveau');
     expect(data[0].supersedes).toBeTruthy();
     await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-status-chip')).toHaveCount(0);
-    await page.locator('.cm-panel-item').nth(0).locator('.body').click();
+    // c1 (V2) : le retour, resté ouvert, redevient modifiable : son texte s'ouvre aussitôt dans le champ.
     await expect(page.locator('.cm-panel-item textarea')).toHaveValue('Premier');
     await page.locator('.cm-panel-item textarea').fill('Premier (corrigé)');
     await page.locator('.cm-panel-item textarea').press('Enter');
@@ -159,7 +161,9 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-panel-item').nth(1).locator('.del')).toHaveCount(1);   // maquette : corbeille sur un complément aussi
     await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-feedback-q')).toContainText('Quelle ligne exactement ?');
     // répondre au complément depuis la liste
-    await page.locator('.cm-panel-item').nth(1).locator('.body').click();
+    // c1 (V2) : un clic choisit le retour, un deuxième l'ouvre, avec le champ de réponse au complément
+    await page.locator('.cm-panel-item').nth(1).locator('.body .txt').click();
+    await page.locator('.cm-panel-item').nth(1).locator('.body .txt').click();
     await expect(page.locator('.cm-panel-item textarea.cm-inline-reply')).toBeVisible();
     await page.locator('.cm-panel-item textarea.cm-inline-reply').fill('La ligne 1042, Café des Arts');
     await page.locator('.cm-panel-item textarea.cm-inline-reply').press('Enter');

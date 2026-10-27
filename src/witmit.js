@@ -1,7 +1,7 @@
 /*!
- * witmit 0.2.0 — widget d'annotation visuelle (charte « Objet »)
+ * witmit 0.3.0 — widget d'annotation visuelle (charte V2 : thème du site, verre et titane, orange en signal)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
- * Polices (dossier witmit-polices/ à côté de ce fichier) : Tektur, Martian Mono, Syne et Doto, SIL Open Font License 1.1.
+ * Police : celle du système (aucun fichier de police chargé).
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
  * Raccourcis : ⌥ deux fois / alt deux fois montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Camille' }) · identify(null) — voir plus bas.
@@ -57,57 +57,17 @@
     // data-multi-lines="false" : ne pas relier par des lignes fines les éléments d'une sélection multiple
     multiLines: !(SCRIPT_EL && /^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-multi-lines') || '')),
     // data-host-theme="light" | "dark" : le site dit lui-même si son fond est clair ou sombre (défaut "auto" :
-    // witmit le lit sur la page). witmit prend toujours l'inverse : site clair → verre graphite.
+    // witmit le lit sur la page). witmit prend le thème du site : site clair → titane clair (V2).
     hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme')),
-    // data-fonts="<adresse du dossier>" : autre emplacement des polices ; data-fonts="none" : polices du système
-    fonts: (SCRIPT_EL && SCRIPT_EL.getAttribute('data-fonts')) || ''
+    // data-selection-color="orange" : contour des sélections actives et pointillés des sélections inactives en orange
+    // (fiche Selection, décision de François du 26/10). Par défaut, et pour toute autre valeur : gris ("gray").
+    selectionColor: /^\s*orange\s*$/i.test((SCRIPT_EL && SCRIPT_EL.getAttribute('data-selection-color')) || '') ? 'orange' : 'gris'
   };
-  var VERSION = '0.2.0';
+  var VERSION = '0.3.0';
 
-  /* ---------- polices de la charte, servies à côté du script (jamais par un service tiers) ----------
-     Adresse : new URL('witmit-polices/', <adresse de witmit.js>), ou data-fonts. Les @font-face sont écrits
-     dans le CSS injecté : une police n'est téléchargée qu'au premier texte de witmit qui l'utilise. */
-  var FONTS_BASE = (function () {
-    if (/^none$/i.test(CONFIG.fonts)) return null;
-    try {
-      var href = CONFIG.fonts ? new URL(CONFIG.fonts, location.href).href : new URL('witmit-polices/', SCRIPT_EL && SCRIPT_EL.src).href;
-      return /\/$/.test(href) ? href : href + '/';
-    } catch (e) { return null; }
-  })();
-  var UNI_LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
-  var UNI_LATIN_EXT = 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF';
-  // [famille affichée, fichier, graisses, latin-ext ?]
-  var POLICES = [
-    ['witmit Tektur', 'tektur', [500, 700], true],
-    ['witmit Martian Mono', 'martian-mono', [400, 500, 600], true],
-    ['witmit Syne', 'syne', [400, 500], true],
-    ['witmit Doto', 'doto', [900], false]
-  ];
-  function fontFacesCss() {
-    if (!FONTS_BASE) return '';
-    var base = FONTS_BASE.replace(/["\\\n\r]/g, encodeURIComponent);
-    var out = '';
-    POLICES.forEach(function (p) {
-      p[2].forEach(function (w) {
-        var sets = p[3] ? [['latin-ext', UNI_LATIN_EXT], ['latin', UNI_LATIN]] : [['latin', UNI_LATIN]];
-        sets.forEach(function (set) {
-          out += '@font-face{font-family:"' + p[0] + '";font-style:normal;font-weight:' + w + ';font-display:swap;' +
-            'src:url("' + base + p[1] + '-' + set[0] + '-' + w + '-normal.woff2") format("woff2");unicode-range:' + set[1] + ';}\n';
-        });
-      });
-    });
-    return out;
-  }
-  // Demande les polices à l'avance (révélation, premier survol d'un bouton, ouverture de la liste) : elles
-  // sont prêtes quand la fenêtre s'ouvre. Un visiteur qui n'ouvre jamais witmit ne télécharge rien.
-  var fontsRequested = false;
-  function prechargerPolices() {
-    if (fontsRequested || !FONTS_BASE || !document.fonts || !document.fonts.load) return;
-    fontsRequested = true;
-    POLICES.forEach(function (p) {
-      p[2].forEach(function (w) { try { document.fonts.load(w + ' 16px "' + p[0] + '"').catch(function () {}); } catch (e) {} });
-    });
-  }
+  /* ---------- police : celle du système (V2) ----------
+     Plus aucune police embarquée ni chargée : witmit écrit avec la police système (SF Pro sur Mac, Segoe UI
+     sous Windows, Roboto sous Android). data-fonts, attribut de 0.2.0, est ignoré. Aucune requête de police. */
 
   /* ---------- icônes : Phosphor Regular 2.1.1 (licence MIT, en tête de ce fichier) ----------
      Tracés recopiés tels quels depuis assets/regular/<nom>.svg du paquet @phosphor-icons/core 2.1.1
@@ -209,44 +169,96 @@
   );
   var RACC_DOUBLE_ALT = IS_MAC ? '⌥ deux fois' : 'alt deux fois';
   var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
-  // Repère « ⌥ deux fois » de « masquer witmit » : à l'écran, ⌥ est l'icône Option dans le petit carré (Martian Mono
-  // ne l'a pas), suivie de « deux fois » hors du carré ; lu « option deux fois » par un lecteur d'écran ; « alt deux fois » hors Mac.
-  // Repère « ⌥+A » de l'aide de l'état vide : même carré, lu « option+A » par un lecteur d'écran ; « alt+A » hors Mac.
-  var REPERE_ANNOTER = '<span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>+A' : 'alt+A') + '</span>';
-  var REPERE_DOUBLE_ALT = '<span class="wm-repere-double"><span class="wm-repere">' + (IS_MAC ? icone('Option', 12) + '<span class="wm-lu">option</span>' : 'alt') +
-    '</span><span>deux fois</span></span>';
-  // Gestes du bandeau (Léa 3.2 ; fiche Bandeau) : ⌘ en icône Command (« ctrl » hors Mac) et « maj » en mot, chacun
-  // dans le petit carré ; chaque « geste : effet » ne se coupe jamais. Aucun geste tactile.
-  var REPERE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>';
-  // « · » collé au geste qui suit (espace insécable) : sur deux lignes, une ligne ne finit jamais par « · ».
-  var GESTES_HTML = '<span class="wm-geste"><b>clic</b> : élément</span> ·\u00a0<span class="wm-geste">' + REPERE_MULTI + '+<b>clic</b> : plusieurs</span> ·\u00a0' +
-    '<span class="wm-geste"><b>glisser</b> : zone</span> ·\u00a0<span class="wm-geste"><span class="wm-repere">maj</span>+<b>glisser</b> : texte</span>';
+  // « masquer witmit » n'affiche plus de raccourci (V2, fiche Touche) : « ⌥ deux fois » reste dans son info-bulle et
+  // dans son nom accessible (« masquer witmit option deux fois », texte réservé aux lecteurs d'écran).
+  // État vide de la liste (décision b3 du 26/10, textes mot pour mot) : les gestes quittent le bandeau pour la liste vide ;
+  // « ⌘ » sur Mac, « ctrl » ailleurs, et « maj », chacun dans le petit carré, en chasse fixe du système (fiche Tiroir).
+  var ETAT_VIDE_HTML = '<div class="cm-panel-empty cm-panel-vide">' +
+    "<p>aucun retour sur cette page pour l'instant.</p>" +
+    // « nouveau retour » et ses guillemets collés par des espaces insécables (É5, lot 7) : jamais un « seul en fin de ligne.
+    '<p class="cm-vide-mode">pour en laisser un, appuie sur «\u00a0nouveau\u00a0retour\u00a0», puis :</p>' +
+    '<ul class="cm-vide-gestes">' +
+      '<li><b>clic</b> : un élément</li>' +
+      '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
+      '<li><b>glisser</b> : une zone</li>' +
+      '<li><b><span class="wm-repere">maj</span>+glisser</b> : un passage de texte</li>' +
+    '</ul></div>';
 
+  /* ---------- la racine de witmit, posée sur <html>, hors de <body> (lot 8, flou du verre) ----------
+     Les couches de witmit (fenêtres, bandeau, messages, visionneuse, boutons ronds, halo, repères) vivent dans un seul
+     conteneur, #wmRacine, enfant de <html> à côté de <body>. Pourquoi : une page qui anime l'opacité de son <body>
+     (fondu d'entrée « animation: … both », comme TellUs) en fait une racine d'arrière-plan ; le verre posé dedans
+     ne floute plus la page et son texte reste lisible dessous. Hors de <body>, le verre floute tout le site. La liste
+     y vit aussi (renvoi du lot 8) ; les repères sont dans un calque à part, #wmReperes (voir poserRepere).
+     L'état de witmit reste écrit sur <body> (thème, mode, clavier…), recopié tel quel sur la racine (etatCorps) :
+     CORPS désigne l'un ou l'autre, avec la spécificité d'un simple « body » (:is(body,div) compte comme un élément,
+     :where ne compte rien). Le surlignage d'un passage (mark.cm-highlight), lui, reste dans le texte de la page. */
+  var CORPS = ':is(body,div):where(body,.wm-racine)';
   var CSS = `
-  /* ---------- jetons de la charte « Objet » (design system witmit, tokens.css) ----------
+  /* La racine : un point à l'origine du document, sans taille ni boîte ; ses couches sont fixes ou absolues. Pas de
+     transform, d'opacité ni de filtre : elle ne coupe aucun flou et ne change pas le repère des couches absolues. */
+  .wm-racine { position:absolute; left:0; top:0; width:0; height:0; margin:0; padding:0; border:0; overflow:visible; display:block; }
+  /* Calque des repères (poserRepere) : même origine ; liste ouverte, coupé en largeur au bord de la liste (couperReperes). */
+  .wm-reperes { position:absolute; left:0; top:0; width:0; height:0; margin:0; padding:0; border:0; overflow:visible; display:block; }
+  .wm-reperes.wm-coupe { overflow-x:clip; overflow-y:visible; }
+  .wm-reperes.wm-coupe-tout { visibility:hidden; }
+  /* ---------- jetons de la charte V2 (design system witmit, version 6, tokens.json) ----------
      Valeurs recopiées telles quelles, préfixées --wm-. Elles ne sont JAMAIS posées sur :root, html ni
      body : rien ne fuit dans la page hôte, et aucune variable de l'hôte n'entre dans witmit.
-     Thème : data-wm-theme sur <body>, toujours l'inverse du fond de la page (site clair → verre
-     graphite « client-sombre » ; site sombre → verre champagne « client-clair »). */
+     Thème : data-wm-theme sur <body>, celui du site (site clair → titane clair « client-clair » ;
+     site sombre → titane sombre « client-sombre »), boutons ronds compris. */
   .cm-ui, mark.cm-highlight {
-    --wm-ground: rgba(236,232,224,0.60);
-    --wm-surface: rgba(236,232,224,0.60);
-    --wm-surface-raised: rgba(255,255,255,0.45);
-    --wm-face-touche: rgba(255,255,255,0.45);
-    --wm-ink: #141412;
-    --wm-ink-soft: #2e2b27;
-    --wm-ink-faint: #45423d;
-    --wm-line: rgba(0,0,0,0.16);
-    --wm-contour-fenetre: #6f685d;
-    --wm-line-strong: rgba(20,20,18,0.55);
-    --wm-accent: #fff200;
+    --wm-ground: rgba(250,250,250,0.72);
+    --wm-surface: rgba(250,250,250,0.72);
+    --wm-surface-raised: rgba(0,0,0,0.05);
+    --wm-face-touche: rgba(0,0,0,0.07);
+    --wm-ink: #141414;
+    --wm-ink-soft: #141414;
+    --wm-ink-faint: rgba(20,20,20,0.60);
+    --wm-line: rgba(0,0,0,0.10);
+    --wm-contour-fenetre: rgba(0,0,0,0.14);
+    --wm-line-strong: rgba(0,0,0,0.30);
+    --wm-accent: #f7821a;
     --wm-accent-ring: #0a0a0a;
     --wm-signal: #b8291d;
-    --wm-metal-dark-hi: #5e584f;
-    --wm-metal-dark-lo: #191816;
-    --wm-metal-light-hi: #faf8f4;
-    --wm-metal-light-lo: #c3bbad;
-    --wm-ombre-fenetre: 0 16px 26px rgba(0,0,0,0.55);
+    /* Fond mat de la liste, filet qui la sépare de la page, ligne choisie, bloc intérieur, face d'un champ
+       posé dans un bloc, libellé du bouton principal orange (tokens.json, V2). */
+    --wm-liste-fond: #fafafa;
+    --wm-liste-separation: rgba(0,0,0,0.12);
+    --wm-selection-ligne: rgba(0,0,0,0.07);
+    --wm-bloc-fond: rgba(0,0,0,0.028);
+    --wm-bloc-lisere: rgba(255,255,255,0.75);
+    --wm-champ-fond: rgba(255,255,255,0.80);
+    --wm-bouton-principal-texte: #ffffff;
+    /* Bloc intérieur (fiche Fenetre) : contour à peine marqué (noir à 4,5 %) ; ombre-bloc plus bas. Liseré à peine
+       visible des boutons gris en clair (fiche Touche : noir à 8 %, 0,5 px). */
+    --wm-bloc-contour: rgba(0,0,0,0.045);
+    --wm-touche-lisere: rgba(0,0,0,0.08);
+    /* Cadres de sélection (fiche Selection) : d'après le fond derrière eux, comme les repères. */
+    --wm-cadre-trait: rgba(0,0,0,0.30);
+    --wm-cadre-trait-sombre: rgba(255,255,255,0.42);
+    --wm-cadre-pointilles: rgba(0,0,0,0.42);
+    --wm-cadre-pointilles-sombre: rgba(255,255,255,0.50);
+    --wm-cadre-poignee: rgba(0,0,0,0.40);
+    --wm-cadre-poignee-sombre: rgba(255,255,255,0.55);
+    --wm-cadre-gris-trace: rgba(128,128,128,0.26);
+    --wm-cadre-gris-actif: rgba(128,128,128,0.12);
+    --wm-ombre-cadre: 0 2px 10px rgba(0,0,0,0.22), inset 0 0 6px rgba(0,0,0,0.20);
+    --wm-ombre-bloc: 0 1px 6px rgba(0,0,0,0.05);
+    /* Métal poli des boutons ronds et de l'épingle active : titane neutre (tokens.json ; paliers mi et fin,
+       reflet et trait clair d'après la maquette V2). */
+    --wm-metal-dark-hi: #5c5c5c;
+    --wm-metal-dark-lo: #181818;
+    --wm-metal-light-hi: #fafafa;
+    --wm-metal-light-lo: #bdbdbd;
+    /* Ombre des fenêtres à la manière de macOS (thème clair) : noir à 34 %, glissée de 22 px, flou ~56 px,
+       plus une ombre de contact. En sombre : lueur blanche de même forme et liseré (plus bas). */
+    --wm-ombre-fenetre: 0 22px 56px rgba(0,0,0,0.34), 0 1px 3px rgba(0,0,0,0.14);
+    --wm-ombre-copie: rgba(0,0,0,0.34);
+    --wm-ombre-contact: 0 1px 3px rgba(0,0,0,0.14);
+    /* Bord du verre (fiche Fenetre) : en clair, trait de 1 px contour-fenetre (noir à 14 %) et ombre de contact ;
+       en sombre, liseré blanc à 16 % dedans et 5 % dehors. */
+    --wm-verre-bord: inset 0 0 0 1px var(--wm-contour-fenetre), var(--wm-ombre-contact);
     --wm-ombre-epingle: inset 0 1.5px 0 rgba(255,255,255,0.75), inset 0 -3px 5px rgba(0,0,0,0.26), 0 3px 10px rgba(0,0,0,0.28);
     --wm-ombre-bouton: inset 0 1px 1px rgba(255,240,220,0.45), 0 8px 18px rgba(0,0,0,0.30);
     --wm-ombre-bouton-enfonce: inset 0 3px 6px rgba(90,70,50,0.45), inset 0 -1px 0 #ffffff, 0 1px 2px rgba(0,0,0,0.40);
@@ -254,14 +266,14 @@
     /* Métal des deux boutons ronds (fiche BoutonWitmit) : trait, signe, reflet et paliers du dégradé poli. */
     --wm-metal-dark-trait: #0a0a0a;
     --wm-metal-dark-signe: #f4f4f4;
-    --wm-metal-dark-reflet: rgba(255,240,220,0.30);
-    --wm-metal-dark-mi: #2e2b27;
-    --wm-metal-dark-fin: #38342f;
-    --wm-metal-light-trait: #6f685d;
-    --wm-metal-light-signe: #141412;
+    --wm-metal-dark-reflet: rgba(255,255,255,0.28);
+    --wm-metal-dark-mi: #2e2e2e;
+    --wm-metal-dark-fin: #383838;
+    --wm-metal-light-trait: #6f6f6f;
+    --wm-metal-light-signe: #141414;
     --wm-metal-light-reflet: rgba(255,255,255,0.75);
-    --wm-metal-light-mi: #e0dacf;
-    --wm-metal-light-fin: #e8e3da;
+    --wm-metal-light-mi: #e0e0e0;
+    --wm-metal-light-fin: #e8e8e8;
     --wm-ombre-bouton-clair: inset 0 1px 1px #ffffff, 0 8px 18px rgba(0,0,0,0.45);
     --wm-space-1: 4px;
     --wm-space-2: 8px;
@@ -271,98 +283,124 @@
     --wm-radius-repere: 4px;
     --wm-radius-numero: 5px;
     --wm-radius-rond: 999px;
-    --wm-coupe-fenetre: 11px;
-    --wm-coupe-touche: 6px;
-    --wm-verre-flou: 10px;
-    --wm-verre-opacite-clair: 0.60;
-    --wm-verre-opacite-sombre: 0.66;
+    /* Arrondis de la V2 (tokens.json, onglet Rayons) : plus aucun angle cassé dans le widget. */
+    --wm-radius-fenetre: 9px;     /* fenêtres, bandeau, liste */
+    --wm-radius-bloc: 7px;        /* bloc intérieur à la manière d'Apple */
+    --wm-radius-bouton: 6px;      /* boutons, lignes de la liste, cadres de sélection */
+    --wm-radius-epingle: 6px;     /* les quatre coins de l'épingle */
+    --wm-radius-champ: 5px;       /* champs, vignettes, zones en creux */
+    --wm-radius-message: 8px;     /* messages passagers */
+    --wm-radius-coude: 3px;       /* coude des coins witmit (fenêtres, cadres) */
+    /* Verre (fenêtres, bandeau, messages passagers) : 72 % en clair, 70 % en sombre, flou de 40 px, saturation 1,9. */
+    --wm-verre-flou: 40px;
+    --wm-verre-saturation: 1.9;
+    --wm-verre-opacite-clair: 0.72;
+    --wm-verre-opacite-sombre: 0.70;
     --wm-cible-min: 44px;
-    --wm-texte-min: 12px;
-    --wm-font-titre: "witmit Tektur", system-ui, sans-serif;
-    --wm-font-outil: "witmit Martian Mono", ui-monospace, Menlo, Consolas, monospace;
-    --wm-font-voix: "witmit Syne", system-ui, sans-serif;
-    --wm-font-compteur: "witmit Doto", ui-monospace, Menlo, Consolas, monospace;
+    --wm-texte-min: 13px;
+    /* Police système partout dans l'outil, texte de la personne compris ; chasse fixe du système pour les
+       seules touches de clavier citées dans une aide. Aucun fichier de police chargé. */
+    --wm-font-systeme: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wm-font-touche: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     /* Encre des repères posés sur le site (épingles, cadres, liens) : fixe, elle ne suit pas le verre
        mais le fond derrière chaque repère (fiche Reperes) — valeurs de --wm-ink clair et sombre. */
-    --wm-encre-repere: #141412;
-    --wm-encre-repere-claire: #f6f3ee;
-    --wm-encre-repere-55: rgba(20,20,18,.55);
-    --wm-encre-repere-claire-55: rgba(246,243,238,.55);
-    /* Face de l'épingle (fiches Epingle et Reperes) : le verre des fenêtres, choisi d'après le fond derrière elle
-       (champagne et chiffre encre sur fond clair ; graphite et chiffre blanc cassé sur fond sombre). */
-    --wm-epingle-verre-clair: rgba(236,232,224,.60);
-    --wm-epingle-verre-sombre: rgba(20,19,17,.66);
+    --wm-encre-repere: #141414;
+    --wm-encre-repere-claire: #f4f4f4;
+    --wm-encre-repere-55: rgba(20,20,20,.55);
+    --wm-encre-repere-claire-55: rgba(244,244,244,.55);
+    /* Face de l'épingle (fiches Epingle et Reperes ; décision a3) : le verre des fenêtres, choisi d'après le
+       fond derrière elle (titane clair sur fond clair ; titane sombre sur fond sombre). */
+    --wm-epingle-verre-clair: rgba(250,250,250,.72);
+    --wm-epingle-verre-sombre: rgba(27,27,27,.70);
     --wm-epingle-contour-sombre: rgba(255,255,255,.55);
-    --wm-ombre-epingle-metal-sombre: inset 0 1px 1px rgba(255,240,220,.45), 0 3px 10px rgba(0,0,0,.28);
+    --wm-ombre-epingle-metal-sombre: inset 0 1px 1px rgba(255,255,255,.28), 0 3px 10px rgba(0,0,0,.28);
     --wm-ombre-epingle-metal-clair: inset 0 1px 1px #ffffff, 0 3px 10px rgba(0,0,0,.45);
-    /* Halo du mode annotation (fiche Bandeau) : mêmes valeurs sur tous les sites, sans variante de thème. */
+    /* Halo du mode annotation (fiche Bandeau) : orange, mêmes valeurs sur tous les sites, sans variante de thème. */
     --wm-halo-filet: rgba(10,10,10,.9);
-    --wm-halo-lueur-courte: rgba(255,242,0,.42);
-    --wm-halo-lueur: rgba(255,242,0,.40);
+    --wm-halo-lueur-courte: rgba(247,130,26,.42);
+    --wm-halo-lueur: rgba(247,130,26,.40);
     /* Rond de la loupe posé sur une capture (fiche Tiroir) : sur l'image, jamais sur le verre. */
-    --wm-loupe-fond: rgba(20,19,17,.66);
+    --wm-loupe-fond: rgba(22,22,22,.66);
     /* Mise en page seulement (pas d'identité) : la barre de navigation de l'hôte, si elle est déclarée. */
     --wm-nav-h: var(--nav-h, 0px);
   }
-  body[data-wm-theme="client-sombre"] .cm-ui, body[data-wm-theme="client-sombre"] mark.cm-highlight {
-    --wm-ground: rgba(20,19,17,0.66);
-    --wm-surface: rgba(20,19,17,0.66);
-    --wm-surface-raised: rgba(0,0,0,0.30);
-    --wm-face-touche: rgba(255,255,255,0.07);
-    --wm-ink: #f6f3ee;
-    --wm-ink-soft: #e6e2d9;
-    --wm-ink-faint: #bdb9b0;
-    --wm-line: rgba(255,255,255,0.14);
-    --wm-contour-fenetre: #0a0a0a;
-    --wm-line-strong: rgba(246,243,238,0.55);
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui, body[data-wm-theme="client-sombre"] mark.cm-highlight {
+    --wm-ground: rgba(27,27,27,0.70);
+    --wm-surface: rgba(27,27,27,0.70);
+    --wm-surface-raised: rgba(255,255,255,0.06);
+    --wm-face-touche: rgba(255,255,255,0.14);
+    --wm-ink: #ffffff;
+    --wm-ink-soft: #ffffff;
+    --wm-ink-faint: rgba(255,255,255,0.60);
+    --wm-line: rgba(255,255,255,0.09);
+    --wm-contour-fenetre: rgba(255,255,255,0.16);
+    --wm-line-strong: rgba(255,255,255,0.30);
     --wm-signal: #ff6b5b;
-    --wm-ombre-fenetre: 0 16px 24px rgba(0,0,0,0.32);
+    --wm-liste-fond: #1b1b1b;
+    --wm-liste-separation: rgba(255,255,255,0.12);
+    --wm-selection-ligne: rgba(255,255,255,0.09);
+    --wm-bloc-fond: rgba(255,255,255,0.04);
+    --wm-bloc-lisere: rgba(255,255,255,0.08);
+    --wm-champ-fond: rgba(255,255,255,0.06);
+    /* Bloc intérieur en sombre : contour et ombre de la maquette (feuille(), blocSombre) ; pas de liseré aux boutons gris. */
+    --wm-bloc-contour: rgba(0,0,0,0.35);
+    --wm-ombre-bloc: 0 1px 6px rgba(0,0,0,0.30);
+    --wm-touche-lisere: transparent;
+    /* Lueur du thème sombre : même géométrie que l'ombre du thème clair, en blanc à 22 % ; liseré blanc à
+       16 % dedans et 5 % dehors. */
+    --wm-ombre-fenetre: 0 22px 56px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
+    --wm-ombre-copie: rgba(255,255,255,0.22);
+    --wm-ombre-contact: inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 0 1px rgba(255,255,255,0.05);
+    /* Le liseré du thème sombre porte déjà le trait intérieur : pas de second trait de contour. */
+    --wm-verre-bord: var(--wm-ombre-contact);
   }
   /* Sans flou d'arrière-plan, ou si la personne réduit la transparence : verre presque opaque (0,94). */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
-    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+    .cm-ui { --wm-ground: rgba(250,250,250,0.94); --wm-surface: rgba(250,250,250,0.94); }
+    ${CORPS}[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(27,27,27,0.94); --wm-surface: rgba(27,27,27,0.94); }
   }
   @media (prefers-reduced-transparency: reduce) {
-    .cm-ui { --wm-ground: rgba(236,232,224,0.94); --wm-surface: rgba(236,232,224,0.94); }
-    body[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(20,19,17,0.94); --wm-surface: rgba(20,19,17,0.94); }
+    .cm-ui { --wm-ground: rgba(250,250,250,0.94); --wm-surface: rgba(250,250,250,0.94); }
+    ${CORPS}[data-wm-theme="client-sombre"] .cm-ui { --wm-ground: rgba(27,27,27,0.94); --wm-surface: rgba(27,27,27,0.94); }
   }
+  /* La liste est mate, sans verre : titane neutre (#FAFAFA en clair, #1B1B1B en sombre ; décision du 26/10). */
+  ${CORPS} .cm-ui.cm-panel { --wm-ground: var(--wm-liste-fond); --wm-surface: var(--wm-liste-fond); }
 
   /* Réinitialisation limitée à nos couches : les règles de l'hôte (preflight de Tailwind, styles posés sur
      button, mark, svg ou *) ne doivent pas déteindre sur witmit. Tout est écrit en toutes lettres. */
   .cm-ui, .cm-ui *, .cm-ui::before, .cm-ui::after, .cm-ui *::before, .cm-ui *::after { box-sizing:border-box; }
-  .cm-ui { font-family:var(--wm-font-outil); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-ui { font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; font-weight:400; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
   mark.cm-highlight { background:none; color:inherit; }
 
-  /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; décisions F1 à F5, F8, F9) ----------
-     Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas découpée
+  /* ---------- Formes et matières (fiches Fenetre, Touche, Etats ; V2 : arrondis, plus aucun angle cassé) ----------
+     Une fenêtre (fenêtre de saisie, liste, bandeau, visionneuse, messages passagers) n'est pas peinte
      elle-même : habiller() lui ajoute en premiers enfants trois couches muettes, sans clic, qui portent la
-     matière. .wm-ombre : copie floutée de la forme, posée 14 px plus bas (l'ombre d'un élément découpé
-     serait coupée avec lui). .wm-verre : la face de verre dépoli, découpée. .wm-contour : le trait de 1 px
-     et les deux coins witmit, en SVG retracé à la taille réelle. Aucun parent du verre ne porte filter,
-     opacity < 1, mask, clip-path, mix-blend-mode ni backdrop-filter, même pendant une animation : ils
-     couperaient le flou du fond (F4). Les fondus portent sur les couches enfants (F9). */
+     matière. .wm-ombre : cachée depuis le lot 8 (l’ombre est portée par le verre). .wm-verre : la face de verre
+     dépoli, arrondie, avec son bord (trait ou liseré, ombre de contact). .wm-contour : les deux coins witmit,
+     en SVG retracé à la taille réelle. Arrondi de la fenêtre : --wm-rayon (9 px ; liste : seulement côté
+     page ; messages passagers : 8 px). Aucun parent du verre ne porte filter, opacity < 1, mask, clip-path,
+     mix-blend-mode ni backdrop-filter, même pendant une animation : ils couperaient le flou du fond (F4).
+     Les fondus portent sur les couches enfants (F9). */
   .cm-ui {
-    --wm-forme-fenetre: polygon(0 0, calc(100% - var(--wm-coupe-fenetre)) 0, 100% var(--wm-coupe-fenetre), 100% 100%, var(--wm-coupe-fenetre) 100%, 0 calc(100% - var(--wm-coupe-fenetre)));
-    --wm-forme-touche: polygon(var(--wm-coupe-touche) 0, 100% 0, 100% calc(100% - var(--wm-coupe-touche)), calc(100% - var(--wm-coupe-touche)) 100%, 0 100%, 0 var(--wm-coupe-touche));
-    /* Contour de focus d'une forme coupée : anneau de 2 px à 2 px de la forme, dont les coins suivent la
-       coupe (6 px + 0,586 × l'écart : 7,17 px au bord intérieur, 8,34 px au bord extérieur). */
-    --wm-anneau-touche: polygon(evenodd, 8.34px 0, 100% 0, 100% calc(100% - 8.34px), calc(100% - 8.34px) 100%, 0 100%, 0 8.34px, 8.34px 0,
-      9.17px 2px, 2px 9.17px, 2px calc(100% - 2px), calc(100% - 9.17px) calc(100% - 2px), calc(100% - 2px) calc(100% - 9.17px), calc(100% - 2px) 2px, 9.17px 2px);
-    /* Ombre de la copie floutée et survol des touches : un cran plus blanc (clair) ou plus clair (sombre). */
-    --wm-ombre-copie: rgba(0,0,0,.30);
-    --wm-face-touche-survol: rgba(255,255,255,.62);
+    /* Survol d'un bouton secondaire : un cran plus marqué (tokens.json, face-touche-survol). */
+    --wm-face-touche-survol: rgba(0,0,0,.11);
   }
-  body[data-wm-theme="client-sombre"] .cm-ui { --wm-ombre-copie: rgba(0,0,0,.35); --wm-face-touche-survol: rgba(255,255,255,.12); }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui { --wm-face-touche-survol: rgba(255,255,255,.20); }
   .cm-ui[hidden], .cm-ui [hidden] { display:none !important; }
-  .wm-habille { isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .wm-habille { --wm-rayon: var(--wm-radius-fenetre); isolation:isolate; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .wm-habille.cm-panel { --wm-rayon: var(--wm-radius-fenetre) 0 0 var(--wm-radius-fenetre); }   /* liste collée au bord droit : arrondie côté page seulement */
+  .wm-habille.cm-status { --wm-rayon: var(--wm-radius-message); }
   .wm-habille > .wm-ombre, .wm-habille > .wm-verre, .wm-habille > .wm-contour { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; border:0; pointer-events:none; }
-  .wm-habille > .wm-ombre { z-index:-2; top:14px; filter:blur(14px); }
-  .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; clip-path:var(--wm-forme-fenetre); background:var(--wm-ombre-copie); }
-  .wm-habille > .wm-verre { z-index:-1; clip-path:var(--wm-forme-fenetre); background:var(--wm-surface); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); }
+  /* Ombre macOS (clair) ou lueur (sombre) : un box-shadow du verre lui-même, glissé de 22 px et flou de 56 px (lot 8). Un
+     box-shadow ne se peint jamais sous la face : l’ombre ne se voit plus à travers le verre (elle assombrissait, ou éclairait
+     en sombre, le fond du texte d’aide ; Paula, lot 3). .wm-ombre reste dans la fenêtre, vide et cachée. */
+  .wm-habille > .wm-ombre { z-index:-2; display:none; }
+  .wm-habille > .wm-ombre > i { display:block; width:100%; height:100%; border-radius:var(--wm-rayon); background:var(--wm-ombre-copie); }
+  .wm-habille > .wm-verre { z-index:-1; border-radius:var(--wm-rayon); background:var(--wm-surface); box-shadow:var(--wm-verre-bord), 0 22px 56px var(--wm-ombre-copie);
+    backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); }
   .wm-habille > .wm-contour { z-index:1; overflow:visible; display:block; max-width:none; }
-  .wm-contour polygon { fill:none; stroke:var(--wm-contour-fenetre); stroke-width:1; }
-  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; }
+  /* Coins witmit : trait de 2,1 px à l'encre, coude arrondi de 3 px (tracé dans tracerContour). */
+  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; stroke-linejoin:round; }
   /* Toutes les icônes : taille écrite sur la balise, couleur du texte qu'elles accompagnent. */
   .cm-ui svg.wm-icone { display:inline-block; flex:none; vertical-align:-0.18em; overflow:visible; max-width:none; fill:currentColor; }
   .cm-ui svg.wm-icone.wm-devant { margin-right:6px; }
@@ -370,29 +408,34 @@
   .wm-tourne { animation:wmTourne 800ms linear infinite; }
   @keyframes wmTourne { to { transform:rotate(360deg); } }
 
-  /* Touches (fiche Touche) : coins haut gauche et bas droit cassés de 6 px, trait fin ouvert aux coins,
-     face ton sur ton. La découpe et le trait vont sur ::before, jamais sur le bouton : son contour de focus
-     (::after) n'est ainsi pas rogné (F5). Principale : trait line-strong ; secondaire : trait line. */
-  .cm-ui .wm-touche { position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; min-width:0; margin:0; padding:0 10px 0 14px;
-    background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-outil); font-size:13px; font-weight:500; line-height:1; letter-spacing:normal; text-transform:none;
+  /* Boutons (fiche Touche, V2) : à la manière de macOS, sans trait autour. La face (30 px, --wm-face-h) et son
+     liseré vont sur ::before, arrondis à 6 px (radius-bouton) ; le contour de focus (::after) suit l'arrondi,
+     2 px à 2 px de la face (F5). Zone cliquable (README, Accessibilité) : le bouton lui-même fait 44 px de haut
+     (cible-min), la face est centrée dedans, et des marges négatives rendent à la mise en page la seule hauteur
+     de la face (rien ne bouge autour, la zone déborde de 7 px en haut et en bas).
+     Principal (un seul par fenêtre) : face orange accent, libellé blanc en graisse 500. Secondaire : face grise
+     face-touche, libellé ink en graisse normale, liseré noir à 8 % en clair. Aucune touche de raccourci affichée :
+     le raccourci reste dans l'info-bulle et le nom accessible (aria-keyshortcuts). */
+  .cm-ui .wm-touche { --wm-face-h:30px; --wm-face-marge:calc((var(--wm-cible-min) - var(--wm-face-h)) / 2);
+    position:relative; isolation:isolate; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:var(--wm-cible-min); min-width:0;
+    margin:calc(-1 * var(--wm-face-marge)) 0; padding:0 12px;
+    background:transparent; border:0; border-radius:0; box-shadow:none; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1; letter-spacing:normal; text-transform:none;
     color:var(--wm-ink); white-space:nowrap; cursor:pointer; text-decoration:none; }
-  .cm-ui .wm-touche::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:var(--wm-face-touche); border:1px solid var(--wm-line); pointer-events:none; }
-  .cm-ui .wm-touche.wm-principale::before { border-color:var(--wm-line-strong); }
+  .cm-ui .wm-touche::before { content:''; position:absolute; left:0; right:0; top:var(--wm-face-marge); bottom:var(--wm-face-marge); z-index:-1; border-radius:var(--wm-radius-bouton);
+    background:var(--wm-face-touche); border:0; box-shadow:inset 0 0 0 .5px var(--wm-touche-lisere); pointer-events:none; }   /* liseré de 0,5 px : un border de 0,5 px est arrondi à 1 px par Chromium, pas une ombre intérieure (lot 8) */
   .cm-ui .wm-touche:hover::before { background:var(--wm-face-touche-survol); }
-  .cm-ui .wm-touche:active::before { background:var(--wm-surface-raised); }
-  .cm-ui .wm-touche.wm-petite { height:32px; padding:0 8px 0 12px; gap:6px; }
-  .cm-ui .wm-touche.cm-on::before, .cm-ui .wm-touche[aria-pressed="true"]::before { background:var(--wm-surface-raised); border-color:var(--wm-line-strong); }
-  /* Désactivé (fiche Etats) : trait line, libellé et repère ink-faint, face inchangée, pas d'opacité. */
+  .cm-ui .wm-touche:active::before { background:var(--wm-face-touche-survol); }
+  .cm-ui .wm-touche.cm-on::before, .cm-ui .wm-touche[aria-pressed="true"]::before { background:var(--wm-face-touche-survol); }   /* catégorie choisie : un cran plus marquée */
+  .cm-ui .wm-touche.wm-principale { font-weight:500; color:var(--wm-bouton-principal-texte); }
+  .cm-ui .wm-touche.wm-principale::before { background:var(--wm-accent); box-shadow:none; }
+  .cm-ui .wm-touche.wm-principale:hover::before, .cm-ui .wm-touche.wm-principale:active::before { background:linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.08)) var(--wm-accent); }
+  /* Désactivé (fiches Touche et Etats) : face grise face-touche au lieu de l'orange, libellé ink-faint (60 %),
+     curseur par défaut, pas d'opacité. */
   .cm-ui .wm-touche:disabled, .cm-ui .wm-touche[aria-disabled="true"] { color:var(--wm-ink-faint); cursor:default; }
-  .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { border-color:var(--wm-line); background:var(--wm-face-touche); }
-  .cm-ui .wm-touche:disabled .wm-repere, .cm-ui .wm-touche[aria-disabled="true"] .wm-repere { border-color:var(--wm-line); color:var(--wm-ink-faint); }
-  /* « annuler » et actions discrètes : texte seul, sans cadre (ink-soft : contraste sur le verre, T12). */
-  .cm-ui .wm-texte { display:inline-flex; align-items:center; gap:6px; height:36px; margin:0; padding:0 8px; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
-  .cm-ui .wm-texte:hover { color:var(--wm-ink); }
-  /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px, à droite du libellé. */
+  .cm-ui .wm-touche:disabled::before, .cm-ui .wm-touche[aria-disabled="true"]::before { box-shadow:inset 0 0 0 .5px var(--wm-touche-lisere); background:var(--wm-face-touche); }
+  /* Raccourci : la touche du clavier dans un petit carré arrondi de 4 px (aides seulement, jamais dans un bouton). */
   .cm-ui .wm-repere { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; margin-left:4px; border:1px solid var(--wm-line-strong);
-    border-radius:var(--wm-radius-repere); font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
+    border-radius:var(--wm-radius-repere); font-family:var(--wm-font-touche); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); flex:none; }
   /* Texte pour les lecteurs d'écran seulement (« cmd » derrière l'icône ⌘). */
   .cm-ui .wm-lu { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   /* Icône seule : icône Phosphor dans un cercle fin de 30 px, zone cliquable portée à 44 px par ::before. */
@@ -402,56 +445,60 @@
   .cm-ui .wm-cercle:hover { color:var(--wm-ink); border-color:var(--wm-ink); }
   .cm-ui .wm-cercle.wm-cercle-24 { width:24px; height:24px; }
   .cm-ui .wm-cercle:disabled, .cm-ui .wm-cercle.wm-inactif { border-color:var(--wm-line); color:var(--wm-ink-faint); cursor:default; }
-  /* Champs et zones en creux : même coupe que les touches, trait ouvert aux coins coupés. */
+  /* Champs et zones en creux : arrondi de 5 px (radius-champ). */
   .cm-ui .wm-champ { position:relative; display:block; }
-  .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { clip-path:var(--wm-forme-touche); border-radius:0; outline:none; }
+  .cm-ui .wm-champ > textarea, .cm-ui textarea.wm-coupe, .cm-ui select.wm-coupe { border-radius:var(--wm-radius-champ); outline:none; }
   .cm-ui .wm-champ > textarea:focus { border-color:var(--wm-line-strong); }
   /* Une règle de focus de la page hôte (ombre colorée, « :focus-visible { box-shadow } ») n'atteint pas nos champs. */
   .cm-ui textarea:focus, .cm-ui textarea:focus-visible, .cm-ui input:focus, .cm-ui input:focus-visible, .cm-ui select:focus, .cm-ui select:focus-visible { box-shadow:none; }
 
-  /* Focus clavier (fiche Etats), seulement en :focus-visible. Forme coupée : anneau qui suit les coins,
-     tracé par ::after (non découpé). Forme ronde : outline de 2 px à 2 px. Un champ, lui, est toujours
-     « :focus-visible » pour Chromium, même après un clic ou un focus posé par le script : son anneau ne
-     s'affiche que si le focus vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul
-     son trait passe à line-strong. */
-  .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus, .cm-ui .wm-texte:focus { outline:none; }
-  .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after {
-    content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
-  .cm-ui .wm-cercle:focus-visible, .cm-ui .wm-texte:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  /* Focus clavier (fiche Etats), seulement en :focus-visible : contour de 2 px à l'encre, à 2 px de la forme,
+     qui suit son arrondi (comme un outline de 2 px décalé de 2 px). Touche et champ : tracé par ::after, posé
+     autour de la face (la touche « terminer » du bandeau a une zone cliquable plus haute que sa face).
+     Forme ronde ou texte seul : outline de 2 px à 2 px. Un champ, lui, est toujours « :focus-visible » pour
+     Chromium, même après un clic ou un focus posé par le script : son anneau ne s'affiche que si le focus
+     vient du clavier (body[data-wm-clavier], voir modaliteFocus) ; au clic, seul son trait passe à line-strong. */
+  .cm-ui .wm-touche:focus, .cm-ui .wm-cercle:focus { outline:none; }
+  .cm-ui .wm-touche:focus-visible::after, ${CORPS}[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after {
+    content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-bouton) + 4px); pointer-events:none; }
+  .cm-ui .wm-touche:focus-visible::after { top:calc(var(--wm-face-marge) - 4px); bottom:calc(var(--wm-face-marge) - 4px); }   /* autour de la face, pas de la zone cliquable */
+  ${CORPS}[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { border-radius:calc(var(--wm-radius-champ) + 4px); }
+  .cm-ui .wm-cercle:focus-visible, .cm-ui .cm-toggle-btn:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   @media (forced-colors:active) {
-    .wm-contour polygon, .wm-contour path { stroke:CanvasText; }
-    .cm-ui .wm-touche::before { border-color:ButtonText; }
-    .cm-ui .wm-touche:focus-visible::after, body[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { background:Highlight; }
+    .wm-contour path { stroke:CanvasText; }
+    .wm-habille > .wm-verre { border:1px solid CanvasText; }   /* les ombres disparaissent en contraste forcé : le bord reste */
+    .cm-ui .wm-touche::before { border:1px solid ButtonText; }
+    .cm-ui .wm-touche:focus-visible::after, ${CORPS}[data-wm-clavier] .cm-ui .wm-champ:has(> textarea:focus)::after { border-color:Highlight; }
   }
 
   /* Voyant (F8) : disque net de 7 px à coordonnées entières, sans ombre ni halo ; sur fond clair (bouton
      de métal clair, site sombre), cerne intérieur de 1,5 px en border. Le nombre reste dans le texte
      (lecteurs d'écran, tests), hors de la vue. */
   .cm-ui .wm-voyant, .cm-ui .cm-count-badge { display:block; box-sizing:border-box; width:7px; height:7px; min-width:0; padding:0; border-radius:50%; background:var(--wm-accent);
-    border:1.5px solid var(--wm-accent-ring); box-shadow:none; overflow:hidden; text-indent:-999px; white-space:nowrap; }
-  body[data-wm-theme="client-sombre"] .cm-ui .wm-voyant, body[data-wm-theme="client-sombre"] .cm-ui .cm-count-badge { border:0; }
+    border:0; box-shadow:inset 0 0 0 1.5px var(--wm-accent-ring); overflow:hidden; text-indent:-999px; white-space:nowrap; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-voyant, ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .cm-count-badge { box-shadow:none; }
   .cm-ui .cm-count-badge:empty, .cm-ui .cm-count-badge[data-zero="1"] { display:none; }
 
   /* ---------- Les deux boutons ronds (fiche BoutonWitmit ; décisions C6, F8, L1) ----------
      Bouton witmit (#cmPanelBtn, 52 px) : il ouvre et ferme la liste, enfoncé = liste ouverte. Collé à sa
      gauche, le bouton du mode annotation (#cmToggleBtn, 40 px dessinés, 44 px cliquables) : enfoncé = mode
-     actif. Métal poli, sombre sur un site clair et clair sur un site sombre (même attribut que le verre) ;
+     actif. Métal poli, clair sur un site clair et sombre sur un site sombre (même attribut que le verre, V2) ;
      l'état se lit à l'enfoncement, jamais à la teinte. Créés seulement si la page n'a pas déjà les siens. */
   .cm-fab { position:fixed; right:24px; bottom:24px; z-index:845; display:flex; align-items:center; gap:8px; margin:0; padding:0;
     transition:right 240ms cubic-bezier(0.16, 1, 0.3, 1); }  /* sous le panneau (850), sauf quand il le chevauche (écran étroit) */
   .cm-fab.wm-decale { z-index:855; }                        /* liste ouverte : à gauche de la liste, toujours cliquables */
   .cm-ui .wm-bouton { position:relative; flex:none; box-sizing:border-box; display:flex; align-items:center; justify-content:center; margin:0; padding:0; border-radius:50%;
     font-size:0; line-height:0; cursor:pointer; outline:none; transition:box-shadow 120ms ease;
-    /* métal sombre (défaut, site clair) */
+    /* métal sombre (défaut, site sombre ; le métal clair suit « client-clair ») */
     border:1px solid var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
     background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
       linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
   .cm-ui .wm-bouton[aria-pressed="true"], .cm-ui .wm-bouton[aria-expanded="true"] { box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
-  body[data-wm-theme="client-clair"] .cm-ui .wm-bouton, .cm-ui .wm-bouton.wm-metal-clair {
+  ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton, .cm-ui .wm-bouton.wm-metal-clair {
     border-color:var(--wm-metal-light-trait); color:var(--wm-metal-light-signe); box-shadow:var(--wm-ombre-bouton-clair);
     background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-light-reflet) 0%, transparent 70%),
       linear-gradient(165deg, var(--wm-metal-light-hi) 0%, var(--wm-metal-light-mi) 42%, var(--wm-metal-light-lo) 62%, var(--wm-metal-light-fin) 100%); }
-  body[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-pressed="true"], body[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-expanded="true"],
+  ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-pressed="true"], ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-expanded="true"],
   .cm-ui .wm-bouton.wm-metal-clair[aria-pressed="true"], .cm-ui .wm-bouton.wm-metal-clair[aria-expanded="true"] { box-shadow:var(--wm-ombre-bouton-enfonce); }
   .cm-ui .wm-bouton.wm-metal-sombre { border-color:var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
     background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
@@ -465,48 +512,61 @@
   .cm-ui .wm-bouton-witmit .wm-logo { display:block; flex:none; width:28px; height:28px; }
   /* Voyant du bouton witmit : 7 px, logé à 10 px du haut et 9 px de la droite du rond (coordonnées entières). */
   .cm-ui .wm-bouton-witmit .cm-count-badge { position:absolute; left:35px; top:9px; }
-  .cm-ui .wm-bouton.wm-metal-clair .cm-count-badge { border:1.5px solid var(--wm-accent-ring); }
-  .cm-ui .wm-bouton.wm-metal-sombre .cm-count-badge { border:0; }
+  .cm-ui .wm-bouton.wm-metal-clair .cm-count-badge { box-shadow:inset 0 0 0 1.5px var(--wm-accent-ring); }
+  .cm-ui .wm-bouton.wm-metal-sombre .cm-count-badge { box-shadow:none; }
   /* Focus clavier (fiche Etats, forme ronde) : outline de 2 px à 2 px. Le bouton est posé sur le site, pas
      sur le verre : le trait prend l'encre qui tranche sur le site (sombre sur un site clair, et l'inverse). */
   .cm-ui .wm-bouton:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:2px; }
-  body[data-wm-theme="client-clair"] .cm-ui .wm-bouton:focus-visible { outline-color:var(--wm-encre-repere-claire); }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton:focus-visible { outline-color:var(--wm-encre-repere-claire); }
   @media (max-width:480px) { .cm-fab { right:16px; bottom:16px; } }   /* M1 : à 16 px des bords sur un téléphone */
   @media (prefers-reduced-motion:reduce) { .cm-fab, .cm-ui .wm-bouton { transition:none; } }
   @media (forced-colors:active) { .cm-ui .wm-bouton { border-color:ButtonText; } .cm-ui .wm-bouton[aria-pressed="true"], .cm-ui .wm-bouton[aria-expanded="true"] { border-width:3px; } }
 
-  /* Boutons fournis par la page (C8, maquettes TellUs) : witmit les adopte (data-wm-fourni="page") sans
-     toucher à leur contenu ; touche ronde à icône seule, ton sur ton, aux jetons ; .cm-on = enfoncé. */
+  /* Boutons fournis par la page (C8, maquettes TellUs) : witmit les adopte (data-wm-fourni="page") sans toucher à leur
+     contenu. Lot 8 (fiche BoutonWitmit) : le même métal poli que les boutons de witmit, clair sur un site clair et sombre sur
+     un site sombre ; l'état (.cm-on, aria-pressed, aria-expanded) se lit à l'enfoncement, jamais à la teinte. 40 px. */
   .cm-ui[data-wm-fourni="page"] { position:relative; box-sizing:border-box; width:40px; height:40px; margin:0; padding:0; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; border:1px solid var(--wm-line-strong); background:var(--wm-face-touche); backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(1.7);
-    font-size:16px; line-height:1; color:var(--wm-ink); cursor:pointer; box-shadow:var(--wm-ombre-bouton); transition:box-shadow 120ms ease; }
-  .cm-ui[data-wm-fourni="page"]:hover { background:var(--wm-face-touche-survol); }
-  .cm-ui[data-wm-fourni="page"].cm-on { background:var(--wm-surface-raised); box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
-  .cm-ui[data-wm-fourni="page"]:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+    border-radius:50%; font-size:16px; line-height:1; cursor:pointer; transition:box-shadow 120ms ease;
+    border:1px solid var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
+    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
+      linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
+  .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
+  ${CORPS}[data-wm-theme="client-clair"] .cm-ui[data-wm-fourni="page"] {
+    border-color:var(--wm-metal-light-trait); color:var(--wm-metal-light-signe); box-shadow:var(--wm-ombre-bouton-clair);
+    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-light-reflet) 0%, transparent 70%),
+      linear-gradient(165deg, var(--wm-metal-light-hi) 0%, var(--wm-metal-light-mi) 42%, var(--wm-metal-light-lo) 62%, var(--wm-metal-light-fin) 100%); }
+  ${CORPS}[data-wm-theme="client-clair"] .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { box-shadow:var(--wm-ombre-bouton-enfonce); }
+  .cm-ui[data-wm-fourni="page"]:focus { outline:none; }
+  .cm-ui[data-wm-fourni="page"]:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:2px; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui[data-wm-fourni="page"]:focus-visible { outline-color:var(--wm-encre-repere-claire); }
+  @media (forced-colors:active) { .cm-ui[data-wm-fourni="page"] { border-color:ButtonText; } .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { border-width:3px; } }
   .cm-ui[data-wm-fourni="page"] .cm-count-badge { position:absolute; top:3px; right:3px; }
 
   /* Mode live, widget caché : aucune couche visible (toutes portent cm-ui) tant qu'il n'est pas révélé */
-  body.cm-concealed .cm-ui:not(.wm-toast-masquage) { display:none !important; }   /* sauf le message qui dit comment revenir (Léa 45) */
+  ${CORPS}.cm-concealed .cm-ui:not(.wm-toast-masquage) { display:none !important; }   /* sauf le message qui dit comment revenir (Léa 45) */
 
   body.cm-active { cursor: crosshair; }
-  body.cm-active .cm-ui, body.cm-active .cm-ui * { cursor: default; }
+  ${CORPS}.cm-active .cm-ui, ${CORPS}.cm-active .cm-ui * { cursor: default; }
   /* Curseurs de notre interface (la règle générique ci-dessus les neutraliserait) */
-  body.cm-active .cm-ui button, body.cm-active .cm-pin, body.cm-active .cm-panel-item .body, body.cm-active .cm-panel-item .del { cursor:pointer; }
-  body.cm-active .cm-popup .cm-tete { cursor:move; }
-  body.cm-active .cm-popup textarea { cursor:text; }
-  body.cm-active .cm-popup .cm-vignette { cursor:zoom-in; }
-  body .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
-  body .cm-pill.cm-dragging, body .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
+  ${CORPS}.cm-active .cm-ui button, ${CORPS}.cm-active .cm-pin, ${CORPS}.cm-active .cm-panel-item .body, ${CORPS}.cm-active .cm-panel-item .del { cursor:pointer; }
+  ${CORPS}.cm-active .cm-popup .cm-tete { cursor:move; }
+  ${CORPS}.cm-active .cm-popup textarea { cursor:text; }
+  ${CORPS}.cm-active .cm-popup .cm-vignette { cursor:zoom-in; }
+  ${CORPS} .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
+  ${CORPS} .cm-pill.cm-dragging, ${CORPS} .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
-  /* Halo du mode annotation (fiche Bandeau) : trait jaune de 3 px au bord de l'écran, filet sombre de 1 px
-     juste à l'intérieur (il cerne le jaune sur le clair et disparaît de lui-même sur le sombre), lueur
-     courte. Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
+  /* Halo du mode annotation (fiche Bandeau, V2) : trait orange de 3 px au bord de la page, filet halo-filet de 1 px
+     juste à l'intérieur (il cerne l'orange sur le clair et disparaît de lui-même sur le sombre), lueur
+     courte fixe, puis la lueur qui respire (4 s par souffle ; fixe à mi-course si les animations sont réduites).
+     Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
      ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. Elle est
      posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
   /* Apparition et disparition en fondu de 200 ms sur l'opacité de la couche ; cachée par visibility (pas display)
      pour que le fondu de sortie se joue (F11). La couche n'est le parent d'aucun verre : son opacité ne coupe aucun flou. */
-  .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; transition:opacity 200ms ease, visibility 0s linear 200ms; }
-  .cm-frame.show { visibility:visible; opacity:1; transition:opacity 200ms ease, visibility 0s linear 0s; }
+  /* Liste ouverte (fiche Tiroir, à la manière de Claude in Chrome) : la page rétrécit, et le halo la suit. pushPage() pose
+     right (la largeur de la liste) sur cette couche ; elle glisse avec l'ouverture de la liste (240 ms), et revient à 0. */
+  .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; transition:opacity 200ms ease, visibility 0s linear 200ms, right 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .cm-frame.show { visibility:visible; opacity:1; transition:opacity 200ms ease, visibility 0s linear 0s, right 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   .cm-frame::before, .cm-frame::after { content:''; position:absolute; inset:0; pointer-events:none; border:0 solid transparent; }
   .cm-frame::before { box-shadow: inset 0 0 0 3px var(--wm-accent), inset 0 0 0 4px var(--wm-halo-filet), inset 0 0 10px 2px var(--wm-halo-lueur-courte); }
   .cm-frame::after { box-shadow: inset 0 0 26px 6px var(--wm-halo-lueur); opacity:0; animation: wmHaloSouffle 4s ease-in-out infinite; }
@@ -520,71 +580,70 @@
     .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
   }
 
-  /* Bandeau du mode annotation (fiche Bandeau ; Léa 3.2) : fenêtre de verre de 44 px, thème inverse du site,
+  /* Bandeau du mode annotation (fiche Bandeau ; décision b3 du 26/10) : fenêtre de verre de 44 px, au thème du site,
      coins witmit (habiller), centrée à 12 px sous la barre de navigation, déplaçable par sa poignée (position
-     gardée). Placement et passage sur deux lignes : placerBandeau() (mesure réelle : s'il ne tient pas sur une
-     ligne dans la place libre, à côté de la liste ouverte comprise). */
-  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-outil); font-weight:400; font-size:12px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
+     gardée). Une seule ligne, partout : la poignée, le voyant et « annotation », puis « terminer » ; plus de gestes
+     (ils sont dans la liste vide). Placement : placerBandeau(). */
+  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-weight:400; font-size:14px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
   .cm-pill.show { display:block; }
   .cm-pill .wm-bandeau-corps { position:relative; display:flex; align-items:center; gap:8px; height:44px; padding:0 22px 0 18px; }
   .cm-pill .wm-poignee { display:inline-flex; align-items:center; justify-content:center; flex:none; width:20px; height:44px; color:var(--wm-ink-soft); }
   .cm-pill.cm-dragging .wm-poignee { color:var(--wm-ink); }
-  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:600; color:var(--wm-ink); }
+  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:500; color:var(--wm-ink); }
   .cm-pill .wm-bandeau-mode .wm-voyant { flex:none; }
-  .cm-pill .wm-filet { flex:none; width:1px; height:20px; background:var(--wm-line); }
-  .cm-pill .wm-gestes { color:var(--wm-ink-soft); }
-  .cm-pill .wm-gestes b { font-weight:500; color:var(--wm-ink); }
-  .cm-pill .wm-geste { white-space:nowrap; }
-  .cm-pill .wm-gestes .wm-repere { display:inline-flex; vertical-align:middle; margin:0 1px; }
-  .cm-pill .wm-gestes .wm-repere svg.wm-icone { vertical-align:0; }
-  /* « terminer » : touche principale compacte de 32 px ; le bouton fait 44 px de haut (zone cliquable), la face
-     et son contour de focus restent à 32 px. */
-  .cm-ui.cm-pill .wm-terminer { flex:none; height:44px; }
-  .cm-ui.cm-pill .wm-terminer::before { top:6px; bottom:6px; }
-  .cm-ui.cm-pill .wm-terminer:focus-visible::after { top:2px; bottom:2px; }
-  /* Deux lignes : ligne 1 poignée, voyant, « annotation », « terminer » ; ligne 2 les gestes, à la ligne entre
-     deux gestes seulement. */
-  .cm-pill.wm-deux-lignes { white-space:normal; }
-  .cm-pill.wm-deux-lignes .wm-bandeau-corps { display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:"poignee mode . terminer" "gestes gestes gestes gestes"; column-gap:8px; height:auto; padding:0 22px 16px 14px; }
-  .cm-pill.wm-deux-lignes .wm-poignee { grid-area:poignee; }
-  .cm-pill.wm-deux-lignes .wm-bandeau-mode { grid-area:mode; }
-  .cm-pill.wm-deux-lignes .wm-filet { display:none; }
-  .cm-pill.wm-deux-lignes .wm-terminer { grid-area:terminer; }
-  .cm-pill.wm-deux-lignes .wm-gestes { grid-area:gestes; padding-left:6px; line-height:24px; }
+  /* « terminer » : bouton principal orange compact, la touche de la fiche Touche telle quelle (face de 30 px dans une
+     zone cliquable de 44 px, toute la hauteur du bandeau), sans repère « échap » : le raccourci reste dans l'info-bulle
+     et dans aria-keyshortcuts. */
+  .cm-ui.cm-pill .wm-terminer { flex:none; margin:0; }
+  /* Liste ouverte sans place à côté d'elle pour le bandeau (liste pleine largeur sous 480 px, ou page restante trop
+     étroite) : le bandeau se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), dans une place que
+     la liste lui laisse (wm-sous-bandeau) ; il ne recouvre ni la tête de la liste, ni sa croix, ni ses retours.
+     « terminer » au bout à droite ; à cette place, le bandeau ne se déplace pas. */
+  .cm-pill.wm-sur-liste { max-width:none; }
+  .cm-pill.wm-sur-liste .wm-terminer { margin-left:auto; }
+  ${CORPS} .cm-pill.wm-sur-liste .cm-drag-handle { cursor:default; }
+  .cm-panel.wm-sous-bandeau { padding-top:60px; }   /* 8 + 44 + 8 px */
+  .cm-panel.wm-sous-bandeau > .wm-contour path:first-child { display:none; }   /* son coin haut gauche passerait sous celui du bandeau (Paula É1) */
+  /* Liste ouverte pleine largeur (sous 480 px) : aucune page n'est visible, le halo se cache (il se voyait dans les coins
+     arrondis de la liste ; Paula É3). */
+  .cm-frame.wm-sous-liste, .cm-frame.show.wm-sous-liste { visibility:hidden; opacity:0; transition:none; }
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
-     Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141412 sur fond
-     clair, #f6f3ee sur fond sombre (classe wm-sur-sombre posée au dessin). Jamais de couleur de marque ni
-     d'aplat ; le jaune n'apparaît que dans le voyant « nouveau » de l'épingle. Mesures en pixels fixes. Les
+     Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
+     clair, #f4f4f4 sur fond sombre (classe wm-sur-sombre posée au dessin). Jamais d'aplat ; sur le site, seulement
+     cette encre, le gris (ou l'orange) des cadres et le voyant orange « nouveau » de l'épingle. Mesures en pixels fixes. Les
      états se lisent à la matière et au trait : repos, nouveau (voyant), actif (métal, traits pleins), traité
      (pointillés). Ordre des couches inchangé : cadres 820-830, onde 825, liens 835, épingles 840. */
   .cm-pin, .cm-box, .wm-onde, mark.cm-highlight { --wm-encre: var(--wm-encre-repere); --wm-encre-55: var(--wm-encre-repere-55); --wm-encre-inverse: var(--wm-encre-repere-claire); }
   .cm-ui.wm-sur-sombre, mark.cm-highlight.wm-sur-sombre { --wm-encre: var(--wm-encre-repere-claire); --wm-encre-55: var(--wm-encre-repere-claire-55); --wm-encre-inverse: var(--wm-encre-repere); }
 
-  /* Épingle (F6) : touche de verre de 24 px de haut, qui s'élargit avec le numéro ; coins haut droit et bas
-     gauche arrondis à 5 px, coins witmit 7 × 2 px en haut à gauche et en bas à droite (::before), zone
-     cliquable de 44 px (::after transparent). Son bord droit s'aligne sur le cadre de l'élément, son bord bas
-     6 px au-dessus du cadre : le point posé en JS est ce coin bas droit (translate -100 %, -100 %). */
-  .cm-pin { --wm-coin-pin: 7px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 6px; display:flex; align-items:center; justify-content:center; transform:translate(-100%,-100%); border-radius:0 var(--wm-radius-numero) 0 var(--wm-radius-numero); font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(1.5px) saturate(1.7); backdrop-filter:blur(1.5px) saturate(1.7); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
+  /* Épingle (fiche Epingle, V2) : pastille de verre de 24 px de haut, qui s'élargit avec le numéro (marges de
+     7 px) ; quatre coins arrondis à 6 px (radius-epingle) ; deux petits crochets witmit à l'intérieur, à 3 px du
+     bord, en haut à gauche et en bas à droite (::before : trait de 2 px, coude arrondi de 1,5 px, bras
+     --wm-coin-pin) ; zone cliquable de 44 px (::after transparent). Verre des fenêtres (décision a3 de François) :
+     72 % en clair, 70 % en sombre, flou de 40 px, saturation 1,9 ; chiffre et crochets pleins (encre opaque).
+     Place : à cheval sur le coin du cadre, comme la pastille de notification d'une icône d'app : son centre sur
+     le coin. Le point posé en JS est ce coin (haut droit d'habitude, bas gauche faute de place : wm-bas-gauche). */
+  .cm-pin { --wm-coin-pin: 6px; position:absolute; z-index:840; height:24px; min-width:24px; padding:0 7px; display:flex; align-items:center; justify-content:center; transform:translate(-50%,-50%); border-radius:var(--wm-radius-epingle); font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; white-space:nowrap; color:var(--wm-encre); background:var(--wm-epingle-verre-clair); -webkit-backdrop-filter:blur(40px) saturate(1.9); backdrop-filter:blur(40px) saturate(1.9); box-shadow:inset 0 0 0 1px var(--wm-encre-repere-55), var(--wm-ombre-epingle); cursor:pointer; }
   .cm-pin.wm-sur-sombre { background:var(--wm-epingle-verre-sombre); box-shadow:inset 0 0 0 1px var(--wm-epingle-contour-sombre), var(--wm-ombre-epingle); }
-  .cm-pin.wm-dessous { transform:translate(-100%,0); }            /* pas de place au-dessus : sous le coin bas droit */
-  .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début */
+  .cm-pin.wm-pin-texte { transform:translate(0,-100%); }          /* passage de texte : au-dessus de son début (fiche Reperes) */
   .cm-pin > span { position:relative; }
-  .cm-pin::before { content:''; position:absolute; inset:0; pointer-events:none; background:
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / var(--wm-coin-pin) 2px no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / 2px var(--wm-coin-pin) no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / var(--wm-coin-pin) 2px no-repeat,
-    linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / 2px var(--wm-coin-pin) no-repeat; }
+  .cm-pin::before { content:''; position:absolute; inset:3px; pointer-events:none; box-sizing:border-box; background:none; border:2px solid var(--wm-encre); border-radius:1.5px;
+    -webkit-mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat;
+    mask:linear-gradient(#000,#000) left top / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat, linear-gradient(#000,#000) right bottom / var(--wm-coin-pin) var(--wm-coin-pin) no-repeat; }
   .cm-pin::after { content:''; position:absolute; inset:-10px; }
-  /* Épingles secondaires d'une sélection multiple : 20 px, numéro en 12 px, coins 5 × 2 px, jamais de voyant. */
+  /* Épingles secondaires d'une sélection multiple : la même pastille réduite à 20 px, chiffre 13 px, crochets de
+     5 px, jamais de voyant (fiche Reperes). */
   .cm-pin.cm-pin-secondary { --wm-coin-pin: 5px; height:20px; min-width:20px; padding:0 5px; }
   .cm-pin.cm-pin-secondary::after { inset:-12px; }
   /* Zone en édition : la fenêtre est déjà ouverte ; la zone élargie de l'épingle ne doit pas couvrir les poignées. */
-  body.wm-zone-en-edition .cm-pin::after { pointer-events:none; }
-  /* Nouveau : voyant jaune de 7 px centré sur le coin haut droit ; cerne intérieur sur fond clair, disque plein
-     sur fond sombre ; jamais de halo. */
-  .cm-pin .wm-voyant-epingle { position:absolute; right:-4px; top:-4px; width:7px; height:7px; border-radius:50%; background:var(--wm-accent); border:1.5px solid var(--wm-accent-ring); pointer-events:none; }
-  .cm-pin.wm-sur-sombre .wm-voyant-epingle { border:0; }
+  ${CORPS}.wm-zone-en-edition .cm-pin::after { pointer-events:none; }
+  /* L'épingle de la zone en édition, à cheval sur son coin haut droit, laisse passer la poignée de ce coin. */
+  .cm-pin.wm-sur-poignee, .cm-pin.wm-sur-poignee::after { pointer-events:none; }
+  /* Nouveau : voyant orange de 7 px centré sur le coin haut droit de l'épingle ; cerne intérieur sur fond clair,
+     disque plein sur fond sombre ; jamais de halo. */
+  .cm-pin .wm-voyant-epingle { position:absolute; right:-3.5px; top:-3.5px; width:7px; height:7px; border-radius:50%; background:var(--wm-accent); border:0; box-shadow:inset 0 0 0 1.5px var(--wm-accent-ring); pointer-events:none; }
+  .cm-pin.wm-sur-sombre .wm-voyant-epingle { box-shadow:none; }
   /* Traité : même face « à plat », contour de 1 px en pointillés (55 %), ni liseré ni ombre, chiffre à pleine encre. */
   .cm-pin.cm-done { box-shadow:none; outline:1px dashed var(--wm-encre-repere-55); outline-offset:-1px; }
   .cm-pin.cm-done.wm-sur-sombre { outline-color:var(--wm-epingle-contour-sombre); }
@@ -604,65 +663,81 @@
   #cmLinks line.wm-sur-sombre { stroke:var(--wm-encre-repere-claire-55); }
   #cmLinks line.cm-focus { stroke:var(--wm-encre-repere); }
   #cmLinks line.cm-focus.wm-sur-sombre { stroke:var(--wm-encre-repere-claire); }
-  body:not(.cm-active) #cmLinks { display:none; }
+  ${CORPS}:not(.cm-active) #cmLinks { display:none; }
 
-  /* Cadres (F7, fiche Selection) : .cm-box garde exactement la boîte visée (élément ou zone) ; le dessin vit
-     dans son enfant .wm-cadre : 16 px de marge autour d'un élément visé, aucune autour d'une zone encadrée.
-     Coins witmit de 18 px (bras de 14,4 px, trait de 3,6 px) en haut à gauche et en bas à droite ; traits de
-     1 px ouverts à 20 px des angles, centrés sur l'épaisseur des coins ; un côté de moins de 56 px n'a pas de
-     trait (classes wm-court-h et wm-court-v posées en JS). Aucun remplissage, aucun arrondi, aucune ombre.
-     En tracé (on glisse) : rectangle de 1 px en pointillés, sans coins. */
-  .cm-box { position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border:1px dashed var(--wm-encre); border-radius:0; }
+  /* Cadres (fiche Selection, V2) : à la manière d'une capture d'écran sur Mac. .cm-box garde exactement la boîte
+     visée (élément ou zone) ; le dessin vit dans son enfant .wm-cadre : 16 px de marge autour d'un élément visé,
+     aucune autour d'une zone encadrée. Cadre fermé, arrondi de 6 px (radius-bouton), tout en pixels fixes.
+     - En tracé (on glisse, .cm-box nu) : gris neutre à 26 %, contour de 1 px, ombre dehors et dedans, sans crochets.
+     - Actif (fenêtre ouverte, élément visé pendant la saisie, épingle survolée, zone en édition) : gris neutre à
+       12 %, contour de 1 px, ombre dehors et dedans, crochets witmit pleins.
+     - Inactif (retour présent, pas sélectionné) et traité : contour de 1 px en pointillés, ni fond ni ombre,
+       crochets à 55 %.
+     Crochets witmit (haut gauche, bas droit) : à 5 px du bord, bras de 12 px, trait de 2 px, coude arrondi de
+     3 px ; #141414 sur fond clair, #f4f4f4 sur fond sombre (encre-repere-claire, la même encre que l'épingle ; lot 8) (wm-sur-sombre, d'après le fond derrière le cadre).
+     Contour et pointillés : gris (par défaut) ou orange, au choix du site (data-selection-color sur la balise,
+     posé en data-wm-selection sur <body>). Les crochets restent pleins et les poignées grises quelle que soit
+     la couleur. */
+  .cm-box { --wm-cadre-coin: var(--wm-encre-repere); --wm-cadre-contour: var(--wm-cadre-trait); --wm-cadre-tirets: var(--wm-cadre-pointilles); --wm-cadre-prise: var(--wm-cadre-poignee);
+    position:absolute; z-index:820; pointer-events:none; box-sizing:border-box; background:transparent; border-radius:var(--wm-radius-bouton); }
+  .cm-box.wm-sur-sombre { --wm-cadre-coin: var(--wm-encre-repere-claire); --wm-cadre-contour: var(--wm-cadre-trait-sombre); --wm-cadre-tirets: var(--wm-cadre-pointilles-sombre); --wm-cadre-prise: var(--wm-cadre-poignee-sombre); }
+  ${CORPS}[data-wm-selection="orange"] .cm-box { --wm-cadre-contour: var(--wm-accent); --wm-cadre-tirets: var(--wm-accent); }
+  /* En tracé */
+  .cm-box:not(.cm-box-saved):not(.cm-box-editing):not(.cm-box-editable) { border:1px solid var(--wm-cadre-contour); background:var(--wm-cadre-gris-trace); box-shadow:var(--wm-ombre-cadre); }
   .cm-box.cm-box-saved, .cm-box.cm-box-editing, .cm-box.cm-box-editable { border:0; }
-  .cm-box > .wm-cadre { --wm-th: var(--wm-encre-55); --wm-tv: var(--wm-encre-55); position:absolute; inset:0; pointer-events:none; background:
-    linear-gradient(var(--wm-th),var(--wm-th)) 20px 0 / calc(100% - 40px) 1px no-repeat,
-    linear-gradient(var(--wm-th),var(--wm-th)) 20px 100% / calc(100% - 40px) 1px no-repeat,
-    linear-gradient(var(--wm-tv),var(--wm-tv)) 0 20px / 1px calc(100% - 40px) no-repeat,
-    linear-gradient(var(--wm-tv),var(--wm-tv)) 100% 20px / 1px calc(100% - 40px) no-repeat; }
+  /* Inactif et traité (par défaut) */
+  .cm-box > .wm-cadre { position:absolute; inset:0; pointer-events:none; box-sizing:border-box; border-radius:var(--wm-radius-bouton); background:none; box-shadow:none;
+    outline:1px dashed var(--wm-cadre-tirets); outline-offset:-1px; }
   .cm-box.cm-box-outline > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre { inset:-16px; }
-  /* Coins tracés en fond (une bordure de 3,6 px serait arrondie au pixel de l'écran). */
-  .cm-box > .wm-cadre::before, .cm-box > .wm-cadre::after { --wm-trait-coin: 3.6px; content:''; position:absolute; width:14.4px; height:14.4px; }
-  .cm-box > .wm-cadre::before { left:-1.3px; top:-1.3px; background:linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / 100% var(--wm-trait-coin) no-repeat, linear-gradient(var(--wm-encre),var(--wm-encre)) 0 0 / var(--wm-trait-coin) 100% no-repeat; }
-  .cm-box > .wm-cadre::after { right:-1.3px; bottom:-1.3px; background:linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / 100% var(--wm-trait-coin) no-repeat, linear-gradient(var(--wm-encre),var(--wm-encre)) 100% 100% / var(--wm-trait-coin) 100% no-repeat; }
-  /* Actif (fenêtre ouverte, élément visé pendant la saisie, survol de l'épingle, zone en édition) : traits pleins. */
-  .cm-box.cm-focus > .wm-cadre, .cm-box.cm-glow > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre, .cm-box.cm-box-editable > .wm-cadre { --wm-th: var(--wm-encre); --wm-tv: var(--wm-encre); }
-  /* Traité : coins en trait de 1 px, traits en pointillés de 1 px à 55 %. */
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre { background:
-    repeating-linear-gradient(90deg, var(--wm-th) 0 3px, transparent 3px 6px) 20px 0 / calc(100% - 40px) 1px no-repeat,
-    repeating-linear-gradient(90deg, var(--wm-th) 0 3px, transparent 3px 6px) 20px 100% / calc(100% - 40px) 1px no-repeat,
-    repeating-linear-gradient(180deg, var(--wm-tv) 0 3px, transparent 3px 6px) 0 20px / 1px calc(100% - 40px) no-repeat,
-    repeating-linear-gradient(180deg, var(--wm-tv) 0 3px, transparent 3px 6px) 100% 20px / 1px calc(100% - 40px) no-repeat; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::before, .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::after { --wm-trait-coin: 1px; width:12.8px; height:12.8px; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::before { left:0; top:0; }
-  .cm-box.cm-done:not(.cm-focus):not(.cm-glow) > .wm-cadre::after { right:0; bottom:0; }
-  /* Petit côté (moins de 56 px, marge comprise) : pas de trait, il ne reste que les deux coins. */
-  .cm-box.wm-court-h > .wm-cadre { --wm-th: transparent !important; }
-  .cm-box.wm-court-v > .wm-cadre { --wm-tv: transparent !important; }
+  .cm-box > .wm-cadre::before, .cm-box > .wm-cadre::after { content:''; position:absolute; width:12px; height:12px; box-sizing:border-box; background:none; border:0 solid var(--wm-cadre-coin); opacity:.55; }
+  .cm-box > .wm-cadre::before { left:5px; top:5px; border-left-width:2px; border-top-width:2px; border-top-left-radius:3px; }
+  .cm-box > .wm-cadre::after { right:5px; bottom:5px; border-right-width:2px; border-bottom-width:2px; border-bottom-right-radius:3px; }
+  /* Actif */
+  .cm-box.cm-focus > .wm-cadre, .cm-box.cm-glow > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre, .cm-box.cm-box-editable > .wm-cadre {
+    outline:0; background:var(--wm-cadre-gris-actif); box-shadow:0 0 0 1px var(--wm-cadre-contour), var(--wm-ombre-cadre); }
+  .cm-box.cm-focus > .wm-cadre::before, .cm-box.cm-focus > .wm-cadre::after, .cm-box.cm-glow > .wm-cadre::before, .cm-box.cm-glow > .wm-cadre::after,
+  .cm-box.cm-box-editing > .wm-cadre::before, .cm-box.cm-box-editing > .wm-cadre::after, .cm-box.cm-box-editable > .wm-cadre::before, .cm-box.cm-box-editable > .wm-cadre::after { opacity:1; }
   .cm-box.cm-box-saved { transition:none; }
+  /* Contraste forcé (lot 5, N1) : les ombres disparaissent, et avec elles le contour d'un cadre actif ; il reprend un trait
+     plein de 1 px à la couleur du texte du système. Les crochets (border) restent, à la même couleur. */
+  @media (forced-colors:active) {
+    .cm-box.cm-focus > .wm-cadre, .cm-box.cm-glow > .wm-cadre, .cm-box.cm-box-editing > .wm-cadre, .cm-box.cm-box-editable > .wm-cadre { outline:1px solid CanvasText; outline-offset:-1px; }
+    .cm-box > .wm-cadre::before, .cm-box > .wm-cadre::after { border-color:CanvasText; }
+  }
 
-  /* Zone en édition (fenêtre ouverte) : le centre déplace, 8 poignées redimensionnent. Les deux coins witmit
-     servent de poignées d'angle (haut gauche, bas droit) ; les six autres sont des carrés pleins de 8 × 8 px
-     à l'encre, cernés de 1 px de l'encre opposée. Prise de 24 × 24 px, 44 px quand la zone dépasse 88 px. */
+  /* Zone en édition (fenêtre ouverte) : le centre déplace, 8 poignées redimensionnent. Les deux crochets witmit
+     servent de poignées d'angle (haut gauche, bas droit) ; les six autres sont de petits traits gris à l'intérieur
+     du cadre, à 5 px du bord, jamais des carrés : un trait de 12 × 2 px au milieu de chaque côté, un petit crochet
+     de 10 px (trait de 2 px, coude arrondi de 3 px) dans les coins haut droit et bas gauche. Prise de 24 × 24 px,
+     44 px quand la zone dépasse 88 px. */
   .cm-box.cm-box-editable { pointer-events:auto; touch-action:none; z-index:830; }
-  body .cm-box.cm-box-editable { cursor:move; }
+  ${CORPS} .cm-box.cm-box-editable { cursor:move; }
   .cm-box .cm-handle { position:absolute; width:24px; height:24px; transform:translate(-50%,-50%); box-sizing:border-box; background:none; }
   .cm-box.wm-prise-large .cm-handle { width:44px; height:44px; }
   .cm-box .cm-handle-nw { left:0; top:0; } .cm-box .cm-handle-n { left:50%; top:0; } .cm-box .cm-handle-ne { left:100%; top:0; }
   .cm-box .cm-handle-e { left:100%; top:50%; } .cm-box .cm-handle-se { left:100%; top:100%; } .cm-box .cm-handle-s { left:50%; top:100%; }
   .cm-box .cm-handle-sw { left:0; top:100%; } .cm-box .cm-handle-w { left:0; top:50%; }
-  .cm-box .cm-handle-n::after, .cm-box .cm-handle-ne::after, .cm-box .cm-handle-e::after, .cm-box .cm-handle-s::after, .cm-box .cm-handle-sw::after, .cm-box .cm-handle-w::after { content:''; position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; background:var(--wm-encre); box-shadow:0 0 0 1px var(--wm-encre-inverse); }
-  body .cm-ui .cm-handle-nw, body .cm-ui .cm-handle-se { cursor:nwse-resize; } body .cm-ui .cm-handle-ne, body .cm-ui .cm-handle-sw { cursor:nesw-resize; }
-  body .cm-ui .cm-handle-n, body .cm-ui .cm-handle-s { cursor:ns-resize; } body .cm-ui .cm-handle-e, body .cm-ui .cm-handle-w { cursor:ew-resize; }
+  .cm-box .cm-handle-n::after, .cm-box .cm-handle-ne::after, .cm-box .cm-handle-e::after, .cm-box .cm-handle-s::after, .cm-box .cm-handle-sw::after, .cm-box .cm-handle-w::after {
+    content:''; position:absolute; left:50%; top:50%; box-sizing:border-box; background:var(--wm-cadre-prise); border:0 solid var(--wm-cadre-prise); border-radius:1px; box-shadow:none; }
+  .cm-box .cm-handle-n::after { width:12px; height:2px; margin:5px 0 0 -6px; }
+  .cm-box .cm-handle-s::after { width:12px; height:2px; margin:-7px 0 0 -6px; }
+  .cm-box .cm-handle-e::after { width:2px; height:12px; margin:-6px 0 0 -7px; }
+  .cm-box .cm-handle-w::after { width:2px; height:12px; margin:-6px 0 0 5px; }
+  .cm-box .cm-handle-ne::after, .cm-box .cm-handle-sw::after { width:10px; height:10px; background:none; border-radius:0; }
+  .cm-box .cm-handle-ne::after { border-top-width:2px; border-right-width:2px; border-top-right-radius:3px; margin:5px 0 0 -15px; }
+  .cm-box .cm-handle-sw::after { border-bottom-width:2px; border-left-width:2px; border-bottom-left-radius:3px; margin:-15px 0 0 5px; }
+  ${CORPS} .cm-ui .cm-handle-nw, ${CORPS} .cm-ui .cm-handle-se { cursor:nwse-resize; } ${CORPS} .cm-ui .cm-handle-ne, ${CORPS} .cm-ui .cm-handle-sw { cursor:nesw-resize; }
+  ${CORPS} .cm-ui .cm-handle-n, ${CORPS} .cm-ui .cm-handle-s { cursor:ns-resize; } ${CORPS} .cm-ui .cm-handle-e, ${CORPS} .cm-ui .cm-handle-w { cursor:ew-resize; }
 
   /* Hors mode annotation, la page redevient propre : repères masqués, réaffichés à l'activation. */
-  body:not(.cm-active) .cm-pin, body:not(.cm-active) .cm-box.cm-box-saved, body:not(.cm-active) .wm-onde { display:none; }
+  ${CORPS}:not(.cm-active) .cm-pin, ${CORPS}:not(.cm-active) .cm-box.cm-box-saved, ${CORPS}:not(.cm-active) .wm-onde { display:none; }
 
   /* Onde (repère retrouvé depuis la liste, ou qui vient d'être commenté) : un élément à part, contour de 1 px
      à l'encre qui part du bord du repère, s'écarte de 16 px et s'efface, 600 ms, deux fois. Plus de halo en
      box-shadow. Animations réduites : pas d'onde, le repère passe directement à l'état actif. Les classes
      cm-ola et cm-ola-light restent posées sur le repère le temps de l'onde (repère pour les tests). */
   .wm-onde { position:absolute; z-index:825; pointer-events:none; }
-  .wm-onde::before { content:''; position:absolute; inset:0; border:1px solid var(--wm-encre); opacity:0; animation:wmOnde 600ms ease-out 2; }
+  .wm-onde::before { content:''; position:absolute; inset:0; border:1px solid var(--wm-encre); border-radius:var(--wm-radius-bouton); opacity:0; animation:wmOnde 600ms ease-out 2; }
   @keyframes wmOnde { from { inset:0; opacity:1; } to { inset:-16px; opacity:0; } }
   @media (prefers-reduced-motion:reduce) { .wm-onde { display:none; } }
 
@@ -682,247 +757,285 @@
   body.cm-active mark.cm-highlight.cm-done:not(.cm-focus)::before, body.cm-active mark.cm-highlight.cm-done:not(.cm-focus)::after { content:none; }
 
   /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
-     380 px, au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
-     poignée (titre, croix, élément visé dessous) ; corps : champ coupé en Syne, catégorie en touches
-     dépliées (I4), actions. Les marges laissent libres les deux coins witmit. */
-  .cm-popup { position:absolute; z-index:950; width:380px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
-  @media (max-width:480px) { .cm-popup { width:min(380px, calc(100vw - 16px)); } }
-  .cm-popup .cm-tete { position:relative; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
+     340 px (V2), au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
+     poignée (titre, croix, élément visé dessous), sans filet dessous ; corps : un bloc intérieur à la manière des
+     Réglages du Mac (champ arrondi, catégorie en touches dépliées, I4 ; ou lecture seule), puis les boutons
+     dessous, à droite, sans bande de pied. Les marges laissent libres les deux coins witmit. */
+  .cm-popup { position:absolute; z-index:950; width:340px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
+  @media (max-width:480px) { .cm-popup { width:min(340px, calc(100vw - 16px)); } }
+  .cm-popup .cm-tete { position:relative; padding:14px 14px 6px 22px; border-bottom:0; cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
   .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
-  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
   .cm-popup .cm-zone .wm-icone { margin:0; }
   .cm-popup .cm-zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; color:var(--wm-ink-soft); white-space:nowrap; }
+  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:13px; color:var(--wm-ink-soft); white-space:nowrap; }
   .cm-popup .cm-aide-multi .wm-repere { margin:0; }
-  .cm-popup .cm-corps { position:relative; padding:12px 24px 20px 20px; }
-  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
+  /* Corps : le bloc à 10 px des bords gauche et droit, 8 px sous la tête ; le contenu du bloc reste aligné sur le
+     titre (22 px du bord gauche, 24 px du bord droit). Bloc (fiche Fenetre, tokens.json, maquette feuille()) :
+     arrondi radius-bloc (7 px), fond bloc-fond (noir à 2,8 %, blanc à 4 % en sombre), liseré bloc-lisere à
+     l'intérieur, contour bloc-contour à peine marqué, ombre-bloc très douce. Pas de filet ni de bande de pied. */
+  .cm-popup .cm-corps { position:relative; padding:8px 10px 14px; }
+  .cm-popup .wm-bloc { position:relative; padding:12px 14px 14px 12px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
+    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc); }
+  .cm-popup .cm-cat-bloc { display:flex; flex-direction:column; }   /* marges des boutons (zone de 44 px) sans fusion avec celles des voisins */
+  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
   .cm-popup .cm-libelle-cat { margin-top:12px; }
-  /* Champ (fiche Fenetre, fiche Etats) : coupe de 6 px, trait line (line-strong au focus), Syne 14 px. Sans
-     poignée de redimensionnement (le coin coupé la rognerait) : le champ grandit avec le texte, puis défile.
+  /* Champ (fiche Fenetre, fiche Etats) : arrondi de 5 px, trait line (line-strong au focus), police système 15 px. Sans
+     poignée de redimensionnement : le champ grandit avec le texte, puis défile.
      Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
   .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
-    border:1px solid var(--wm-line); border-radius:0; background:var(--wm-surface-raised); box-shadow:none; outline:none;
-    font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
-  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+    border:1px solid var(--wm-line); border-radius:var(--wm-radius-champ); background:var(--wm-champ-fond); box-shadow:none; outline:none;
+    font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-champ-fond); box-shadow:none; outline:none; }
+  .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
   .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:44px; }
   .cm-popup .cm-champ-reponse { margin-top:12px; }
   /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
-  .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
-  /* Vignette de la capture d'une zone : 112 × 64 px, coupe de 6 px, trait line-strong. */
+  .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
+  /* Vignette de la capture d'une zone : 112 × 64 px, arrondi de 5 px, trait line-strong. */
   .cm-popup .cm-vignette-ligne { display:flex; align-items:center; gap:12px; margin-top:10px; }
-  .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
-  .cm-popup .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-popup .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:var(--wm-radius-champ); background:transparent; box-shadow:none; cursor:zoom-in; }
+  .cm-popup .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-popup .cm-vignette img { display:block; width:100%; height:100%; max-width:none; object-fit:cover; }
   .cm-popup .cm-vignette:focus { outline:none; }
-  .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
-  .cm-popup .cm-vignette-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-champ) + 4px); pointer-events:none; }
+  .cm-popup .cm-vignette-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
      touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
-  .cm-popup .cm-cat.wm-touche { display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:13px; font-weight:400; }
+  .cm-popup .cm-cat.wm-touche { --wm-face-h:36px; display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:14px; font-weight:400; }
   .cm-popup .cm-cat-nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
-  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
+  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
   .cm-popup .cm-cat-liste { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .cm-popup .cm-cat-choix.wm-touche { max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:12px; font-weight:400; }
+  .cm-popup .cm-cat-choix.wm-touche { --wm-face-h:36px; max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:13px; font-weight:400; }
   .cm-popup .cm-cat-choix span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
   /* Lecture seule : verrou, texte de la personne entre « », catégorie en méta. Complément : zone en creux. */
-  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-popup .cm-lock-line { margin:0 0 8px; }
-  .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:600; }
+  .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:500; }
   .cm-popup .cm-meta-lu { margin-top:8px; }
   .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-meta-lu .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
-  .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
-  .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); clip-path:var(--wm-forme-touche); }
-  .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
-  /* Actions : supprimer (cercle, jamais rouge) à gauche ; « annuler » en texte et la touche principale à droite. */
-  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:16px; }
+  .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); border-radius:var(--wm-radius-champ); }
+  .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
+  /* Actions, sous le bloc et à droite (fiche Fenetre) : 10 px sous le bloc (24 px sous son contenu), 14 px au-dessus
+     du bas ; supprimer (cercle, jamais rouge) à gauche ; « annuler » (bouton gris) et le bouton principal orange à
+     droite, 8 px d'écart, alignés sur le contenu du bloc. */
+  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; padding:0 14px 0 12px; }
   .cm-popup .cm-delete { margin-right:auto; }
-  .cm-popup .cm-popup-actions .wm-texte { padding:0 6px; }
-  .cm-popup .cm-popup-actions .wm-touche { padding:0 8px 0 12px; }
 
   /* ---------- Liste des retours (fiches Tiroir, FilDeMessages, Rapport ; C7, M1) ----------
-     Fenêtre witmit de 380 px sur toute la hauteur, collée à droite (pleine largeur, en surimpression, sous
-     480 px). Matière par habiller(). Tête, liste qui défile, encart « coller un retour », pied collé en bas. */
-  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:380px; max-width:100vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column;
-    font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; transform:translateX(100%); visibility:hidden;
+     V2, à la manière du panneau de Claude in Chrome : 340 px sur toute la hauteur, collée à droite ; la page rétrécit
+     d'autant (pushPage) au lieu d'être couverte (pleine largeur, en surimpression, sous 480 px). Matière mate par
+     habiller() : ni ombre, ni lueur, ni contour ; un seul filet de 1 px (liste-separation, noir ou blanc à 12 %) du
+     côté de la page. Plus aucun filet dedans : des espaces séparent les blocs. Tête, bloc des retours (seul à défiler),
+     encart « coller un retour », pied collé en bas. */
+  .cm-panel { position:fixed; top:0; right:0; height:100vh; width:340px; max-width:100vw; z-index:850; color:var(--wm-ink); display:flex; flex-direction:column;
+    font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; transform:translateX(100%); visibility:hidden;
     transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 240ms; }
   .cm-panel.show { transform:translateX(0); visibility:visible; transition-delay:0s; }
-  @media (max-width:480px) { .cm-panel { width:100vw; } }
+  /* Sous 480 px, la liste couvre tout l’écran : aucun arrondi et aucun filet contre le bord (Paula, lot 4 ; lot 8). */
+  @media (max-width:480px) { .cm-panel { width:100vw; } .wm-habille.cm-panel { --wm-rayon: 0; } .cm-ui.cm-panel > .wm-verre { box-shadow:none; } }
   @media (prefers-reduced-motion:reduce) { .cm-panel { transition:none; } }
-  /* Tête : marges 14 / 14 / 12 / 22, filet dessous. */
-  .cm-panel-head { flex:none; padding:14px 14px 12px 22px; border-bottom:1px solid var(--wm-line); }
+  .cm-panel > .wm-ombre { display:none; }
+  .cm-panel > .wm-verre { box-shadow:inset 1px 0 0 var(--wm-liste-separation); backdrop-filter:none; -webkit-backdrop-filter:none; }
+  /* Tête : marges 14 / 14 / 14 / 24, sans filet. */
+  .cm-panel-head { flex:none; padding:14px 14px 14px 24px; }
   .cm-panel-head-row { display:flex; align-items:center; gap:10px; margin:0 0 6px; }
-  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
-  .cm-panel-head-row #cmPanelCount { font-family:var(--wm-font-compteur); font-size:22px; font-weight:900; line-height:1; color:var(--wm-ink); }
-  .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
+  .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-author[hidden], .cm-panel-ailleurs[hidden] { display:none; }
-  .cm-panel-author b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-author b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-filtres { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12px; min-height:28px; margin-top:2px; }
   .cm-panel-filtres:not(:has(> :not([hidden]))) { display:none; }   /* maquette, page vide : aucune ligne de filtres */
   /* « masquer les terminés » (case de 16 px) et « masquer witmit » : textes seuls, zone de 44 px de haut. */
-  .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+  .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-filtre::before { content:''; position:absolute; left:0; right:0; top:-8px; bottom:-8px; }
   .cm-ui .cm-filtre:hover { color:var(--wm-ink); }
   .cm-ui .cm-filtre:focus { outline:none; }
   .cm-ui .cm-filtre:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
-  .cm-ui .cm-filtre .wm-repere { margin-left:2px; }
-  /* « ⌥ deux fois » : le carré de la touche, puis « deux fois » collé à lui. */
-  .cm-ui .wm-repere-double { display:inline-flex; align-items:center; gap:4px; }
-  .cm-ui .wm-repere-double .wm-repere { margin-left:0; }
   .cm-ui .wm-case { position:relative; flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-repere); color:var(--wm-ink); background:transparent; }
   .cm-ui .wm-case .wm-icone { display:none; }
   .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
-  /* La liste : 12 px des bords ; une ligne = numéro, corps, actions (12 px d'écart). */
-  .cm-panel-list { flex:1; min-height:0; overflow-y:auto; padding:4px 12px; }
-  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) */
-  .cm-panel-item { position:relative; isolation:isolate; display:flex; gap:12px; padding:12px 8px; border-bottom:1px solid var(--wm-line); }
-  .cm-panel-item:last-child { border-bottom:0; }
-  .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; clip-path:var(--wm-forme-touche); background:transparent; pointer-events:none; }
-  .cm-panel-item:hover::before, .cm-panel-item.cm-current::before { background:var(--wm-surface-raised); }
+  /* Le bloc des retours, à la manière des Réglages du Mac (même matière que le bloc de la fenêtre) : à 10 px des bords
+     de la liste et 10 px au-dessus du pied, arrondi de 7 px, marge intérieure de 4 px ; seul ce bloc défile.
+     Une ligne = numéro, corps, actions (10 px d'écart), 2 px entre deux lignes, sans filet. */
+  .cm-panel-list { flex:1; min-height:0; overflow-y:auto; margin:0 10px 10px; padding:4px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
+    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc);
+    scroll-padding:4px; }   /* la ligne choisie au clavier garde 4 px d'air au bord du bloc, en haut comme en bas */
+  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; scroll-padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) ; la ligne choisie aussi */
+  .cm-panel-list:focus { outline:none; }
+  .cm-panel-item { position:relative; isolation:isolate; display:flex; align-items:center; gap:10px; margin:0 0 2px; padding:9px 10px; }
+  .cm-panel-item:last-child { margin-bottom:0; }
+  .cm-panel-item::before { content:''; position:absolute; inset:0; z-index:-1; border-radius:var(--wm-radius-bouton); background:transparent; pointer-events:none; }
+  /* Survol : gris neutre à 6 %. Ligne choisie (un clic, flèches) : selection-ligne (noir à 7 %, blanc à 9 % en sombre),
+     jamais orange ; numéro plein. Ouverte (second clic, Entrée) : choisie + le corps en entier et les actions. */
+  .cm-panel-item:hover:not(.cm-current)::before { background:rgba(127,127,127,.06); }
+  .cm-panel-item.cm-current::before { background:var(--wm-selection-ligne); }
+  .cm-panel-item:focus { outline:none; }
+  .cm-panel-item:focus-visible::after { content:''; position:absolute; inset:0; border:2px solid var(--wm-ink); border-radius:var(--wm-radius-bouton); pointer-events:none; }
+  .cm-panel-item.wm-ouvert { align-items:flex-start; }
+  /* Réduite : deux lignes (le texte, puis l'élément visé) ; tout le reste attend l'ouverture. */
+  .cm-panel-item:not(.wm-ouvert) .body > :not(.txt):not(.zone), .cm-panel-item:not(.wm-ouvert) .cm-item-actions { display:none; }
   .cm-panel-item .num { flex:none; display:flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 5px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-numero);
-    background:transparent; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1; color:var(--wm-ink); }
-  /* Ligne sélectionnée : même face + numéro plein, chiffre dans l'encre de l'autre thème (pas de barre à gauche). */
-  .cm-panel-item.cm-current .num { background:var(--wm-ink); border-color:var(--wm-ink); color:var(--wm-encre-repere-claire); }
-  body[data-wm-theme="client-sombre"] .cm-panel-item.cm-current .num { color:var(--wm-encre-repere); }
+    background:transparent; font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1; color:var(--wm-ink); }
+  /* Ligne choisie : numéro plein (face ink), chiffre dans la couleur du fond de la liste (pas de barre à gauche). */
+  .cm-panel-item.cm-current .num { background:var(--wm-ink); border-color:var(--wm-ink); color:var(--wm-liste-fond); }
   .cm-panel-item .body { flex:1; min-width:0; cursor:pointer; }
-  .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
+  .cm-panel-item.wm-ouvert .num { margin-top:-2px; }   /* ouverte : le numéro reste face à la première ligne du texte */
+  .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
   .cm-panel-item .zone .wm-icone { margin:0; }
   .cm-panel-item .zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  /* Texte de la personne : Syne 14 px, entre « » (posés par le style : le texte du retour reste intact). */
-  .cm-panel-item .txt { margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
+  /* Texte de la personne : police système 14 px, entre « » (posés par le style : le texte du retour reste intact).
+     Réduit : une ligne, coupée par « … » ; ouvert : en entier. */
+  .cm-panel-item .txt { margin:0; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cm-panel-item.wm-ouvert .txt { margin-bottom:4px; white-space:pre-wrap; overflow:visible; word-wrap:break-word; overflow-wrap:anywhere; }
   .cm-panel-item .txt::before, .cm-voix::before { content:'« '; }
   .cm-panel-item .txt::after, .cm-voix::after { content:' »'; }
   /* Méta : ligne 1 = verrou, statut (ou marque d'envoi) en gras, voyant, prénom, date ; ligne 2 = catégorie. */
-  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-meta2 { gap:2px 14px; margin-top:0; }
-  .cm-panel-item .cm-meta b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-meta b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-meta > span, .cm-panel-item .cm-mi { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
   .cm-panel-item .cm-meta .wm-icone { margin:0; }
   .cm-panel-item .cm-status-chip, .cm-panel-item .cm-sync-chip, .cm-panel-item .cm-cat-chip { display:inline-flex; align-items:center; gap:5px; margin:0; padding:0; border:0; border-radius:0; background:none; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; text-transform:none; }
-  .cm-panel-item .cm-status-chip b, .cm-panel-item .cm-sync-chip b { color:var(--wm-ink); font-weight:600; }
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; text-transform:none; }
+  .cm-panel-item .cm-status-chip b, .cm-panel-item .cm-sync-chip b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-verrou { display:inline-flex; color:var(--wm-ink-soft); }
-  .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:600; gap:5px; }
+  .cm-panel-item .cm-nouveau { color:var(--wm-ink); font-weight:500; gap:5px; }
   .cm-panel-item .cm-nouveau .wm-voyant { display:inline-block; }
   /* « à renvoyer » : un bouton ; icône et soulignement rouges, mot à l'encre ; zone de 44 px de haut. */
-  .cm-ui button.cm-sync-error { position:relative; cursor:pointer; }
+  .cm-ui button.cm-sync-error { position:relative; cursor:pointer; border-radius:var(--wm-radius-bouton); }
   .cm-ui button.cm-sync-error::before { content:''; position:absolute; left:0; right:0; top:-13px; bottom:-13px; }
   .cm-ui .cm-sync-error b { text-decoration:underline 1px var(--wm-signal); text-underline-offset:3px; }
   .cm-ui .cm-sync-error.wm-sans-renvoi b { text-decoration:none; }   /* refus définitif : pas un bouton, pas de soulignement */
   .cm-ui .cm-sync-error:focus { outline:none; }
   .cm-ui .cm-sync-error:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
   /* Détails techniques : repli en texte seul ; ouvert, zone en creux de 160 px au plus, 12 px. */
-  .cm-panel-item details.cm-tech { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item details.cm-tech { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item details.cm-tech[open] { flex-basis:100%; }
   .cm-panel-item details.cm-tech summary { display:inline-flex; align-items:center; gap:5px; min-height:24px; cursor:pointer; list-style:none; }
   .cm-panel-item details.cm-tech summary::-webkit-details-marker { display:none; }
   .cm-panel-item details.cm-tech .wm-ouvert, .cm-panel-item details.cm-tech[open] .wm-ferme { display:none; }
   .cm-panel-item details.cm-tech[open] .wm-ouvert { display:inline-block; }
-  .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:0; border-radius:0;
-    font-family:var(--wm-font-outil); font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
+  .cm-panel-item details.cm-tech pre { margin:6px 0 0; padding:8px 10px; background:var(--wm-surface-raised); border:0; border-radius:var(--wm-radius-champ);
+    font-family:var(--wm-font-systeme); font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-all; color:var(--wm-ink-soft); max-height:160px; overflow:auto; }
   /* Actions : cercles de 30 px empilés, 14 px d'écart (zones de 44 px sans chevauchement). */
   .cm-panel-item .cm-item-actions { flex:none; display:flex; flex-direction:column; align-items:center; gap:14px; }
   .cm-panel-item.cm-done .num { border-color:var(--wm-line); color:var(--wm-ink-soft); }
+  /* Choisi et terminé : le numéro reste plein (face encre), chiffre à la couleur du fond de la liste (lot 8, Paula É2). */
+  .cm-panel-item.cm-current.cm-done .num { color:var(--wm-liste-fond); border-color:var(--wm-ink); }
   .cm-panel-item.cm-done .txt { color:var(--wm-ink-soft); }
-  /* Vignette de capture : 112 × 64 px, coupe de 6 px ; au survol, la loupe dans un rond posé sur l'image. */
-  .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; cursor:zoom-in; }
+  /* Vignette de capture : 112 × 64 px, arrondi de 5 px ; au survol, la loupe dans un rond posé sur l'image. */
+  .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:var(--wm-radius-champ); background:transparent; box-shadow:none; cursor:zoom-in; }
   .cm-panel-item .cm-vignette { margin-top:8px; }
-  .cm-ui .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-ui .cm-vignette-face { position:absolute; inset:0; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-ui .cm-vignette img { display:block; width:100%; height:100%; max-width:none; margin:0; border:0; border-radius:0; object-fit:cover; background:none; }
   .cm-ui .cm-loupe { position:absolute; right:4px; bottom:4px; z-index:1; display:none; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--wm-loupe-fond); color:var(--wm-encre-repere-claire); pointer-events:none; }
   .cm-ui .cm-vignette:hover .cm-loupe, .cm-ui .cm-vignette:focus-visible .cm-loupe { display:flex; }
   .cm-ui .cm-vignette:focus { outline:none; }
-  .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:var(--wm-ink); clip-path:var(--wm-anneau-touche); pointer-events:none; }
+  .cm-ui .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-champ) + 4px); pointer-events:none; }
   /* Capture en cours (fiche Etats) : zone en creux, CircleNotch centré, « capture… » à côté. */
-  .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
+  .cm-ui .cm-capture-en-cours { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-capture-boite { flex:none; display:flex; align-items:center; justify-content:center; width:72px; height:42px; border-radius:var(--wm-radius-champ); background:var(--wm-surface-raised); border:1px solid var(--wm-line); color:var(--wm-ink-soft); }
   .cm-popup .cm-capture-boite { width:112px; height:64px; }
-  /* Modification en place : champ coupé (comme celui de la fenêtre), aide en dessous. */
+  /* Modification en place : champ arrondi (comme celui de la fenêtre), aide en dessous. */
   .cm-panel-item .cm-edit-bloc { margin-top:4px; }
-  .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:0;
+  .cm-ui .cm-panel-item .wm-champ > textarea, .cm-ui .cm-feedback-box .wm-champ > textarea { display:block; width:100%; margin:0; resize:none; overflow-y:auto; border:1px solid var(--wm-line); border-radius:var(--wm-radius-champ);
     background:var(--wm-surface-raised); box-shadow:none; outline:none; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.45; }
+  .cm-ui .cm-panel-item .wm-champ > textarea { min-height:48px; padding:9px 12px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; }
   .cm-ui .cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply) { border-color:var(--wm-line-strong); }
+  /* Modification en place (fiche Tiroir) : face du champ de la fenêtre (champ-fond), texte de la personne à 14 px comme la ligne. */
+  .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-edit:not(.cm-inline-reply), .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-edit:not(.cm-inline-reply):focus { background:var(--wm-champ-fond); font-size:14px; }
+  /* Champ de réponse du fil, posé dans le bloc et souvent sur la ligne choisie : même face champ-fond, pour que son aide
+     (ink-faint, 60 %) garde au moins 4,6:1 sur la liste mate claire (relecture de Paula, lot 1). */
+  .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-reply, .cm-ui .cm-panel-item .wm-champ > textarea.cm-inline-reply:focus { background:var(--wm-champ-fond); }
   .cm-ui .cm-panel-item .wm-champ > textarea:focus, .cm-ui .cm-feedback-box .wm-champ > textarea:focus { border-color:var(--wm-line-strong); background:var(--wm-surface-raised); box-shadow:none; outline:none; }
-  .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
-  .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-ui .cm-panel-item .wm-champ > textarea::placeholder, .cm-ui .cm-feedback-box .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
+  .cm-ui .cm-aide { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-ui .cm-aide .wm-repere { margin:0; }
-  /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta en mono, messages en Syne entre « ». */
+  /* Fil des messages : l'équipe en creux, toi en retrait de 16 px ; méta et messages en police système, messages entre « ». */
   .cm-panel-item .cm-thread { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
-  .cm-panel-item .cm-msg { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; clip-path:var(--wm-forme-touche); background:var(--wm-surface-raised); }
+  .cm-panel-item .cm-msg { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-msg-equipe, .cm-panel-item .cm-feedback { padding:8px 10px; border-radius:var(--wm-radius-champ); background:var(--wm-surface-raised); }
   .cm-panel-item .cm-msg-auteur, .cm-panel-item .cm-reply { margin-left:16px; }
-  .cm-panel-item .cm-msg-who { display:block; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
-  .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:600; }
+  .cm-panel-item .cm-msg-who { display:block; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); white-space:normal; }
+  .cm-panel-item .cm-msg-who b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-item .cm-msg-who .wm-icone { margin:0 5px 0 0; }
   .cm-panel-item .cm-msg-who .cm-sync-chip { vertical-align:baseline; margin-left:4px; }
   .cm-panel-item .cm-msg-who .cm-msg-drop { vertical-align:middle; }
-  .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-voix); font-size:14px; font-weight:500; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
+  .cm-panel-item .cm-msg-texte { display:block; margin-top:3px; font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-panel-item .cm-msg-drop { margin-left:2px; }
-  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; margin-right:-42px; }
-  /* -42 px : la rangée sous le fil passe sous la colonne des cercles (30 px + 12 px d'écart), pour que « ça ne convient pas ?
-     rouvrir » garde ses marges intérieures à 380 et 375 px. En live, un retour envoyé n'a plus que son cercle du haut de ligne :
+  .cm-panel-item .cm-thread-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:14px 8px; margin-top:10px; margin-right:-40px; }
+  /* -40 px : la rangée sous le fil passe sous la colonne des cercles (30 px + 10 px d'écart), pour que « ça ne convient pas ?
+     rouvrir » garde ses marges intérieures à 340 et 375 px ; 14 px entre deux rangées repliées, 8 px entre deux touches. En live, un retour envoyé n'a plus que son cercle du haut de ligne :
      rien ne se chevauche (relecture de Paula, lot 5). */
-  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:12px; }   /* 12 px, comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 380 px */
+  .cm-ui .cm-panel-item .cm-thread-actions .wm-touche { font-size:13px; }   /* 13 px (minimum V2), comme les touches du rapport : « ça ne convient pas ? rouvrir » tient dans sa face à 340 px */
   /* Champ de réponse : libellé, champ, puis « annuler » à gauche et la touche secondaire à droite. */
   .cm-panel-item .cm-reponse-bloc { margin-top:10px; }
-  .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-panel-item .cm-reponse-libelle { display:flex; align-items:center; gap:5px; margin:0 0 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-reponse-libelle .wm-icone { margin:0; }
-  .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
-  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte { padding:0 6px 0 0; font-size:12px; }
-  .cm-ui .cm-panel-item .cm-reponse-actions .wm-texte .wm-repere { margin-left:6px; }
-  .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; line-height:1.4; color:var(--wm-ink); }
+  .cm-panel-item .cm-reponse-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
+  .cm-ui .cm-panel-item .cm-reponse-actions .wm-touche { font-size:13px; }
+  .cm-panel-item .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
   .cm-panel-item .cm-refus[hidden] { display:none; }
-  /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : mono 12 px, ink-soft, centrées. */
-  .cm-panel-empty { padding:24px 16px; text-align:center; font-size:12px; line-height:1.5; color:var(--wm-ink-soft); }
+  /* Phrases de la liste (état vide, tout terminé) et du nouveau ailleurs : 13 px, ink-soft, centrées. */
+  .cm-panel-empty { padding:24px 16px; text-align:center; font-size:13px; line-height:1.5; color:var(--wm-ink-soft); }
+  /* État vide (décision b3) : les gestes, un par ligne, en petit bloc centré aligné à gauche ; le geste en graisse 500
+     ink, l'effet en ink-soft ; ⌘, ctrl et maj dans le petit carré, en chasse fixe du système ; jamais coupés. */
+  .cm-panel-empty p { margin:0; }
+  .cm-panel-empty .cm-vide-mode { margin-top:10px; }
+  .cm-panel-empty .cm-vide-gestes { display:inline-flex; flex-direction:column; align-items:flex-start; gap:4px; margin:8px 0 0; padding:0; list-style:none; text-align:left; }
+  .cm-panel-empty .cm-vide-gestes li { margin:0; padding:0; white-space:nowrap; }
+  .cm-panel-empty .cm-vide-gestes b { color:var(--wm-ink); font-weight:500; }
+  .cm-panel-empty .cm-vide-gestes .wm-repere { display:inline-flex; vertical-align:baseline; margin:0 1px 0 0; height:auto; min-height:18px; color:var(--wm-ink); font-weight:500; }
   /* Encart « coller un retour » (fiche Rapport) : entre la liste et le pied. */
-  .cm-feedback-box { flex:none; padding:12px 24px 14px 20px; border-top:1px solid var(--wm-line); border-bottom:1px solid var(--wm-line); }
+  .cm-feedback-box { flex:none; padding:12px 24px 14px 20px; }
   .cm-feedback-box[hidden] { display:none; }
-  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-outil); font-size:12px; font-weight:600; line-height:1.4; color:var(--wm-ink); }
+  .cm-feedback-box .cm-feedback-title { display:flex; align-items:center; gap:6px; margin:0 0 8px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:500; line-height:1.4; color:var(--wm-ink); }
   .cm-feedback-box .cm-feedback-title .wm-icone { margin:0; }
-  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1.5; }
+  .cm-ui .cm-feedback-box .wm-champ > textarea { min-height:76px; padding:8px 10px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; }   /* fiche Rapport */
   .cm-feedback-box .cm-feedback-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:8px; }
   /* Pied : outils de la page et rapport (mode maquette, ou retour pas encore parti en live), puis « nouveau retour ». */
-  .cm-panel-pied { flex:none; padding:12px 24px 22px 18px; border-top:1px solid var(--wm-line); }
-  .cm-panel-pied.wm-outils-visibles { padding:10px 24px 22px 20px; }
+  /* Pied (fiche Tiroir) : sans filet ; marges 6 / 24 / 22 / 18 ; tous les boutons à droite (décision du 26/10). Entre
+     deux rangées de boutons, 14 px ; entre deux boutons d'une rangée, 8 px : les zones de 44 px ne se recouvrent pas. */
+  .cm-panel-pied { flex:none; padding:6px 24px 22px 18px; }
   .cm-panel-foot { display:flex; flex-wrap:wrap; align-items:center; }
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden], .cm-panel-foot label[hidden] { display:none; }
-  .cm-panel-tools { gap:0 16px; }
-  .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:0; box-shadow:none;
-    font-family:var(--wm-font-outil); font-size:12px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
+  .cm-panel-tools { justify-content:flex-end; gap:14px 16px; }
+  .cm-ui .cm-panel-tools .cm-outil { position:relative; display:inline-flex; align-items:center; gap:6px; height:32px; margin:0; padding:0; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
+    font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-panel-tools .cm-outil::before { content:''; position:absolute; left:0; right:0; top:-6px; bottom:-6px; }
   .cm-ui .cm-panel-tools .cm-outil:hover { color:var(--wm-ink); }
   .cm-ui .cm-panel-tools .cm-outil:focus { outline:none; }
   .cm-ui .cm-panel-tools .cm-outil:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
-  .cm-panel-report { gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--wm-line); }
-  .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; gap:6px; min-height:28px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
-  .cm-panel-report .cm-scope input { position:absolute; left:0; top:50%; width:16px; height:16px; margin:-8px 0 0; padding:0; opacity:0; cursor:pointer; }
+  .cm-panel-report { justify-content:flex-end; gap:14px 8px; margin-top:14px; }
+  /* « rapport complet » : à droite, comme ses boutons ; zone cliquable de 44 px (30 px + 7 px au-dessus et dessous). */
+  .cm-panel-report .cm-scope { position:relative; flex-basis:100%; display:flex; align-items:center; justify-content:flex-end; gap:6px; min-height:30px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); cursor:pointer; }
+  .cm-panel-report .cm-scope::before { content:''; position:absolute; left:0; right:0; top:-7px; bottom:-7px; }
+  .cm-panel-report .cm-scope input { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; opacity:0; cursor:pointer; }   /* toute la ligne coche la case */
   .cm-panel-report .cm-scope input:focus-visible + .wm-case { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-panel-report .cm-scope .wm-case { pointer-events:none; }   /* la case dessinée laisse le clic à la vraie case */
-  .cm-ui .cm-panel-report .wm-touche { font-size:12px; font-weight:400; }
-  .cm-panel-new { flex-direction:column; align-items:stretch; }
+  .cm-ui .cm-panel-report .wm-touche { font-size:13px; font-weight:400; }
+  .cm-panel-new { flex-direction:column; align-items:flex-end; }   /* boutons à droite, jamais sur toute la largeur (fiche Touche) */
   .cm-panel-pied.wm-outils-visibles .cm-panel-new { margin-top:14px; }
-  .cm-ui .cm-new-btn { width:100%; justify-content:space-between; }
-  .cm-panel-new .cm-new-aide { margin-top:8px; text-align:center; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-panel-new .cm-new-aide[hidden] { display:none; }
-  .cm-panel-new .cm-new-aide .wm-repere { margin:0 1px; vertical-align:baseline; }
+  .cm-ui .cm-new-btn { width:auto; }
 
   /* Visionneuse (fiche Visionneuse) : fenêtre witmit centrée, sans voile ; le site reste visible autour.
      .cm-lightbox ne prend aucun clic (le clic à côté atteint la page, où il ferme la visionneuse). */
   .cm-lightbox { position:fixed; inset:0; z-index:990; display:flex; align-items:center; justify-content:center; padding:8px; pointer-events:none; background:none; }
   .cm-lightbox .cm-lightbox-fenetre { position:relative; display:flex; flex-direction:column; min-width:min(360px, calc(100vw - 16px)); max-width:min(92vw, calc(100vw - 16px)); max-height:86vh;
-    pointer-events:auto; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:1.4; text-align:left; }
+    pointer-events:auto; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
   .cm-lightbox .cm-lb-tete { position:relative; flex:none; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); }
   .cm-lightbox .cm-lb-l1 { display:flex; align-items:center; gap:8px; margin:0 0 4px; }
-  .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-titre); font-size:15px; font-weight:700; line-height:1.3; color:var(--wm-ink); }
-  .cm-lightbox .cm-lb-meta { font-size:12px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
+  .cm-lightbox .cm-lb-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cm-lightbox .cm-lb-corps { position:relative; display:flex; flex-direction:column; min-height:0; padding:14px 24px 20px 20px; }
   .cm-lightbox .cm-lb-image { position:relative; isolation:isolate; display:flex; justify-content:center; min-height:0; }
-  .cm-lightbox .cm-lb-face { position:relative; display:block; clip-path:var(--wm-forme-touche); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
+  .cm-lightbox .cm-lb-face { position:relative; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
   .cm-lightbox img { display:block; max-width:100%; max-height:calc(86vh - 150px); width:auto; height:auto; margin:0; border:0; border-radius:0; object-fit:contain; }
-  .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; line-height:1.4; color:var(--wm-ink-soft); }
+  .cm-lightbox .cm-lightbox-hint { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-lightbox .cm-lightbox-hint .wm-repere { margin:0; }
   /* Apparition en 160 ms portée par chaque couche de la fenêtre, jamais par un parent du verre (F9). */
   .cm-lightbox .cm-lightbox-fenetre > * { animation:wmApparait 160ms ease-out; }
@@ -931,12 +1044,13 @@
   /* Message d'état (toast) : verre aux jetons (aspect intermédiaire ; fiche Etats au lot 7). */
   /* Message passager : petite fenêtre de verre sans coins witmit (fiche Etats). Le fondu de 200 ms porte
      sur chaque couche enfant, jamais sur .cm-status, qui contient le verre (F4, F9) ; visibility suit. */
-  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; color:var(--wm-ink); font-family:var(--wm-font-outil); font-size:12px; line-height:18px; min-height:40px; padding:11px 20px 11px 16px; pointer-events:none; width:max-content; max-width:min(420px, 90vw); white-space:normal; visibility:hidden; transition:visibility 0s linear 200ms; }
+  .cm-status { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:960; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:18px; min-height:40px; padding:11px 20px 11px 16px; pointer-events:none; width:max-content; max-width:min(420px, 90vw); white-space:normal; visibility:hidden; transition:visibility 0s linear 200ms; }
   .cm-status.show { visibility:visible; transition-delay:0s; }
   .cm-status > * { opacity:0; transition:opacity 200ms ease; }
   .cm-status.show > * { opacity:1; }
   .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
   .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
+  .cm-status .wm-insecable { white-space:nowrap; }   /* « ?witmit=on » jamais coupé (lot 10 bis, N1) */
   @media (max-width:480px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
   /* Entre 481 et 680 px, liste fermée, un message centré atteindrait les deux boutons du coin : il monte aussi à 84 px
      (fiche BoutonWitmit : les deux boutons restent toujours visibles). Liste ouverte : placerStatus(). */
@@ -950,9 +1064,7 @@
   <div class="wm-bandeau-corps">
     <span class="cm-drag-handle wm-poignee" title="glisse pour déplacer le bandeau">${icone('DotsSixVertical', 16)}</span>
     <span class="wm-bandeau-mode"><span class="wm-voyant" aria-hidden="true"></span>annotation</span>
-    <span class="wm-filet" aria-hidden="true"></span>
-    <span class="wm-gestes">${GESTES_HTML}</span>
-    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer<span class="wm-repere" aria-hidden="true">échap</span></button>
+    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer</button>
   </div>
 </div>
 
@@ -960,7 +1072,6 @@
   <div class="cm-panel-head">
     <div class="cm-panel-head-row">
       <span class="cm-panel-titre">En marge de cette page</span>
-      <span id="cmPanelCount" aria-label="0 retour sur cette page">0</span>
       <button type="button" class="wm-cercle cm-panel-fermer" onclick="cmTogglePanel(false)" aria-label="fermer" title="fermer">${icone('X', 14)}</button>
     </div>
     <div class="cm-panel-author" id="cmAuthor" hidden></div>
@@ -968,14 +1079,14 @@
     <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
     <div class="cm-panel-filtres">
       <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
-      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit${REPERE_DOUBLE_ALT}</button>
+      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit<span class="wm-lu"> ${IS_MAC ? 'option' : 'alt'} deux fois</span></button>
     </div>
   </div>
-  <div class="cm-panel-list" id="cmList"></div>
+  <div class="cm-panel-list" id="cmList" aria-label="tes retours sur cette page"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">${icone('ClipboardText', 14)}coller un retour</div>
     <span class="wm-champ"><textarea aria-label="coller un retour" placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea></span>
-    <div class="cm-feedback-actions"><button type="button" class="wm-texte" onclick="cmPasteFeedback(false)">annuler</button><button type="button" class="wm-touche wm-petite" onclick="cmApplyFeedback()">appliquer</button></div>
+    <div class="cm-feedback-actions"><button type="button" class="wm-touche wm-petite" onclick="cmPasteFeedback(false)">annuler</button><button type="button" class="wm-touche wm-petite" onclick="cmApplyFeedback()">appliquer</button></div>
   </div>
   <div class="cm-panel-pied" id="cmPanelPied">
     <div class="cm-panel-foot cm-panel-tools" id="cmPanelTools">
@@ -990,8 +1101,7 @@
       <button type="button" class="wm-touche wm-petite" onclick="cmSendMail()">${icone('EnvelopeSimple', 14)}envoyer par email</button>
     </div>
     <div class="cm-panel-foot cm-panel-new">
-      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour<span class="wm-repere" aria-hidden="true">N</span></button>
-      <div class="cm-new-aide" id="cmNewAide" hidden>ou ${REPERE_ANNOTER}, de n'importe où sur la page.</div>
+      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour</button>
     </div>
   </div>
 </div>
@@ -1010,7 +1120,8 @@
 
   /* ---------- habillage des fenêtres (F2, F3) ----------
      habiller(el) pose en premiers enfants de el trois couches muettes (aria-hidden, sans clic) : l'ombre,
-     le verre et le contour (trait de 1 px + coins witmit, sauf sansCoins pour les messages passagers).
+     le verre (qui porte aussi le bord) et le contour (les deux coins witmit ; vide, sansCoins, pour les
+     messages passagers).
      Le contenu ne change pas de place dans le DOM. Un seul ResizeObserver retrace les contours quand une
      fenêtre change de taille, et une fois de plus quand les polices sont arrivées. */
   var habilles = [];
@@ -1021,25 +1132,30 @@
     if (!el.isConnected) { if (formeObs) formeObs.unobserve(el); habilles = habilles.filter(function (x) { return x !== el; }); return; } // fenêtre retirée
     var svg = el.querySelector(':scope > .wm-contour');
     if (!svg) return;
-    var W = el.offsetWidth, H = el.offsetHeight, c = 11;
+    var W = el.offsetWidth, H = el.offsetHeight;
     if (!W || !H) return;                                           // caché : retracé quand il apparaît
     svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    // Trait à 0,5 px du bord (net sur un pixel), angles haut droit et bas gauche cassés de 11 px.
-    svg.querySelector('polygon').setAttribute('points', '0.5,0.5 ' + (W - c - 0.2) + ',0.5 ' + (W - 0.5) + ',' + (c + 0.2) + ' ' +
-      (W - 0.5) + ',' + (H - 0.5) + ' ' + (c + 0.2) + ',' + (H - 0.5) + ' 0.5,' + (H - c - 0.2));
-    // Coins witmit : équerres de 14 px posées à 7 px des angles droits (haut gauche, bas droit).
+    // Coins witmit (haut gauche, bas droit) : bras de 8,4 px depuis un coude posé à 8,4 px des bords, coude
+    // arrondi en quart de cercle de 3 px (radius-coude ; même géométrie que la maquette V2). Le bord de la
+    // fenêtre est porté par le verre (border-radius et box-shadow) : plus de contour tracé ici.
     var coins = svg.querySelectorAll('path');
     if (coins.length === 2) {
-      coins[0].setAttribute('d', 'M8.4 16.8V8.4H16.8');
-      coins[1].setAttribute('d', 'M' + (W - 8.4) + ' ' + (H - 16.8) + 'V' + (H - 8.4) + 'H' + (W - 16.8));
+      coins[0].setAttribute('d', coinWitmit(8.4, 16.8, 8.4, 16.8));
+      coins[1].setAttribute('d', coinWitmit(W - 8.4, H - 16.8, H - 8.4, W - 16.8));
     }
+  }
+  // Un coin witmit de (x, y1) à (x2, y2) par un coude en (x, y2), arrondi de 3 px. Coordonnées arrondies au
+  // centième (pas de 331.59999999 dans le tracé).
+  function coinWitmit(x, y1, y2, x2) {
+    var r = 3, sy = y2 > y1 ? 1 : -1, sx = x2 > x ? 1 : -1, n = function (v) { return +v.toFixed(2); };
+    return 'M' + n(x) + ' ' + n(y1) + 'V' + n(y2 - sy * r) + 'Q' + n(x) + ' ' + n(y2) + ' ' + n(x + sx * r) + ' ' + n(y2) + 'H' + n(x2);
   }
   function habiller(el, sansCoins) {
     if (!el || el.querySelector(':scope > .wm-verre')) return el;
     el.classList.add('wm-habille');
     el.insertAdjacentHTML('afterbegin',
       '<span class="wm-ombre" aria-hidden="true"><i></i></span><span class="wm-verre" aria-hidden="true"></span>' +
-      '<svg class="wm-contour" aria-hidden="true" focusable="false"><polygon points=""></polygon>' + (sansCoins ? '' : '<path d=""></path><path d=""></path>') + '</svg>');
+      '<svg class="wm-contour" aria-hidden="true" focusable="false">' + (sansCoins ? '' : '<path d=""></path><path d=""></path>') + '</svg>');
     habilles.push(el);
     if (el.isConnected) tracerContour(el);                         // sinon : tracé par l'observateur à l'insertion
     if (formeObs) formeObs.observe(el);
@@ -1051,14 +1167,58 @@
   window.witmit._planche = { icone: icone, habiller: habiller, icones: Object.keys(ICONES), signe: SIGNE_WITMIT };
 
   /* Le widget injecte lui-même son style et son interface — la page hôte n'a rien à copier. */
+  /* Racine de witmit (voir CORPS) : créée au besoin, remise en place si la page l'a retirée. poser(el) y range une
+     couche. etatCorps(nom, valeur) écrit l'état de witmit sur <body> ET sur la racine : une classe (valeur booléenne)
+     ou un attribut data-wm-* (chaîne ; null le retire). */
+  var RACINE = null;
+  function racine() {
+    if (!RACINE) { RACINE = document.createElement('div'); RACINE.id = 'wmRacine'; RACINE.className = 'wm-racine'; }
+    if (RACINE.parentNode !== document.documentElement) document.documentElement.appendChild(RACINE);
+    return RACINE;
+  }
+  function poser(el) { racine().appendChild(el); return el; }
+  /* Les repères sur le site (épingles, cadres, lignes, onde) vivent dans un calque à part de la racine, #wmReperes, à
+     l'origine du document. Liste ouverte, ce calque est coupé au bord de la liste (overflow-x: clip, largeur = la page
+     visible) : un repère situé sous la liste n'y est ni visible ni cliquable, quel que soit le rang de <body> de la page
+     (lot 8, Léa É2). Couper par overflow ne coupe pas le flou du verre des épingles (ce n'est ni un filtre ni un masque). */
+  var REPERES = null;
+  function poserRepere(el) {
+    if (!REPERES) { REPERES = document.createElement('div'); REPERES.id = 'wmReperes'; REPERES.className = 'wm-reperes'; }
+    if (REPERES.parentNode !== racine()) racine().appendChild(REPERES);
+    REPERES.appendChild(el);
+    return el;
+  }
+  function couperReperes() {
+    if (!REPERES) return;
+    var panel = document.getElementById('cmPanel');
+    if (!panel || !panel.classList.contains('show')) {   // liste fermée : tout est rendu
+      REPERES.classList.remove('wm-coupe', 'wm-coupe-tout'); REPERES.style.width = ''; REPERES.inert = false; return;
+    }
+    var vw = document.documentElement.clientWidth;
+    var largeur = Math.max(0, window.scrollX + vw - Math.min(panel.offsetWidth, vw));
+    REPERES.classList.add('wm-coupe');
+    REPERES.style.width = largeur + 'px';
+    // Liste qui couvre toute la page visible (pleine largeur sous 480 px) : les épingles, invisibles sous la liste, ne doivent plus
+    // être atteintes par Tab ni par un lecteur d'écran (lot 9, Léa R2). Rendues à la fermeture de la liste.
+    var tout = largeur === 0 || panel.offsetWidth >= vw;   // la liste couvre toute la page visible
+    REPERES.classList.toggle('wm-coupe-tout', tout);
+    REPERES.inert = tout;
+  }
+  function etatCorps(nom, valeur) {
+    [document.body, racine()].forEach(function (n) {
+      if (typeof valeur === 'boolean') n.classList.toggle(nom, valeur);
+      else if (valeur === null) n.removeAttribute(nom);
+      else n.setAttribute(nom, valeur);
+    });
+  }
   function injectUI() {
     var style = document.createElement('style');
     style.id = 'cmStyles';
-    style.textContent = fontFacesCss() + CSS;
+    style.textContent = CSS;
     document.head.appendChild(style);
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
-    while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+    while (wrap.firstChild) poser(wrap.firstChild);
     habiller(document.getElementById('cmPanel'));
     habiller(document.getElementById('cmPill'));
     habiller(document.getElementById('cmStatus'), true);   // message passager : trop petit pour les coins witmit
@@ -1066,7 +1226,7 @@
       var fab = document.createElement('div');
       fab.className = 'cm-fab cm-ui';
       fab.innerHTML = BUTTONS_HTML;
-      document.body.appendChild(fab);
+      poser(fab);
     } else {
       // Boutons fournis par la page (C8) : adoptés tels quels, contenu compris ; seuls leurs attributs
       // d'état et leur nom accessible sont posés par witmit (majBoutons).
@@ -1079,6 +1239,8 @@
       var tb = document.getElementById('cmToggleBtn');
       if (tb) { tb.setAttribute('aria-label', 'mode annotation'); tb.setAttribute('aria-keyshortcuts', 'Alt+A'); }
     }
+    REPERES = document.createElement('div'); REPERES.id = 'wmReperes'; REPERES.className = 'wm-reperes';
+    poser(REPERES);
   }
 
   /* ---------- catégories : règles par mots-clés, 100 % locales (aucune IA, rien ne sort) ----------
@@ -1148,7 +1310,7 @@
   function boot() {
   // Live : caché d'office pendant l'installation (le vrai état est posé à la fin de boot) — aucune couche
   // ne s'affiche un instant, et aucune police n'est téléchargée avant la révélation.
-  if (CONFIG.mode === 'live') document.body.classList.add('cm-concealed');
+  if (CONFIG.mode === 'live') etatCorps('cm-concealed', true);
   injectUI();
   /* Modalité du focus (fiche Etats, « seulement au clavier ») : drapeau data-wm-clavier sur <body>, posé par une
      touche de déplacement (Tab ; flèches, début, fin, pages hors d'un champ de saisie, où elles déplacent le
@@ -1157,16 +1319,17 @@
     var DEPLACEMENT = /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/;
     document.addEventListener('keydown', function (e) {
       var t = e.target, champ = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-      if (e.key === 'Tab' || (DEPLACEMENT.test(e.key) && !champ)) document.body.setAttribute('data-wm-clavier', '');
+      if (e.key === 'Tab' || (DEPLACEMENT.test(e.key) && !champ)) etatCorps('data-wm-clavier', '');
     }, true);
-    document.addEventListener('pointerdown', function () { document.body.removeAttribute('data-wm-clavier'); }, true);
+    document.addEventListener('pointerdown', function () { etatCorps('data-wm-clavier', null); }, true);
   })();
   renderAuthor();
   initTheme();
+  etatCorps('data-wm-selection', CONFIG.selectionColor);   // couleur des cadres (fiche Selection)
 
-  /* ---------- thème : le verre prend l'inverse du fond de la page ----------
-     On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → verre
-     champagne (« client-clair ») ; sinon verre graphite (« client-sombre »). Sans fond opaque, on suit
+  /* ---------- thème : witmit prend le thème du site (V2) ----------
+     On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → titane
+     sombre (« client-sombre ») ; sinon titane clair (« client-clair »). Sans fond opaque, on suit
      prefers-color-scheme. data-host-theme sur la balise <script> impose la réponse. Le résultat est posé
      en data-wm-theme sur <body> (jamais de variable sur :root) : toutes nos couches suivent d'un coup. */
   function hostIsDark() {
@@ -1181,8 +1344,8 @@
     return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   }
   function applyTheme() {
-    var t = hostIsDark() ? 'client-clair' : 'client-sombre';
-    if (document.body.getAttribute('data-wm-theme') !== t) document.body.setAttribute('data-wm-theme', t);
+    var t = hostIsDark() ? 'client-sombre' : 'client-clair';
+    if (document.body.getAttribute('data-wm-theme') !== t) etatCorps('data-wm-theme', t);
   }
   // Recalcul : au chargement ; quand le site change son thème (class, style ou data-theme de <html> ou de
   // <body>, puis une seconde fois 300 ms plus tard, le temps d'une transition de fond) ; au changement de
@@ -1281,8 +1444,7 @@
     try { return localStorage.getItem(REVEAL_KEY) === '1'; } catch (e) { return false; }
   }
   function applyReveal(on) {
-    document.body.classList.toggle('cm-concealed', !on);
-    if (on && LIVE) prechargerPolices();
+    etatCorps('cm-concealed', !on);
     var hideBtn = document.getElementById('cmHideBtn');
     if (hideBtn) hideBtn.hidden = !LIVE;
   }
@@ -1294,7 +1456,9 @@
     on = on !== false;
     try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
     closePopup(true); cmToggle(false); cmTogglePanel(false);
-    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000 });   // 6 s, comme un échec (Léa)
+    // « ?witmit=on » d'un seul tenant (Paula, lot 10 bis, N1) : jamais coupé après le « ? ».
+    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000, insecable: '?witmit=on' });   // 6 s, comme un échec (Léa)
+    else retirerMessageMasquage();   // N2 : witmit revient, le message qui disait comment le retrouver n'a plus lieu d'être
     applyReveal(on);
   };
   function readUrlSwitch() {
@@ -1588,6 +1752,7 @@
     if (outils) outils.hidden = !outilsVus;
     var pied = document.getElementById('cmPanelPied');
     if (pied) pied.classList.toggle('wm-outils-visibles', !!(outilsVus || (foot && !foot.hidden)));
+    if (typeof placerBoutons === 'function' && listeOuverte()) placerBoutons();   // le pied a pu changer de hauteur (lot 8, Léa É1)
   }
 
   // Marques d'envoi (Léa 2.3 et 3.5) : une icône et un mot en gras ; « à renvoyer » est le bouton du nouvel essai.
@@ -1597,7 +1762,7 @@
     if (c.sync.state === 'pending') return '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + '<b>envoi en cours…</b></span>';
     // Refus définitif (E1) : la marque reste, mais ce n'est plus un bouton ; le retour repart quand on le modifie.
     if (!renvoiPermis(c.sync)) return '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b>' + raisonLue(c.sync, false) + '</span>';
-    return '<button type="button" class="cm-sync-chip cm-sync-error" onmousedown="event.stopPropagation()" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
+    return '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetrySync(\'' + c.id + '\')" title="' + cmEsc(titreARenvoyer(c.sync, false)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>';
   }
   window.cmRetrySync = function (id) { var c = findComment(id); if (c && renvoiPermis(c.sync)) { c.sync = null; scheduleSync(c); } };
   // Au retour de la connexion, ce qui attendait repart (E1).
@@ -1767,29 +1932,26 @@
 
   /* ---------- dessin des repères (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ---------- */
   var MARGE_CADRE = 16;      // cadre d'un élément visé : 16 px autour de l'élément (une zone encadrée : aucune)
-  var COTE_MIN_TRAIT = 56;   // un côté du cadre plus court n'a pas de trait : il ne reste que les deux coins
   // Le fond derrière le repère d'un élément est celui de son parent (le cadre et l'épingle sont posés autour de
   // l'élément, pas dessus) ; derrière une zone encadrée, celui du conteneur qu'elle couvre.
   function fondSombreAutour(el) { return isDarkBehind((el && el.parentElement) || document.body); }
   function fondSombreSous(el) { return isDarkBehind(el || document.body); }
-  // Épingle : le fond juste sous son centre, quand il est à l'écran (une épingle posée 22 px au-dessus d'un élément
-  // peut sortir du bloc sombre qui le contient) ; sinon, comme son cadre.
+  // Épingle : le fond juste sous son centre, quand il est à l'écran (une épingle à cheval sur le coin d'un cadre
+  // peut sortir du bloc sombre qui le contient) ; sinon, comme son cadre. Le centre est le point posé (coin du
+  // cadre), sauf pour un passage de texte (point = coin bas gauche de l'épingle).
   function fondSombreEpingle(pt, h, secours) {
-    var cx = pt.x + (pt.texte ? h / 2 : -h / 2) - window.scrollX, cy = pt.y + (pt.dessous ? h / 2 : -h / 2) - window.scrollY;
+    var cx = pt.x + (pt.texte ? h / 2 : 0) - window.scrollX, cy = pt.y - (pt.texte ? h / 2 : 0) - window.scrollY;
     if (cx >= 0 && cy >= 0 && cx < window.innerWidth && cy < window.innerHeight) {
       var sous = pageElementAt(cx, cy);
       if (sous) return isDarkBehind(sous);
     }
     return secours;
   }
-  // Taille du cadre (dessiné par son enfant .wm-cadre) et traits retirés sur un côté trop court.
+  // Taille du cadre (dessiné par son enfant .wm-cadre ; fermé, quelle que soit sa taille : fiche Selection, V2).
   function dimensionnerCadre(box, x, y, w, h) {
     w = Math.max(w, 4); h = Math.max(h, 4);
     box.style.left = x + 'px'; box.style.top = y + 'px';
     box.style.width = w + 'px'; box.style.height = h + 'px';
-    var m = (box.classList.contains('cm-box-outline') || box.classList.contains('cm-box-editing')) ? 2 * MARGE_CADRE : 0;
-    box.classList.toggle('wm-court-h', w + m < COTE_MIN_TRAIT);
-    box.classList.toggle('wm-court-v', h + m < COTE_MIN_TRAIT);
     box.classList.toggle('wm-prise-large', w > 88 && h > 88);   // poignées : prise de 44 px au-delà de 88 px
   }
   function assurerCadre(box) {
@@ -1805,15 +1967,23 @@
     box.dataset.id = id;
     assurerCadre(box);
     dimensionnerCadre(box, x, y, w, h);
-    document.body.appendChild(box);
+    poserRepere(box);
   }
-  /* Place de l'épingle (F6) : point = son coin bas droit, aligné sur le bord droit du cadre et 6 px au-dessus
-     de lui ; sans place au-dessus (haut de la page), son coin haut droit 6 px sous le cadre. marge : 16 px pour
-     un élément visé, 0 pour une zone encadrée. */
-  function placeEpingle(r, marge, hauteur) {
-    var droite = r.x + r.w + marge, haut = r.y - marge - 6;
-    if (haut - hauteur < 0) return { x: droite, y: r.y + r.h + marge + 6, dessous: true };
-    return { x: droite, y: haut, dessous: false };
+  /* Place de l'épingle (fiche Epingle, V2) : à cheval sur un coin du cadre, son centre sur le coin. Deux places,
+     sur les coins sans crochet witmit : en haut à droite d'habitude ; en bas à gauche quand il n'y a pas la place
+     en haut à droite, c'est-à-dire quand l'épingle posée là sortirait de la page visible par le haut (haut du
+     document, comme la place « dessous » de 0.2.0) ou par la droite (bord droit de la page, à gauche de la liste
+     quand elle pousse la page). r : la boîte visée (page) ; marge : 16 px pour un élément visé (son cadre
+     s'écarte de 16 px), 0 pour une zone encadrée ; largeur, hauteur : celles de l'épingle. */
+  function bordDroitPage() {
+    var html = document.documentElement, pousse = parseFloat(getComputedStyle(html).marginRight) || 0;
+    return window.scrollX + html.clientWidth - pousse;
+  }
+  function placeEpingle(r, marge, largeur, hauteur) {
+    var hautDroit = { x: r.x + r.w + marge, y: r.y - marge, basGauche: false };
+    var sortHaut = hautDroit.y - hauteur / 2 < 0, sortDroite = hautDroit.x + largeur / 2 > bordDroitPage();
+    if (sortHaut || sortDroite) return { x: r.x - marge, y: r.y + r.h + marge, basGauche: true };
+    return hautDroit;
   }
   function rectPage(el) {
     var b = el.getBoundingClientRect();
@@ -1834,7 +2004,8 @@
     if (aDuNouveau(c)) parts.push('nouveau');
     return parts.join(', ');
   }
-  /* Onde : un contour de 1 px qui part du bord du repère, s'écarte de 16 px et s'efface (2 × 600 ms). */
+  /* Onde : un contour de 1 px qui part du bord du repère, s'écarte de 16 px et s'efface (2 × 600 ms : DUREE_ONDE). */
+  var DUREE_ONDE = 1200;
   function lancerOnde(el) {
     if (!el || !el.isConnected) return;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1844,8 +2015,18 @@
     o.setAttribute('aria-hidden', 'true');
     o.style.left = (r.x - m) + 'px'; o.style.top = (r.y - m) + 'px';
     o.style.width = (r.w + 2 * m) + 'px'; o.style.height = (r.h + 2 * m) + 'px';
-    document.body.appendChild(o);
-    setTimeout(function () { o.remove(); }, 1300);
+    poserRepere(o);
+    setTimeout(function () { o.remove(); }, DUREE_ONDE + 50);
+  }
+  // Repères qui portent l'onde d'un retour : chacun de ses cadres (plusieurs éléments : ils s'allument et s'éteignent
+  // ensemble, fiche Reperes), sinon son passage de texte (un seul repère, même sur plusieurs lignes), sinon son épingle.
+  function reperesOnde(id) {
+    var cadres = Array.prototype.slice.call(document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]'));
+    if (cadres.length) return cadres;
+    var marks = sessionMarks[id] || [];
+    if (marks.length) return [marks[0]];
+    var pin = document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + id + '"]');
+    return pin ? [pin] : [];
   }
 
   function renderMarkers() {
@@ -1920,11 +2101,12 @@
         openPopup(editPt.x, editPt.y, c.zone, editMeta);
         epingleOuvreuse = c.id;   // Échap rendra le focus à cette épingle
       }
-      function poserEpingle(pt, secondaire, sombrePin) {
+      // Épingle posée dans la page, puis placée : sa largeur (un ou deux chiffres) compte pour savoir si elle tient
+      // en haut à droite. place(largeur, hauteur) rend le point ; secours : le fond de son cadre.
+      function poserEpingle(place, secondaire, secours) {
         var p = document.createElement('div');
-        p.className = 'cm-pin cm-ui' + (secondaire ? ' cm-pin-secondary' : '') + (sombrePin ? ' wm-sur-sombre' : '') + (pt.dessous ? ' wm-dessous' : '') + (pt.texte ? ' wm-pin-texte' : '');
+        p.className = 'cm-pin cm-ui' + (secondaire ? ' cm-pin-secondary' : '');
         p.dataset.id = c.id;
-        p.style.left = pt.x + 'px'; p.style.top = pt.y + 'px';
         p.innerHTML = '<span>' + (i + 1) + '</span>' + (!secondaire && aDuNouveau(c) ? '<i class="wm-voyant-epingle" aria-hidden="true"></i>' : '');
         p.title = c.text;
         p.setAttribute('role', 'button');
@@ -1933,31 +2115,40 @@
         if (secondaire) p.setAttribute('aria-hidden', 'true');   // annoncée une seule fois, par l'épingle principale
         p.onclick = openEditor;
         p.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(e); } };
-        document.body.appendChild(p);
+        poserRepere(p);
+        // (hors mode annotation, l'épingle est masquée et ne se mesure pas : 24 ou 20 px de côté)
+        var w = p.offsetWidth || (secondaire ? 20 : 24), h = p.offsetHeight || (secondaire ? 20 : 24);
+        var pt = place(w, h);
+        p.style.left = pt.x + 'px'; p.style.top = pt.y + 'px';
+        if (pt.basGauche) p.classList.add('wm-bas-gauche');
+        if (document.querySelector('.cm-box-editable[data-id="' + c.id + '"]')) p.classList.add('wm-sur-poignee');
+        if (pt.texte) p.classList.add('wm-pin-texte');
+        if (fondSombreEpingle(pt, h, secours)) p.classList.add('wm-sur-sombre');
         return p;
       }
       function centre(el) { var r = rectPage(el); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
 
-      var pt, H = 24;
+      var place;
       if (multi || (c.type === 'pin' && anchorEl)) {
-        pt = placeEpingle(rectPage(anchorEl), MARGE_CADRE, H);
+        var ra = rectPage(anchorEl);
+        place = function (w, h) { return placeEpingle(ra, MARGE_CADRE, w, h); };      // coin du cadre de l'élément
       } else if (boxGeom) {
-        pt = placeEpingle(boxGeom, 0, H);                               // coin haut droit de la zone encadrée
+        place = function (w, h) { return placeEpingle(boxGeom, 0, w, h); };          // coin de la zone encadrée
       } else if (c.type === 'text' && sessionMarks[c.id] && sessionMarks[c.id].length) {
         // Début du passage, au-dessus de son coin witmit : stable même sur plusieurs lignes.
         var mr = rectPage(sessionMarks[c.id][0]);
-        pt = { x: mr.x - 4, y: mr.y - 8, texte: true };
+        place = function () { return { x: mr.x - 4, y: mr.y - 8, texte: true }; };
       } else {
         // Sans élément retrouvé : le point d'ancrage enregistré (coin haut droit de l'élément, à 3 px près).
         var ap = computeAbsolutePoint(c.anchor, c.fallback);
-        pt = placeEpingle({ x: ap.x + 3, y: ap.y - 3, w: 0, h: 0 }, MARGE_CADRE, H);
+        place = function (w, h) { return placeEpingle({ x: ap.x + 3, y: ap.y - 3, w: 0, h: 0 }, MARGE_CADRE, w, h); };
       }
-      var pin = poserEpingle(pt, false, fondSombreEpingle(pt, H, sombre));
+      var pin = poserEpingle(place, false, sombre);
       if (multi) {
         // Épingles secondaires, même numéro, sur les autres éléments du groupe (+ liens pointillés si demandé)
         multi.slice(1).forEach(function (el) {
-          var p2 = placeEpingle(rectPage(el), MARGE_CADRE, 20);
-          var sp = poserEpingle(p2, true, fondSombreEpingle(p2, 20, fondSombreAutour(el)));
+          var re = rectPage(el);
+          var sp = poserEpingle(function (w, h) { return placeEpingle(re, MARGE_CADRE, w, h); }, true, fondSombreAutour(el));
           if (CONFIG.multiLines) drawLink(centre(pin), centre(sp), c.id, pin.classList.contains('wm-sur-sombre'));
         });
       }
@@ -1994,7 +2185,7 @@
     if (!svg) {
       svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.id = 'cmLinks'; svg.setAttribute('class', 'cm-ui');
-      document.body.appendChild(svg);
+      poserRepere(svg);
     }
     svg.style.width = document.documentElement.scrollWidth + 'px';
     svg.style.height = document.documentElement.scrollHeight + 'px';
@@ -2214,6 +2405,7 @@
     c.status = 'nouveau'; delete c.signaledAt;
     pushHistory(c, { date: new Date().toISOString(), status: 'nouveau', source: 'moi', message: 'rouvert' });
     persist(); renderList(); renderMarkers();
+    if (ouvertId === id) editInList(id);   // c1 : le retour ouvert redevient modifiable, son texte s'ouvre dans le champ
     cmStatus('rouvert : tu peux le modifier, il repartira dans le prochain rapport.', { type: 'fait' });
   };
   window.cmToggleHideDone = function () {
@@ -2222,7 +2414,7 @@
   };
 
   /* ---------- le fil d'un retour (fiche FilDeMessages ; Léa 3.4 et 3.6) ----------
-     Messages de l'équipe en creux, les tiens en retrait ; méta en mono, texte de la personne en Syne entre « ».
+     Messages de l'équipe en creux, les tiens en retrait ; méta et texte de la personne en police système, ce dernier entre « ».
      Live : le fil du serveur, puis tes messages pas encore partis ; dessous, « répondre » (si l'équipe a écrit
      au moins une fois) et « ça ne convient pas ? rouvrir » (retour résolu ou répondu par l'équipe).
      Maquette : complément demandé, message de l'équipe collé, tes réponses en attente du prochain rapport. */
@@ -2314,19 +2506,22 @@
     suite.push(cmEsc(dateRelative(c.date)));
     suite.forEach(function (s) { meta.push('<span>' + (meta.length ? '· ' : '') + s + '</span>'); });
     var vignette = c.shot && c.shot.dataUrl
-      ? '<button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture" onmousedown="event.stopPropagation()" onclick="event.stopPropagation(); cmShowShot(\'' + c.id + '\', this)">' +
+      ? '<button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture" onclick="event.stopPropagation(); cmShowShot(\'' + c.id + '\', this)">' +
           '<span class="cm-vignette-face"><img class="cm-shot" alt="capture de la zone" src="' + c.shot.dataUrl + '"></span><span class="cm-loupe" aria-hidden="true">' + icone('MagnifyingGlassPlus', 14) + '</span></button>'
       : capturesEnCours[c.id] ? captureEnCoursHtml() : '';
     var multi = c.targets && c.targets.length > 1;
-    return '<div class="cm-panel-item' + (c.id === focusedId ? ' cm-current' : '') + (isDone(c) ? ' cm-done' : '') + (aDuNouveau(c) ? ' cm-a-du-nouveau' : '') + '" data-id="' + c.id + '">' +
+    // Décision c1 (26/10) : un clic choisit la ligne, un deuxième l'ouvre, un troisième la referme (cmFocusDown, sur
+    // toute la ligne). Réduite, deux lignes : le texte, puis l'élément visé ; le reste attend l'ouverture (CSS).
+    var choisie = c.id === focusedId;
+    return '<div class="cm-panel-item' + (choisie ? ' cm-current' : '') + (choisie && c.id === ouvertId ? ' wm-ouvert' : '') + (isDone(c) ? ' cm-done' : '') + (aDuNouveau(c) ? ' cm-a-du-nouveau' : '') + '" data-id="' + c.id + '" tabindex="-1" onmousedown="cmFocusDown(event, \'' + c.id + '\')">' +
       '<div class="num">' + (i + 1) + '</div>' +
-      '<div class="body" onmousedown="cmFocusDown(event, \'' + c.id + '\')" title="' + (modifiable ? 'voir sur la page et modifier' : 'voir sur la page') + '">' +
-        '<div class="zone" title="' + cmEsc(c.zone) + '">' + icone(multi ? 'SelectionPlus' : c.type === 'box' ? 'BoundingBox' : c.type === 'text' ? 'TextT' : 'CursorClick', 14) + '<span class="zone-txt">' + cmEsc(c.zone) + '</span></div>' +
+      '<div class="body" title="' + (modifiable ? 'voir sur la page et modifier' : 'voir sur la page') + '">' +
         '<div class="txt">' + cmEsc(c.text) + '</div>' +
+        '<div class="zone" title="' + cmEsc(c.zone) + '">' + icone(multi ? 'SelectionPlus' : c.type === 'box' ? 'BoundingBox' : c.type === 'text' ? 'TextT' : 'CursorClick', 14) + '<span class="zone-txt">' + cmEsc(c.zone) + '</span></div>' +
         vignette +
         '<div class="cm-meta">' + meta.join('') + '</div>' +
         '<div class="cm-meta cm-meta2"><span class="cm-cat-chip" title="catégorie">' + icone(cat.icon, 14) + cmEsc(nomCategorie(c.category)) + '</span>' +
-          (c.tech ? '<details class="cm-tech" onmousedown="event.stopPropagation()"><summary>' + icone('CaretRight', 14, 'wm-ferme') + icone('CaretDown', 14, 'wm-ouvert') + 'détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
+          (c.tech ? '<details class="cm-tech"><summary>' + icone('CaretRight', 14, 'wm-ferme') + icone('CaretDown', 14, 'wm-ouvert') + 'détails techniques</summary><pre>' + cmEsc(techSummary(c.tech)) + '</pre></details>' : '') +
         '</div>' +
         filHtml(c) +
       '</div>' +
@@ -2352,11 +2547,7 @@
     var cmCountEl = document.getElementById('cmCount');
     if (cmCountEl) { cmCountEl.textContent = nbNouveaux || ''; cmCountEl.dataset.zero = nbNouveaux ? '0' : '1'; }
     majBoutons();
-    var panelCountEl = document.getElementById('cmPanelCount');
-    if (panelCountEl) {
-      panelCountEl.textContent = pc.length;
-      panelCountEl.setAttribute('aria-label', pc.length + (pc.length > 1 ? ' retours' : ' retour') + ' sur cette page');
-    }
+    // Plus de compteur à côté du titre (V2, décision du 26/10) : la ligne de compte donne déjà le nombre.
     // Ligne de compte (Léa 3.3) : « 2 à suivre · 1 terminé — 12 retours sur 5 pages du site, dont 9 à suivre ».
     var subEl = document.getElementById('cmPanelSub');
     if (subEl) {
@@ -2383,10 +2574,10 @@
     }
     var caseEl = document.querySelector('#cmPanel .cm-hide-done');
     if (caseEl) { caseEl.hidden = !pc.length; caseEl.setAttribute('aria-checked', hideDone() ? 'true' : 'false'); }
-    var aide = document.getElementById('cmNewAide');
-    if (aide) aide.hidden = !!pc.length;
     if (!pc.length) {
-      list.innerHTML = "<div class=\"cm-panel-empty\">aucun retour sur cette page pour l'instant.</div>";
+      list.innerHTML = ETAT_VIDE_HTML;
+      list.removeAttribute('role');
+      list.removeAttribute('aria-label');   // sans rôle, le nom ne sert à rien (relecture de Léa, lot 4)
       majPiedsTiroir();
       return;
     }
@@ -2399,46 +2590,157 @@
     });
     if (!html) html = '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';
     list.innerHTML = html;
+    majEtatsLignes();
     majPiedsTiroir();
   }
+  /* Lecteurs d'écran et clavier (relecture de Léa, lot 4) : la liste est une liste nommée, chaque retour un élément de
+     liste avec sa position ; le retour choisi porte aria-current et un seul arrêt de tabulation (tabindex 0 sur la ligne
+     choisie, sinon la première ; -1 sur les autres) ; son état se lit en fin de ligne (« choisi, ouvert » ou « réduit »). */
+  function majEtatsLignes() {
+    var list = document.getElementById('cmList');
+    if (!list) return;
+    var items = Array.prototype.slice.call(list.querySelectorAll('.cm-panel-item'));
+    // Le rôle et le nom vont ensemble : posés quand la liste a des retours, retirés sinon.
+    if (items.length) { list.setAttribute('role', 'list'); list.setAttribute('aria-label', 'tes retours sur cette page'); }
+    else { list.removeAttribute('role'); list.removeAttribute('aria-label'); }
+    var arret = items.filter(function (it) { return it.dataset.id === focusedId; })[0] || items[0];
+    items.forEach(function (it, k) {
+      var choisie = it.dataset.id === focusedId, ouverte = choisie && it.dataset.id === ouvertId;
+      it.setAttribute('role', 'listitem');
+      it.setAttribute('aria-posinset', k + 1);
+      it.setAttribute('aria-setsize', items.length);
+      it.setAttribute('tabindex', it === arret ? '0' : '-1');
+      if (choisie) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
+      var lu = it.querySelector(':scope > .cm-etat-lu');
+      if (!lu) { lu = document.createElement('span'); lu.className = 'wm-lu cm-etat-lu'; it.appendChild(lu); }
+      lu.textContent = (choisie ? ', choisi' : '') + (ouverte ? ', ouvert' : ', réduit');
+    });
+  }
 
-  /* Clic sur un commentaire de la liste : on active le mode (les repères ne sont visibles qu'en mode
-     annotation), on fait défiler jusqu'au repère et on le fait clignoter pour le retrouver d'un coup d'œil. */
-  /* Sélection d'un item à l'APPUI de la souris (pas au relâchement) : si un autre item était en cours
-     d'édition, sa fermeture décale la liste et le relâchement tomberait ailleurs. */
+  /* Liste, décision c1 de François (26/10, ZB-295) : un clic choisit un retour (fond gris, son repère s'allume sur la
+     page), un deuxième l'ouvre en entier, un troisième le referme (il reste choisi). Un seul retour ouvert à la fois :
+     celui qui est choisi. Au clavier (liste ouverte) : flèches haut et bas pour changer de retour choisi, Entrée pour
+     ouvrir ou refermer, Échap pour refermer le retour ouvert, puis la liste.
+     Ouvrir un retour modifiable ouvre son texte en place, dans le champ (comme le premier clic de la 0.2.0) ; Entrée y
+     enregistre et Échap y annule, et l'un comme l'autre referme le retour. Retour verrouillé : ouvert en lecture.
+     La sélection se fait à l'APPUI de la souris (pas au relâchement) : si un autre retour était en cours de
+     modification, sa fermeture décale la liste et le relâchement tomberait ailleurs. */
+  var ouvertId = null;
+  // Champs ouverts avec leur retour (modification, réponse au complément) : id → finir(enregistrer). Tant que le retour
+  // est ouvert, sortir du champ (clic sur la vignette, les détails, une action) enregistre sans le retirer : la ligne ne
+  // change pas de hauteur sous la souris. Il se retire quand le retour se referme ou qu'un autre est choisi.
+  var finirChamps = {};
   window.cmFocusDown = function (e, id) {
-    if (e.target && e.target.tagName === 'TEXTAREA') return; // clic dans le champ déjà ouvert : placement du curseur normal
     if (e.button !== 0) return;
-    e.preventDefault(); // garde le focus dans le champ d'édition qu'on va ouvrir
-    cmFocus(id);
+    var t = e.target;
+    // Les boutons, liens, champs, vignettes, détails techniques et le fil de la ligne gardent leur propre clic.
+    if (t && t.closest && t.closest('button, a, input, textarea, select, summary, details, label, .cm-reponse-bloc, .cm-edit-bloc, .cm-thread')) return;
+    e.preventDefault(); // pas de sélection de texte ni de focus volé ; le focus va à la ligne (ou au champ ouvert)
+    if (focusedId !== id) cmFocus(id);
+    else if (ouvertId !== id) ouvrirRetour(id);
+    else refermerRetour(id);
   };
 
+  /* Choisir un retour (un clic, ou une flèche) : on active le mode (les repères ne sont visibles qu'en mode annotation),
+     on fait défiler jusqu'au repère et on le fait clignoter pour le retrouver d'un coup d'œil. */
   window.cmFocus = function (id) {
+    quitterChampDeLaListe();                          // un champ ouvert dans une autre ligne s'enregistre (comme au blur)
     if (!active) cmToggle(true);
     closePopup(true);
     renderMarkers();
     setFocused(id);
-    var frame = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
-    var targets = frame ? [frame] : (sessionMarks[id] || []);
+    var frames = Array.prototype.slice.call(document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]'));
+    var targets = frames.length ? frames : (sessionMarks[id] || []);
     var pin = document.querySelector('.cm-pin[data-id="' + id + '"]');
     var scrollEl = targets[0] || pin;
     if (scrollEl) {
       scrollEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      var olaClass = scrollEl.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola';
-      var ondes = targets.length ? targets.slice(0, 1) : [];      // une onde par repère (le cadre, ou le passage)
-      if (!ondes.length && pin) ondes = [pin];
       targets.forEach(function (el) {
+        var olaClass = el.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola';
         el.classList.remove('cm-ola', 'cm-ola-light');
         el.classList.add(olaClass);
-        setTimeout(function () { el.classList.remove(olaClass); }, 1300);
+        setTimeout(function () { el.classList.remove(olaClass); }, 350 + DUREE_ONDE);
       });
-      // L'onde part une fois le défilement doux arrivé, pour qu'on la voie.
-      setTimeout(function () { ondes.forEach(lancerOnde); }, 350);
+      // L'onde part une fois le défilement doux arrivé, pour qu'on la voie : une par cadre (tous ensemble), ou sur
+      // le passage ; repères relus à ce moment-là (la liste qui pousse la page les a peut-être redessinés).
+      setTimeout(function () { reperesOnde(id).forEach(lancerOnde); }, 350);
     } else {
       cmStatus("repère introuvable ici : ouvre l'onglet ou l'étape où tu l'avais posé.");
     }
-    editInList(id);
+    focusLigne(id);
   };
+  function ligneDe(id) { return document.querySelector('.cm-panel-item[data-id="' + id + '"]'); }
+  function focusLigne(id) {
+    var item = ligneDe(id);
+    if (!item) return;
+    try { item.focus({ preventScroll: true }); } catch (e) { item.focus(); }
+    if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
+  }
+  // Les champs ouverts avec un retour s'enregistrent et se retirent ; un autre champ de la liste qui a le focus (réponse du
+  // fil, en live) le perd, comme à sa sortie.
+  function quitterChampDeLaListe() {
+    Object.keys(finirChamps).forEach(function (k) { if (finirChamps[k]) finirChamps[k](true); });
+    var ae = document.activeElement;
+    if (ae && ae.tagName === 'TEXTAREA' && ae.closest && ae.closest('#cmList')) ae.blur();
+  }
+  function retourEncoreOuvert(item, id) { return ouvertId === id && item.isConnected && item.classList.contains('wm-ouvert'); }
+  function ouvrirRetour(id) {
+    var item = ligneDe(id);
+    if (!item) return;
+    ouvertId = id;
+    item.classList.add('wm-ouvert');
+    majEtatsLignes();
+    editInList(id);
+    if (!item.contains(document.activeElement)) focusLigne(id);
+  }
+  function refermerRetour(id) {
+    quitterChampDeLaListe();
+    ouvertId = null;
+    var item = ligneDe(id);
+    if (!item) return;
+    item.classList.remove('wm-ouvert');
+    majEtatsLignes();
+    // Un champ de réponse du fil resté ouvert (en live, il n'envoie rien en sortant) est seulement caché avec le retour :
+    // ce qui y est écrit se retrouve à la réouverture.
+    focusLigne(id);
+  }
+  /* Clavier de la liste (c1) : seulement liste ouverte, hors d'un champ, quand le focus est dans la liste ou nulle part
+     (la page hôte garde ses flèches et son Entrée quand un de ses éléments a le focus). */
+  function clavierDeLaListe(e) {
+    var ae = document.activeElement;
+    var panel = document.getElementById('cmPanel');
+    // (Les deux boutons ronds comptent : on ouvre souvent la liste par le bouton witmit, puis on descend aux flèches.)
+    var dansListe = !ae || ae === document.body || ae === document.documentElement || (panel && panel.contains(ae)) ||
+      !!(ae.closest && ae.closest('#cmPanelBtn, #cmToggleBtn'));
+    if (!dansListe) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      var items = Array.prototype.slice.call(document.querySelectorAll('#cmList .cm-panel-item'));
+      if (!items.length) return false;
+      var i = -1;
+      items.forEach(function (it, k) { if (it.dataset.id === focusedId) i = k; });
+      var j = e.key === 'ArrowDown' ? (i < 0 ? 0 : Math.min(i + 1, items.length - 1)) : (i < 0 ? items.length - 1 : Math.max(i - 1, 0));
+      e.preventDefault();
+      if (j !== i) cmFocus(items[j].dataset.id);
+      return true;
+    }
+    if (e.key === 'Enter') {
+      // Un bouton, une case ou un résumé de la liste garde son Entrée.
+      if (ae && ae !== document.body && ae !== document.documentElement && !(ae.classList && (ae.classList.contains('cm-panel-item') || ae === panel || ae.id === 'cmList'))) return false;
+      // Une ligne qui a le focus (atteinte par Tab) sans être choisie : Entrée la choisit et l'ouvre en une fois (c1, É4 du lot 4).
+      if (ae && ae.classList && ae.classList.contains('cm-panel-item') && ae.dataset.id && ae.dataset.id !== focusedId) {
+        var idLigne = ae.dataset.id;
+        e.preventDefault();
+        cmFocus(idLigne);
+        ouvrirRetour(idLigne);
+        return true;
+      }
+      if (!focusedId || !ligneDe(focusedId)) return false;
+      e.preventDefault();
+      if (ouvertId === focusedId) refermerRetour(focusedId); else ouvrirRetour(focusedId);
+      return true;
+    }
+    return false;
+  }
 
   /* Complément demandé : on répond dans la liste (le texte d'origine n'est pas modifié). La réponse
      partira dans le prochain rapport. */
@@ -2450,8 +2752,9 @@
     cmStatus('réponse enregistrée : elle partira dans le prochain rapport.', { type: 'fait' });
     return true;
   }
-  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ coupé, puis
-     « annuler » (échap) à gauche et la touche secondaire (envoyer, rouvrir, enregistrer ↵) à droite.
+  /* Le champ de réponse, ouvert en place sous le fil (fiche FilDeMessages) : libellé, champ arrondi, puis, à
+     droite, « annuler » (échap) et le bouton secondaire (envoyer, rouvrir, enregistrer ; entrée), deux boutons
+     gris, sans raccourci affiché (fiche Touche : le raccourci reste dans le nom accessible).
      opts (mode live, répondre / rouvrir) : libelle, placeholder, touche, required (phrase sous le champ si vide :
      le champ reste ouvert), keepOnBlur (cliquer ailleurs n'envoie rien : un message publié ne doit pas partir
      par mégarde), onSave(texte). Sans opts : réponse à un complément demandé (mode maquette). */
@@ -2461,13 +2764,12 @@
     var acts = item.querySelector('.cm-thread-actions');
     var bloc = document.createElement('div');
     bloc.className = 'cm-reponse-bloc';
-    var repereEntree = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
     bloc.innerHTML =
       '<div class="cm-reponse-libelle">' + (opts.libelle || icone('ArrowBendDownRight', 14) + 'ta réponse au complément') + '</div>' +
       '<span class="wm-champ"><textarea class="cm-inline-edit cm-inline-reply"></textarea></span>' +
       '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span></span></div>' +
-      '<div class="cm-reponse-actions"><button type="button" class="wm-texte cm-rep-annuler">annuler<span class="wm-repere" aria-hidden="true">échap</span></button>' +
-      '<button type="button" class="wm-touche wm-petite cm-rep-envoyer">' + (opts.touche || 'enregistrer') + repereEntree + '</button></div>';
+      '<div class="cm-reponse-actions"><button type="button" class="wm-touche wm-petite cm-rep-annuler" aria-keyshortcuts="Escape">annuler</button>' +
+      '<button type="button" class="wm-touche wm-petite cm-rep-envoyer" aria-keyshortcuts="Enter">' + (opts.touche || 'enregistrer') + '</button></div>';
     var ta = bloc.querySelector('textarea');
     ta.placeholder = opts.placeholder || 'ta réponse…';
     ta.setAttribute('aria-label', bloc.querySelector('.cm-reponse-libelle').textContent);
@@ -2479,26 +2781,31 @@
     body.appendChild(bloc);
     ta.focus();
     var finished = false;
+    var avecLeRetour = !opts.onSave;
     function finish(save) {
       if (finished) return;
       var v = ta.value.trim();
       if (save && !v && opts.required) { refus.hidden = false; ta.focus(); return; }
       finished = true;
+      if (avecLeRetour && finirChamps[c.id] === finish) delete finirChamps[c.id];
       bloc.remove();
       if (acts) acts.hidden = false;
       if (save && v) { if (opts.onSave) opts.onSave(v); else addReply(c, v); }
     }
     ta.addEventListener('input', function () { if (ta.value.trim()) refus.hidden = true; });
+    // Réponse au complément, ouverte avec le retour (c1) : Entrée et Échap referment aussi le retour ; tant qu'il est ouvert,
+    // sortir du champ ne le retire pas. En live (opts.onSave, touches « répondre » et « rouvrir »), le retour reste ouvert.
+    if (avecLeRetour) finirChamps[c.id] = finish;
     ta.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); if (avecLeRetour && finished && ouvertId === c.id) refermerRetour(c.id); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); if (avecLeRetour && ouvertId === c.id) refermerRetour(c.id); }
     });
-    ta.addEventListener('blur', function () { if (!opts.keepOnBlur) finish(true); });
+    ta.addEventListener('blur', function () { if (!opts.keepOnBlur && !(avecLeRetour && retourEncoreOuvert(item, c.id))) finish(true); });
     bloc.querySelector('.cm-rep-annuler').onclick = function (e) { e.stopPropagation(); finish(false); };
     bloc.querySelector('.cm-rep-envoyer').onclick = function (e) { e.stopPropagation(); finish(true); };
   }
 
-  /* Modification du texte directement dans la liste (fiche Tiroir, « en modification ») : champ coupé en
+  /* Modification du texte directement dans la liste (fiche Tiroir, « en modification ») : champ arrondi en
      place, aide « ↵ envoyer · échap annuler » dessous. Entrée = enregistrer, Maj+Entrée = nouvelle ligne,
      Échap = annuler, clic ailleurs = enregistrer (comportement inchangé). */
   function editInList(id) {
@@ -2521,11 +2828,17 @@
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
     var finished = false;
+    function enregistrer() {
+      var v = ta.value.trim();
+      if (v && v !== c.text) { c.text = v; persist(); cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.', { type: SYNC ? 'encours' : 'fait' }); c.sync = null; scheduleSync(c); }
+    }
+    finirChamps[id] = finish;
     function finish(save) {
       if (finished) return;
       finished = true;
+      if (finirChamps[id] === finish) delete finirChamps[id];
       var v = ta.value.trim();
-      if (save && v && v !== c.text) { c.text = v; persist(); cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.', { type: SYNC ? 'encours' : 'fait' }); c.sync = null; scheduleSync(c); }
+      if (save) enregistrer();
       // On remet le texte en place SANS redessiner la liste : un clic en cours sur un autre item
       // (qui a provoqué ce blur) doit atteindre sa cible.
       var div = document.createElement('div');
@@ -2534,40 +2847,43 @@
       bloc.replaceWith(div);
       if (save && v && v === c.text) renderMarkers(); // met à jour l'info-bulle des pastilles
     }
+    // c1 : le champ est le retour ouvert ; Entrée (enregistrer) et Échap (annuler) le referment aussi, il reste choisi.
     ta.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); if (ouvertId === id) refermerRetour(id); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); if (ouvertId === id) refermerRetour(id); }
     });
     ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight + 2, 48) + 'px'; });
-    ta.addEventListener('blur', function () { finish(true); });
+    // Sortir du champ enregistre ; tant que le retour est ouvert, le champ reste en place (c1, voir finirChamps).
+    ta.addEventListener('blur', function () { if (finished) return; if (retourEncoreOuvert(item, id)) enregistrer(); else finish(true); });
   }
 
-  /* Après un ENREGISTREMENT : le repère du commentaire reste à l'état « actif » ~1 s, puis revient au repos
-     en fondu avec une onde — on voit ce qu'on vient de commenter (rien de tel pour Annuler/Échap). Les éléments sont créés
-     directement à l'état actif (flashId) pour que l'effet soit net même si les repères sont redessinés. */
+  /* Après un ENREGISTREMENT : on voit ce qu'on vient de commenter. Le repère passe à l'état « actif » et l'onde
+     part tout de suite de chacun de ses repères (tous les cadres d'un retour à plusieurs éléments, ensemble) :
+     2 × 600 ms (fiche Reperes) ; à la fin de l'onde, le repère revient au repos. Rien de tel pour Annuler/Échap.
+     Les éléments sont créés directement à l'état actif (flashId) pour que l'effet soit net même si les repères
+     sont redessinés pendant l'onde. */
   var flashId = null, flashTimer = null;
   function flashSaved(id) {
     clearTimeout(flashTimer);
+    // Un autre retour encore dans son onde (enregistré moins de 1,2 s plus tôt) revient au repos tout de suite : son minuteur
+    // vient d'être annulé, il resterait actif sans fin (lot 8 ; seul un redessin des repères le rendait au repos).
+    if (flashId && flashId !== id && focusedId !== flashId) applyFocus(flashId, false);
     flashId = id;
     applyFocus(id, true);
+    var ondes = reperesOnde(id);
+    ondes.forEach(function (el) {
+      if (el.classList.contains('cm-box-saved')) el.classList.add(el.classList.contains('wm-sur-sombre') ? 'cm-ola-light' : 'cm-ola');
+      lancerOnde(el);
+    });
     flashTimer = setTimeout(function () {
       flashId = null;
+      var done = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]');
+      for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
       if (focusedId === id) return; // rouvert entre-temps : reste en couleur "actif"
       var els = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"], .cm-pin[data-id="' + id + '"], #cmLinks line[data-id="' + id + '"]');
-      for (var i = 0; i < els.length; i++) {
-        var el = els[i], light = el.classList.contains('cm-focus-light');
-        el.classList.remove('cm-focus', 'cm-focus-light');
-        if (el.classList.contains('cm-box-saved')) el.classList.add(light ? 'cm-ola-light' : 'cm-ola');
-      }
+      for (var i = 0; i < els.length; i++) els[i].classList.remove('cm-focus', 'cm-focus-light');
       (sessionMarks[id] || []).forEach(function (m) { m.classList.remove('cm-focus'); });
-      var cadre = document.querySelector('.cm-box-saved[data-id="' + id + '"]');
-      var premier = cadre || (sessionMarks[id] || [])[0] || document.querySelector('.cm-pin[data-id="' + id + '"]');
-      lancerOnde(premier);
-      setTimeout(function () {
-        var done = document.querySelectorAll('.cm-box-saved[data-id="' + id + '"]');
-        for (var j = 0; j < done.length; j++) done[j].classList.remove('cm-ola', 'cm-ola-light');
-      }, 1300);
-    }, 1000);
+    }, DUREE_ONDE);
   }
 
   /* Commentaire "actif" (bulle ouverte ou sélectionné dans la liste) : ses cadres, pastilles et lignes changent de couleur */
@@ -2584,9 +2900,14 @@
     if (focusedId && focusedId !== id) applyFocus(focusedId, false);
     focusedId = id || null;
     if (focusedId) applyFocus(focusedId, true);
-    // et dans la liste : l'item correspondant est mis en évidence
+    // et dans la liste : l'item correspondant est mis en évidence ; un retour ouvert qui n'est plus choisi se referme (c1)
+    if (ouvertId && ouvertId !== focusedId) ouvertId = null;
     var items = document.querySelectorAll('.cm-panel-item');
-    for (var i = 0; i < items.length; i++) items[i].classList.toggle('cm-current', items[i].dataset.id === focusedId);
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('cm-current', items[i].dataset.id === focusedId);
+      items[i].classList.toggle('wm-ouvert', !!ouvertId && items[i].dataset.id === ouvertId);
+    }
+    majEtatsLignes();
   }
 
   /* Le fond derrière un repère est-il sombre ? (premier ancêtre avec une couleur de fond opaque) */
@@ -2600,8 +2921,14 @@
       }
       node = node.parentElement;
     }
-    var hb = getComputedStyle(document.documentElement).backgroundColor.match(/\d+/g);
-    return !!(hb && hb.length >= 3 && (0.2126 * hb[0] + 0.7152 * hb[1] + 0.0722 * hb[2]) < 128 && (hb.length < 4 || parseFloat(hb[3]) > 0.5));
+    // Hors de toute boîte de la page (au-dessus d'une marge qui s'effondre, par exemple) : le fond de <html>, sinon celui de
+    // <body>, que le navigateur peint alors sur toute la page (lot 8 : une épingle sur un site sombre se croyait sur du clair).
+    var cands = [document.documentElement, document.body];
+    for (var k = 0; k < cands.length; k++) {
+      var hb = cands[k] && (getComputedStyle(cands[k]).backgroundColor || '').match(/[\d.]+/g);
+      if (hb && hb.length >= 3 && (hb.length < 4 || parseFloat(hb[3]) > 0.5)) return (0.2126 * hb[0] + 0.7152 * hb[1] + 0.0722 * hb[2]) < 128;
+    }
+    return false;
   }
 
   /* Suppressions (Léa 3.9 et 3.10 ; C9). En live, seuls les retours jamais reçus par witmit s'effacent :
@@ -2828,7 +3155,7 @@
       // Cadre de sélection, état actif (fiche Reperes) : 16 px de marge, coins et traits pleins.
       box.className = 'cm-box cm-ui cm-box-editing' + (fondSombreAutour(el) ? ' wm-sur-sombre cm-focus-light' : '');
       assurerCadre(box);
-      document.body.appendChild(box);
+      poserRepere(box);
       editOutlines.push({ el: el, box: box });
     });
     positionEditOutline();
@@ -2925,7 +3252,11 @@
   function makeBoxEditable(boxEl, meta) {
     if (!boxEl || boxEl.classList.contains('cm-box-editable')) return;
     boxEl.classList.add('cm-box-editable');
-    document.body.classList.add('wm-zone-en-edition');   // la zone de 44 px des épingles laisse passer les poignées
+    etatCorps('wm-zone-en-edition', true);   // la zone de 44 px des épingles laisse passer les poignées
+    if (boxEl.dataset.id) {                                // son épingle, posée sur un coin, aussi
+      var siennes = document.querySelectorAll('.cm-pin[data-id="' + boxEl.dataset.id + '"]');
+      for (var k = 0; k < siennes.length; k++) siennes[k].classList.add('wm-sur-poignee');
+    }
     assurerCadre(boxEl);
     applyBoxStyle(boxEl, meta.box || { x: boxEl.offsetLeft, y: boxEl.offsetTop, w: boxEl.offsetWidth, h: boxEl.offsetHeight });
     ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(function (d) {
@@ -2965,7 +3296,9 @@
     });
   }
   function endBoxEdit(meta) {
-    document.body.classList.remove('wm-zone-en-edition');
+    etatCorps('wm-zone-en-edition', false);
+    var sur = document.querySelectorAll('.cm-pin.wm-sur-poignee');
+    for (var k = 0; k < sur.length; k++) sur[k].classList.remove('wm-sur-poignee');
     if (!meta || !meta.boxEl) return;
     meta.boxEl.classList.remove('cm-box-editable');
     var hs = meta.boxEl.querySelectorAll('.cm-handle');
@@ -3033,31 +3366,82 @@
     if (R) { R.x -= MARGE_CADRE; R.y -= MARGE_CADRE; R.w += 2 * MARGE_CADRE; R.h += 2 * MARGE_CADRE; }
     return R;
   }
-  function placePopup(pop, R, fallbackX, fallbackY) {
+  // Boîte (page) de l'épingle du retour : celle qui est posée, sinon celle qu'elle aura (fiche Epingle : à cheval
+  // sur le coin haut droit du cadre, sinon sur le coin bas gauche ; passage de texte : au-dessus de son début).
+  function rectEpingleDe(meta, R) {
+    var id = meta && meta.existing && meta.existing.id;
+    var posee = id && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + id + '"]');
+    if (posee && posee.getClientRects().length) return rectOf(posee);
+    if (meta && meta.type === 'text') return { x: R.x - 4, y: R.y - 8 - 24, w: 24, h: 24 };
+    var pt = placeEpingle(R, 0, 24, 24);
+    return { x: pt.x - 12, y: pt.y - 12, w: 24, h: 24 };
+  }
+  // Repères des AUTRES retours (cadres tels que dessinés, épingles) : la fenêtre évite de les recouvrir quand elle peut.
+  function autresReperes(meta) {
+    var id = meta && meta.existing && meta.existing.id, out = [];
+    var els = document.querySelectorAll('.cm-box-saved, .cm-pin');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if ((id && el.dataset.id === id) || (meta && el === meta.boxEl) || el.classList.contains('cm-box-editable')) continue;
+      var dessin = el.querySelector(':scope > .wm-cadre') || el;
+      if (!dessin.getClientRects().length) continue;
+      var r = rectOf(dessin);
+      r.epingle = el.classList.contains('cm-pin');
+      out.push(r);
+    }
+    // Le bandeau du mode annotation (et son « terminer ») : pas plus recouvrable qu'une épingle (lot 8, Paula É1).
+    var pill = document.getElementById('cmPill');
+    if (pill && pill.classList.contains('show') && pill.getClientRects().length) { var rp = rectOf(pill); rp.epingle = true; out.push(rp); }
+    return out;
+  }
+  var POIDS_EPINGLE = 1e7;
+  function recouvre(a, b) {
+    var w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+  function placePopup(pop, R, fallbackX, fallbackY, meta) {
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    // Règle de largeur (M1) : 380 px, jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
+    // Règle de largeur (M1) : 340 px (V2), jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
     // comprise, que 100vw ne retire pas).
     if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
-    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10, pinRoom = 48; // place de l'épingle (F6 : 24 px, à 22 px au-dessus)
+    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10;
     function clampX(x) { return Math.max(vx + 8, Math.min(x, vx + vw - W - 8)); }
     function apply(x, y) { pop.style.left = x + 'px'; pop.style.top = y + 'px'; }
     if (!R) { apply(clampX(fallbackX), Math.max(vy + 8, Math.min(fallbackY + 10, vy + vh - Hh - 8))); return; }
-    // Épingle posée sous le cadre faute de place au-dessus (F6 : 6 px + 24 px) : la fenêtre passe sous elle.
-    var pinDessous = R.y - 30 < 0;
+    // Ce que la fenêtre ne recouvre jamais : le cadre et son épingle, à cheval sur un coin (V2) ; la place gardée
+    // pour l'épingle est donc la sienne, pas les 48 px de l'épingle posée au-dessus du cadre en 0.2.0.
+    var P = rectEpingleDe(meta, R);
+    var T = { x: Math.min(R.x, P.x), y: Math.min(R.y, P.y) };
+    T.w = Math.max(R.x + R.w, P.x + P.w) - T.x; T.h = Math.max(R.y + R.h, P.y + P.h) - T.y;
     var cands = [
-      { x: R.x, y: R.y + R.h + gap + (pinDessous ? 30 : 0) },
-      { x: R.x, y: R.y - Hh - gap - pinRoom },
-      { x: R.x + R.w + gap, y: R.y },
-      { x: R.x - W - gap, y: R.y }
+      { x: R.x, y: T.y + T.h + gap },                 // dessous
+      { x: R.x, y: T.y - Hh - gap },                  // au-dessus
+      { x: T.x + T.w + gap, y: R.y },                 // à droite
+      { x: T.x - W - gap, y: R.y },                   // à gauche
+      { x: T.x + T.w + gap, y: R.y + R.h - Hh },      // à droite, calée sur le bas de la cible
+      { x: T.x - W - gap, y: R.y + R.h - Hh }         // à gauche, calée sur le bas de la cible
     ];
+    // Première place qui tient dans l'écran sans recouvrir la cible ni son épingle ; parmi elles, la première qui
+    // ne recouvre pas non plus le repère d'un autre retour, sinon celle qui en recouvre le moins.
+    // Lot 8 (Paula, lot 6) : une épingle recouverte pèse bien plus lourd qu'un bord de cadre recouvert. Chaque épingle
+    // touchée compte POIDS_EPINGLE, plus que la plus grande surface de cadre qu'une fenêtre puisse couvrir.
+    var autres = autresReperes(meta), choix = null, moindre = Infinity;
     for (var i = 0; i < cands.length; i++) {
       var x = clampX(cands[i].x), y = cands[i].y;
       if (y < vy + 8 || y + Hh > vy + vh - 8) continue;
-      var overlaps = !(x + W <= R.x || x >= R.x + R.w || y + Hh <= R.y || y >= R.y + R.h);
-      if (!overlaps) { apply(x, y); return; }
+      var f = { x: x, y: y, w: W, h: Hh };
+      if (recouvre(f, T)) continue;
+      var gene = 0;
+      for (var k = 0; k < autres.length; k++) {
+        var aire = recouvre(f, autres[k]);
+        gene += aire && autres[k].epingle ? POIDS_EPINGLE + aire : aire;
+      }
+      if (gene < moindre) { moindre = gene; choix = f; }
+      if (!gene) break;
     }
-    apply(clampX(R.x), R.y + R.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
+    if (choix) { apply(choix.x, choix.y); return; }
+    apply(clampX(R.x), T.y + T.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
     pop.scrollIntoView({ block: 'nearest' });
   }
   /* La fenêtre a grandi (catégories dépliées, texte long) : elle remonte pour ne pas sortir par le bas. */
@@ -3136,7 +3520,6 @@
     if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + ex.id + '"]'); // (re)trouvé après un éventuel re-rendu
     if (!locked && meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
     var libelleTouche = askReply ? 'enregistrer la réponse' : LIVE ? 'envoyer' : 'enregistrer';
-    var repere = '<span class="wm-repere" aria-hidden="true">' + icone('ArrowElbowDownLeft', 12) + '</span>';
     var shot = isEdit && ex.shot && ex.shot.dataUrl ? ex.shot : null;
     var enCapture = isEdit && !shot && capturesEnCours[ex.id];   // fiche Etats, Léa 3.7 : « capture… » pendant la capture
     var vignette = shot ? '<div class="cm-vignette-ligne"><button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture">' +
@@ -3178,11 +3561,11 @@
         '<button type="button" class="cm-fermer wm-cercle" aria-label="annuler" title="annuler">' + icone('X', 14) + '</button></div>' +
         '<div class="cm-zone"></div><div class="cm-aide-multi" hidden>' + AIDE_MULTI + '</div>' +
       '</div>' +
-      '<div class="cm-corps">' + corps +
+      '<div class="cm-corps"><div class="wm-bloc">' + corps + '</div>' +
         '<div class="cm-popup-actions">' +
         (avecCorbeille ? '<button type="button" class="cm-delete wm-cercle" title="supprimer ce retour" aria-label="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
-        '<button type="button" class="cm-cancel wm-texte">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
-        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" disabled>' + libelleTouche + repere + '</button>') +
+        '<button type="button" class="cm-cancel wm-touche" aria-keyshortcuts="Escape">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
+        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" aria-keyshortcuts="Enter" disabled>' + libelleTouche + '</button>') +
         '</div>' +
       '</div>';
     majTete(pop, meta, zone);
@@ -3191,9 +3574,9 @@
       pop.querySelector('.cm-vignette').onclick = function (e) { e.stopPropagation(); window.cmShowShot(ex.id, this); };
     }
     habiller(pop);
-    document.body.appendChild(pop);
+    poser(pop);
     tracerContour(pop);                                             // tout de suite, sans attendre l'observateur
-    placePopup(pop, targetRectOf(meta), x, y);
+    placePopup(pop, targetRectOf(meta), x, y, meta);
     pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-tete'));
     var fermer = function (e) { e.stopPropagation(); closePopup(true); };
@@ -3431,9 +3814,10 @@
 
     if (!dragBoxEl) {
       dragBoxEl = document.createElement('div');
-      // En tracé : rectangle de 1 px en pointillés, à l'encre du fond sous le point de départ (T7).
+      // En tracé (fiche Selection, V2) : zone grisée à 26 %, contour plein de 1 px gris (ou orange), ombre dehors et
+      // dedans, arrondi de 6 px, sans crochets ; teinte d'après le fond sous le point de départ (T7).
       dragBoxEl.className = 'cm-box cm-ui' + (fondSombreSous(pageElementAt(dragStart.x - window.scrollX, dragStart.y - window.scrollY)) ? ' wm-sur-sombre' : '');
-      document.body.appendChild(dragBoxEl);
+      poserRepere(dragBoxEl);
     }
     dragBoxEl.style.left = Math.min(dragStart.x, e.pageX) + 'px';
     dragBoxEl.style.top = Math.min(dragStart.y, e.pageY) + 'px';
@@ -3642,7 +4026,7 @@
     if (geste && !cible && !confirmerAbandon()) return;
     if (geste && cible && listeOuverte()) cmTogglePanel(false);
     active = cible;
-    document.body.classList.toggle('cm-active', active);
+    etatCorps('cm-active', active);
     document.getElementById('cmFrame').classList.toggle('show', active);
     document.getElementById('cmPill').classList.toggle('show', active);
     placerBandeau();
@@ -3677,13 +4061,14 @@
     var show = (typeof force === 'boolean') ? force : !panel.classList.contains('show');
     if (typeof force !== 'boolean' && show && !confirmerAbandon()) return;
     if (show) {
-      applyTheme(); prechargerPolices();
+      applyTheme();
       // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
       clearTimeout(clickTimer); clickTimer = null;
       closePopup(true);
       flushPending(); refreshStatuses();
     }
     var etaitOuverte = panel.classList.contains('show');
+    var focusDedans = etaitOuverte && !show && panel.contains(document.activeElement);
     panel.classList.toggle('show', show);
     if (!show && !pendingPopup) setFocused(null);
     if (!show && etaitOuverte) marquerVus();                      // le voyant s'éteint quand on ferme la liste après l'avoir vue (C5)
@@ -3694,22 +4079,68 @@
     placerBandeau();
     placerStatus();
     majBoutons();
+    // Liste fermée alors que le focus y était (Échap, croix, « nouveau retour ») : il revient au bouton witmit, pas à la page.
+    if (focusDedans) { var pbf = document.getElementById('cmPanelBtn'); if (pbf) { try { pbf.focus({ preventScroll: true }); } catch (e) { pbf.focus(); } } }
   };
+  /* Boutons ronds fournis par la page (C8) : sous 480 px, liste ouverte, la liste couvre l'écran et ils doivent passer
+     par-dessus elle (fiches Mobile et BoutonWitmit ; défaut de 0.2.0). La liste vit dans la racine de witmit, hors de
+     <body> : un bloc de la page ne peut pas passer devant elle quand <body> est un contexte d'empilement (TellUs). witmit
+     prend donc les deux boutons qu'elle a adoptés dans un bloc à lui (.cm-fab.wm-fab-fourni), posé comme ses propres
+     boutons, et les rend à leur place exacte (même parent, même voisin) dès que la liste se ferme ou que l'écran s'élargit.
+     Les autres éléments du bloc de la page restent avec la page, sous la liste (lot 8, Léa É1). */
+  var adoptes = null;   // { fab, places: [{ el, parent, suivant }] }
+  function rendreBoutonsFournis() {
+    if (!adoptes) return;
+    var a = adoptes; adoptes = null;
+    var focus = document.activeElement;
+    a.places.slice().reverse().forEach(function (p) {
+      if (!p.parent.isConnected) return;
+      p.parent.insertBefore(p.el, p.suivant && p.suivant.parentNode === p.parent ? p.suivant : null);
+    });
+    a.fab.remove();
+    if (focus && a.places.some(function (p) { return p.el === focus; })) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  function prendreBoutonsFournis() {
+    var bs = ['cmToggleBtn', 'cmPanelBtn'].map(function (id) { return document.getElementById(id); })
+      .filter(function (b) { return b && b.getAttribute('data-wm-fourni') === 'page'; });
+    if (!bs.length) return;
+    var focus = document.activeElement;
+    var fab = document.createElement('div');
+    fab.className = 'cm-fab cm-ui wm-fab-fourni';
+    adoptes = { fab: fab, places: bs.map(function (b) { return { el: b, parent: b.parentNode, suivant: b.nextSibling }; }) };
+    bs.forEach(function (b) { fab.appendChild(b); });
+    poser(fab);
+    if (focus && bs.indexOf(focus) >= 0) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  /* Place des deux boutons ronds (ceux de witmit, ou ceux de la page qu'il a pris) : liste fermée, dans leur coin ; liste
+     ouverte au-dessus de 480 px, à 24 px à gauche d'elle ; sous 480 px, la liste couvre l'écran : à 16 px du bord droit
+     (fiches BoutonWitmit et Mobile ; Paula É3), au-dessus de son pied, ou de l'encart « coller un retour » quand il est
+     ouvert, et la liste des retours réserve en bas la hauteur des boutons + 12 px, et au moins les 76 px de la fiche Mobile,
+     pour que rien n’y soit caché (Léa É1). */
   function placerBoutons() {
+    var etroit = !!(window.matchMedia && window.matchMedia('(max-width:480px)').matches);
+    var ouverte = listeOuverte();
+    if (ouverte && etroit) { if (!adoptes) prendreBoutonsFournis(); } else rendreBoutonsFournis();
+    var liste = document.getElementById('cmList');
+    if (liste) { liste.style.paddingBottom = ''; liste.style.scrollPaddingBottom = ''; }
     var fab = document.querySelector('.cm-fab');
     if (!fab) return;
     var panel = document.getElementById('cmPanel');
-    if (!listeOuverte()) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    var base = etroit ? 16 : 24;   // marge de la fiche (M1 sous 480 px)
-    var vw = document.documentElement.clientWidth;
-    // Sous 480 px, la liste couvre l'écran (M1) : les boutons montent au-dessus de son pied, pour ne pas cacher « nouveau retour ».
-    var pied = document.getElementById('cmPanelPied');
-    fab.style.bottom = etroit && pied ? (pied.offsetHeight + 12) + 'px' : '';
-    // À 24 px à gauche de la liste ; sur un écran trop étroit, au plus près du bord gauche, par-dessus la liste.
-    var right = Math.min(panel.offsetWidth + base, vw - fab.offsetWidth - 16);
-    fab.style.right = Math.max(base, right) + 'px';
+    if (!ouverte) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
     fab.classList.add('wm-decale');
+    if (etroit) {
+      var encart = document.getElementById('cmFeedbackBox');
+      var dessous = encart && !encart.hidden && encart.getClientRects().length ? encart : document.getElementById('cmPanelPied');
+      fab.style.bottom = dessous ? Math.round(window.innerHeight - dessous.getBoundingClientRect().top + 12) + 'px' : '';
+      fab.style.right = '16px';
+      if (liste) { var reserve = Math.max(76, fab.offsetHeight + 12); liste.style.paddingBottom = reserve + 'px'; liste.style.scrollPaddingBottom = reserve + 'px'; }
+      return;
+    }
+    fab.style.bottom = '';
+    // À 24 px à gauche de la liste ; sur un écran trop étroit pour les loger à côté, au plus près du bord gauche.
+    var vw = document.documentElement.clientWidth;
+    var right = Math.min(panel.offsetWidth + 24, vw - fab.offsetWidth - 16);
+    fab.style.right = Math.max(24, right) + 'px';
   }
   window.addEventListener('resize', placerBoutons);
   /* Message passager, liste ouverte sur ordinateur : il monte à 84 px du bas (au-dessus des deux boutons, décalés à
@@ -3747,6 +4178,9 @@
       root.addEventListener('transitionend', function (e) { if (e.propertyName === 'margin-right') renderMarkers(); });
     }
     root.style.marginRight = width ? width + 'px' : '';
+    // Le contour orange et le halo du mode annotation suivent la page : ils s'arrêtent au bord de la liste (fiche Tiroir).
+    var cadre = document.getElementById('cmFrame');
+    if (cadre) cadre.style.right = width ? width + 'px' : '';
     if (!width) { setTimeout(renderMarkers, 260); return; }
     // 2) éléments fixés à l'écran qui passeraient sous le tiroir
     var all = document.body.querySelectorAll('*');
@@ -3787,17 +4221,20 @@
     var panel = document.getElementById('cmPanel');
     if (!panel || !panel.classList.contains('show')) return;
     if (panel.contains(e.target)) return;
-    if (e.target.closest && e.target.closest('#cmPanelBtn, .cm-lightbox')) return;   // la visionneuse s'ouvre par-dessus la liste
+    if (e.target.closest && e.target.closest('#cmPanelBtn, #cmToggleBtn, .cm-lightbox, #cmPill')) return;   // la visionneuse s'ouvre par-dessus la liste ; le bandeau (« terminer », poignée) n'est pas un dehors (lot 7, Léa É1) ; le viseur non plus : il lance le mode, liste ouverte (lot 8)
     cmTogglePanel(false);
     swallowClick = active && !inUi(e.target);
   }, true);
 
-  /* ---------- bandeau du mode annotation : place, deux lignes, déplacement (fiche Bandeau) ----------
-     Centré sur la place libre, à 12 px sous la barre de navigation (CSS). Liste ouverte (au-dessus de 480 px), la
-     place libre s'arrête à la liste : le bandeau se centre à sa gauche et ne la recouvre pas, comme les deux
-     boutons qui passent à sa gauche (relecture du lot 1). S'il ne tient pas sur une ligne dans cette place, il
-     passe sur deux lignes. Déplacé par la poignée, il garde sa position (witmit_pill_pos), ramenée dans la place
-     libre sans l'écraser. */
+  /* ---------- bandeau du mode annotation : place et déplacement (fiche Bandeau) ----------
+     Une seule ligne, partout (décision b3). Centré sur la place libre, à 12 px sous la barre de navigation (CSS).
+     Liste ouverte (au-dessus de 480 px), la place libre s'arrête à la liste : le bandeau se centre à sa gauche et
+     ne la recouvre pas, comme les deux boutons qui passent à sa gauche (relecture du lot 1). Déplacé par la
+     poignée, il garde sa position (witmit_pill_pos), ramenée dans la place libre sans l'écraser.
+     Liste ouverte sans place pour lui à côté (liste pleine largeur sous 480 px, ou page restante plus étroite que
+     le bandeau plus 2 × 24 px d’air) : il se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), et la liste
+     descend d'autant (wm-sous-bandeau) : il ne recouvre ni la tête de la liste, ni sa croix « fermer », ni ses
+     retours (lot 7 ; la fiche Bandeau renvoie ce cas à la fiche Mobile, qui le laisse ouvert). */
   var PILL_POS_KEY = 'witmit_pill_pos';
   var posBandeau = null;
   try {
@@ -3814,24 +4251,48 @@
   }
   function placerBandeau() {
     var pill = document.getElementById('cmPill');
-    if (!pill || !pill.classList.contains('show')) return;
-    var libre = placeLibreBandeau();
-    pill.style.maxWidth = (libre - 16) + 'px';
-    pill.classList.remove('wm-deux-lignes');
-    pill.style.left = '0px'; pill.style.transform = 'none';
-    var deux = pill.offsetWidth > libre - 32;
-    pill.classList.toggle('wm-deux-lignes', deux);
+    var panel = document.getElementById('cmPanel');
+    var montre = !!(pill && pill.classList.contains('show'));
+    // page : la page visible (rétrécie, liste ouverte) ; libre : la place où le bandeau peut être déplacé (8 px avant la liste).
+    var surListe = false, vw = document.documentElement.clientWidth || window.innerWidth, page = vw, libre = vw;
+    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
+    var cadre = document.getElementById('cmFrame');
+    if (cadre) cadre.classList.toggle('wm-sous-liste', !!(listeOuverte() && etroit));
+    couperReperes();
+    if (montre) {
+      pill.classList.remove('wm-sur-liste');
+      pill.style.width = ''; pill.style.maxWidth = '';
+      pill.style.left = '0px'; pill.style.transform = 'none';
+      if (listeOuverte() && panel) {
+        if (!etroit) { page = vw - panel.offsetWidth; libre = page - 8; }
+        surListe = etroit || pill.offsetWidth + 48 > page;   // moins de 24 px d'air de chaque côté : sur la liste (Paula É4, lot 8)
+      }
+    }
+    if (panel) panel.classList.toggle('wm-sous-bandeau', surListe);
+    if (!montre) return;
+    // Posé sur la liste, il ne se déplace pas : la poignée perd son info-bulle, rendue mot pour mot ensuite (Léa É2).
+    var poignee = pill.querySelector('.wm-poignee');
+    if (poignee) { if (surListe) poignee.removeAttribute('title'); else poignee.setAttribute('title', 'glisse pour déplacer le bandeau'); }
+    if (surListe) {
+      var lw = Math.min(panel.offsetWidth, vw);
+      pill.classList.add('wm-sur-liste');
+      pill.style.left = (vw - lw + 8) + 'px';
+      pill.style.width = (lw - 16) + 'px';
+      pill.style.top = '8px';
+      return;
+    }
+    pill.style.maxWidth = (page - 16) + 'px';
     var w = pill.offsetWidth, h = pill.offsetHeight;
     var left, top = null;
     if (posBandeau) {
       left = Math.max(4, Math.min(posBandeau.left, libre - w - 4));
       top = Math.max(4, Math.min(posBandeau.top, window.innerHeight - h - 4));
-    } else left = Math.max(8, Math.round((libre - w) / 2));
+    } else left = Math.max(8, Math.round((page - w) / 2));   // centré sur la page visible (Paula É2)
     pill.style.left = left + 'px';
     pill.style.top = top === null ? '' : top + 'px';
   }
   window.addEventListener('resize', placerBandeau);
-  // Les polices de witmit arrivent après coup (chargement paresseux) : la largeur du bandeau change.
+  // Une police du système peut finir de se charger après coup : la largeur du bandeau change.
   if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', placerBandeau);
 
   (function initPillDrag() {
@@ -3840,6 +4301,7 @@
     var dragOffset = null;
     pill.addEventListener('pointerdown', function (e) {
       if (e.target.closest && e.target.closest('button')) return;
+      if (pill.classList.contains('wm-sur-liste')) return;   // posé en haut de la liste : il reste à sa place
       var rect = pill.getBoundingClientRect();
       dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       pill.classList.add('cm-dragging');
@@ -3946,11 +4408,14 @@
         var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
         if (pinOuvreuse) pinOuvreuse.focus();
       }
+      else if (listeOuverte() && ouvertId && ligneDe(ouvertId)) { e.preventDefault(); refermerRetour(ouvertId); }   // c1 : le retour ouvert, puis la liste
       else if (listeOuverte()) { e.preventDefault(); cmTogglePanel(false); }
       else if (active) { e.preventDefault(); cmToggle(false); }
       return;
     }
-    if (e.repeat || enSaisie(e)) return;
+    if (enSaisie(e)) return;
+    if (listeOuverte() && !pendingPopup && !visionneuse && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && clavierDeLaListe(e)) return;   // flèches (répétées) et Entrée de c1
+    if (e.repeat) return;
     var cache = LIVE && document.body.classList.contains('cm-concealed');
     // N : liste ouverte, sans aucune touche de modification.
     if (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key || '').toLowerCase() === 'n') {
@@ -3968,13 +4433,6 @@
     }
   });
   majBoutons();
-  // Premier survol (ou focus clavier) d'un des deux boutons : les polices partent, prêtes pour la fenêtre.
-  ['cmToggleBtn', 'cmPanelBtn'].forEach(function (id) {
-    var b = document.getElementById(id);
-    if (!b) return;
-    b.addEventListener('pointerenter', prechargerPolices, { once: true });
-    b.addEventListener('focus', prechargerPolices, { once: true });
-  });
 
   var statusTimer = null;
   var masquageTimer = null;
@@ -4004,7 +4462,16 @@
     if (!txt) { txt = document.createElement('span'); txt.className = 'wm-contenu'; el.appendChild(txt); }
     var ic = ICONE_TOAST[opts.type];
     txt.innerHTML = (ic ? icone(ic[0], 16, ic[1]) : '') + '<span class="wm-toast-texte"></span>';
-    txt.lastChild.textContent = msg;
+    var i = opts.insecable ? msg.indexOf(opts.insecable) : -1;
+    if (i < 0) txt.lastChild.textContent = msg;
+    else {
+      // Un morceau à garder d'un seul tenant (une adresse) : span sans retour à la ligne, texte inchangé (rien d'invisible
+      // ajouté : le copier-coller de « ?witmit=on » reste exact).
+      var ins = document.createElement('span');
+      ins.className = 'wm-insecable';
+      ins.textContent = opts.insecable;
+      txt.lastChild.append(msg.slice(0, i), ins, msg.slice(i + opts.insecable.length));
+    }
     clearTimeout(masquageTimer);
     el.classList.toggle('wm-toast-masquage', !!opts.masquage);
     el.classList.toggle('wm-toast-echec', echec);
@@ -4014,6 +4481,14 @@
       el.classList.remove('show');
       if (opts.masquage) masquageTimer = setTimeout(function () { el.classList.remove('wm-toast-masquage'); }, 250);
     }, duree);
+  }
+  /* Le message de masquage, s'il est encore affiché, part dès que witmit est révélé (Paula, lot 10 bis, N2 ; défaut de
+     0.2.0 : il restait jusqu'à 6 s à côté des boutons revenus). Un autre message en cours n'est pas touché. */
+  function retirerMessageMasquage() {
+    var el = document.getElementById('cmStatus');
+    if (!el || !el.classList.contains('wm-toast-masquage')) return;
+    clearTimeout(statusTimer); clearTimeout(masquageTimer);
+    el.classList.remove('show', 'wm-toast-masquage');
   }
 
   /* ---------- capture d'écran d'un encadré ----------
@@ -4122,7 +4597,7 @@
     // Largeur : celle de l'image + 44 px, au moins 360 px, au plus 92vw (et l'écran moins 16 px).
     if (c.shot.width) fen.style.width = 'min(' + Math.max(360, c.shot.width + 46) + 'px, 92vw, calc(100vw - 16px))';
     habiller(fen);
-    document.body.appendChild(ov);
+    poser(ov);
     tracerContour(fen);
     var aCote = function (e) {
       if (fen.contains(e.target)) return;
@@ -4326,11 +4801,13 @@
     var open = typeof show === 'boolean' ? show : box.hidden;
     box.hidden = !open;
     if (open) { var ta = box.querySelector('textarea'); ta.value = ''; ta.focus(); }
+    placerBoutons();   // encart ouvert : les boutons ronds se posent au-dessus de lui sous 480 px (Léa É1)
   };
   window.cmApplyFeedback = function () {
     var box = document.getElementById('cmFeedbackBox');
     var res = applyFeedback(box.querySelector('textarea').value);
     box.hidden = true;
+    placerBoutons();
     var acc = function (n, un, plusieurs) { return n + ' ' + (n > 1 ? plusieurs : un); };
     cmStatus(acc(res.applied, 'retour mis à jour', 'retours mis à jour') + (res.unknown ? ' · ' + acc(res.unknown, 'identifiant inconnu', 'identifiants inconnus') : '') + (res.ignored ? ' · ' + acc(res.ignored, 'ligne ignorée', 'lignes ignorées') : ''), { type: 'fait' });
   };

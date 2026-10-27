@@ -33,6 +33,7 @@ test.describe('Capture (Kiosque)', () => {
     await expect(page.locator('#cmStatus')).toContainText('capture enregistrée (');
     await H.deactivate(page);
     await page.locator('#cmPanelBtn').click();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
     await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
     await page.locator('.cm-panel-item img.cm-shot').click();
     await expect(page.locator('.cm-lightbox img')).toBeVisible();
@@ -41,7 +42,7 @@ test.describe('Capture (Kiosque)', () => {
     await page.mouse.click(30, 600);                                     // clic à côté : la visionneuse se ferme
     await expect(page.locator('.cm-lightbox')).toHaveCount(0);
     // un clic simple (pastille) n'a pas de capture
-    await page.mouse.click(30, 600); await H.activate(page);
+    await page.mouse.click(30, 600); await H.assurerMode(page);         // (le retour ouvert dans la liste a lancé le mode)
     await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'clic');
     await page.waitForTimeout(400);
     expect((await H.stored(page, KEY))[1].shot).toBeUndefined();
@@ -51,7 +52,7 @@ test.describe('Capture (Kiosque)', () => {
     // nos repères (cadre, ses coins et ses traits, poignées, épingle) prennent d'abord une couleur témoin (magenta),
     // absente de la page : on vérifie ensuite
     // qu'elle n'apparaît pas dans la capture
-    await page.addStyleTag({ content: '.cm-box{border-color:#ff00ff !important;background:rgba(255,0,255,.35) !important} .cm-pin{background:#ff00ff !important} .cm-handle-se{background:#ff00ff !important} .cm-box .wm-cadre{--wm-encre:#ff00ff !important;--wm-th:#ff00ff !important;--wm-tv:#ff00ff !important} .cm-box .cm-handle::after{background:#ff00ff !important}' });
+    await page.addStyleTag({ content: '.cm-box{border-color:#ff00ff !important;background:rgba(255,0,255,.35) !important} .cm-pin{background:#ff00ff !important} .cm-handle-se{background:#ff00ff !important} .cm-box{--wm-cadre-coin:#ff00ff !important;--wm-cadre-contour:#ff00ff !important;--wm-cadre-tirets:#ff00ff !important;--wm-cadre-prise:#ff00ff !important} .cm-box .cm-handle::after{background:#ff00ff !important}' });
     await drawBox(page, '.kpi-tile:nth-child(1)', 'tuile 1');
     await expect.poll(() => page.locator('.cm-box').first().evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(255, 0, 255)');
     const first = await waitShot(page);

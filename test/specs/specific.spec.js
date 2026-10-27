@@ -31,18 +31,19 @@ test.describe('Étapes et onglets masqués', () => {
   });
 });
 
-test('TellUs : le widget prend l’inverse du thème de la page hôte', async ({ page }) => {
+test('TellUs : le widget prend le thème de la page hôte (V2)', async ({ page }) => {
   await page.goto(H.fileUrl('tellus-accueil.html'));
   await H.clearStorage(page); await page.reload();
+  await expect.poll(() => page.getAttribute('body', 'data-wm-theme')).toBe('client-clair');
   await page.locator('#themeBtn').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect.poll(() => page.getAttribute('body', 'data-wm-theme')).toBe('client-clair');
+  await expect.poll(() => page.getAttribute('body', 'data-wm-theme')).toBe('client-sombre');
   await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'Sombre');
   await page.locator('.cm-pin').click();
-  // La matière est portée par la couche de verre (habiller, F2) : verre champagne (client-clair) sur un site sombre.
+  // La matière est portée par la couche de verre (habiller, F2) : titane sombre à 70 % (client-sombre) sur un site sombre.
   const bg = await page.locator('.cm-popup .wm-verre').evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe('rgba(236, 232, 224, 0.6)');
+  expect(bg).toBe('rgba(27, 27, 27, 0.7)');
 });
 
 test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non', async ({ page }) => {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planche de la charte witmit</title>
-<!-- Planche de contrôle de la charte « Objet » : complétée à chaque lot de la course d'habillage.
+<!-- Planche de contrôle de la charte V2 de witmit (avant : « Objet »), complétée à chaque lot des courses d'habillage.
      Une moitié claire, une moitié sombre, une image vive, et une touche de thème sur le modèle de
      ThemeToggle.tsx (TellUs) : data-theme sur <html>, le fond du site bascule, witmit doit suivre seul.
      Aucune ressource extérieure : polices du système, image dessinée en SVG dans la page. -->
@@ -138,7 +138,16 @@
     document.getElementById('themeNom').textContent = suivant === 'dark' ? 'thème sombre' : 'thème clair';
   });
 </script>
-<script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"></script>
+<script>
+  // Cadre de sélection (fiche Selection) : planche-charte.html?selection=orange pose data-selection-color="orange"
+  // sur la balise de witmit (toute autre valeur aussi, pour vérifier qu'elle retombe sur gris). Sans paramètre :
+  // la balise habituelle, sans l'attribut.
+  (function () {
+    var m = /[?&]selection=([A-Za-z0-9-]*)/.exec(location.search);
+    document.write('<script src="../../src/witmit.js" data-project="planche" data-html2canvas="../vendor/html2canvas.min.js"' +
+      (m ? ' data-selection-color="' + m[1] + '"' : '') + '><\/script>');
+  })();
+</script>
 <script>
   // Spécimens du lot 2, dessinés avec le vrai code de witmit (habiller, icônes).
   (function () {
@@ -149,11 +158,11 @@
     t.innerHTML =
       '<p class="titre">Ton retour sur ce bouton</p>' +
       '<div class="ligne"><span class="lib">principale · secondaire · annuler</span>' +
-        '<button type="button" class="wm-touche wm-principale" id="specPrincipale">envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche wm-principale" id="specPrincipale">envoyer</button>' +
         '<button type="button" class="wm-touche" id="specSecondaire">' + i('Bug', 16) + 'bug fonctionnel</button>' +
-        '<button type="button" class="wm-texte" id="specAnnuler">annuler</button></div>' +
+        '<button type="button" class="wm-touche" id="specAnnuler">annuler</button></div>' +
       '<div class="ligne"><span class="lib">désactivé · petite · enfoncée</span>' +
-        '<button type="button" class="wm-touche wm-principale" id="specDesactivee" disabled>envoyer<span class="wm-repere">' + i('ArrowElbowDownLeft', 12) + '</span></button>' +
+        '<button type="button" class="wm-touche wm-principale" id="specDesactivee" disabled>envoyer</button>' +
         '<button type="button" class="wm-touche wm-petite" id="specPetite">terminer</button>' +
         '<button type="button" class="wm-touche" aria-pressed="true" id="specEnfoncee">' + i('Tag', 16) + 'à classer</button></div>' +
       '<div class="ligne"><span class="lib">icônes cerclées · désactivée · voyant</span>' +
@@ -162,7 +171,7 @@
         '<button type="button" class="wm-cercle" aria-label="marquer résolu" title="marquer résolu" id="specResolu">' + i('Check', 15) + '</button>' +
         '<button type="button" class="wm-cercle" aria-label="supprimer (indisponible)" disabled id="specCercleOff">' + i('Trash', 15) + '</button>' +
         '<span class="wm-voyant" title="voyant" id="specVoyant">nouveau</span></div>' +
-      '<div class="ligne"><span class="lib">champ (coupe de 6 px)</span>' +
+      '<div class="ligne"><span class="lib">champ (arrondi de 5 px)</span>' +
         '<span class="wm-champ" style="width:100%"><textarea class="wm-specimen-champ" id="specChamp" rows="2" style="width:100%;min-height:64px;resize:none;padding:9px 12px;border:1px solid var(--wm-line);background:var(--wm-surface-raised);font:500 14px/1.45 var(--wm-font-voix);color:var(--wm-ink)">Le bouton est trop petit</textarea></span></div>' +
       '<div class="ligne" style="margin:0"><span class="lib">raccourcis</span>' +
         '<span class="wm-repere">' + i('Command', 12) + '</span><span class="wm-repere">' + i('Option', 12) + '</span><span class="wm-repere">N</span><span class="wm-repere">échap</span></div>';

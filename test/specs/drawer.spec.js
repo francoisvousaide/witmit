@@ -11,7 +11,7 @@ test('Kiosque : le contenu se réorganise à gauche du tiroir, et revient à la 
   const panel = await page.locator('#cmPanel').boundingBox();
   const main = await page.locator('main').boundingBox();
   expect(main.x + main.width).toBeLessThanOrEqual(panel.x + 1);        // rien sous le tiroir
-  expect(await page.evaluate(() => document.documentElement.style.marginRight)).toMatch(/^38[01]px$/);
+  expect(await page.evaluate(() => document.documentElement.style.marginRight)).toBe('340px');   // V2 : liste de 340 px (fiche Tiroir)
   // les boutons flottants 💬📋 restent visibles (décalés à gauche du tiroir)
   const fab = await page.locator('.cm-fab').boundingBox();
   expect(fab.x + fab.width).toBeLessThanOrEqual(panel.x + 1);
@@ -68,9 +68,10 @@ test('Échap ferme le tiroir (après avoir annulé un champ en cours), puis quit
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Un ticket');
   await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-  await page.locator('.cm-panel-item .body').click();             // ouvre la modification du texte dans la liste
+  await page.locator('.cm-panel-item .body').click();             // c1 : un clic choisit le retour…
+  await page.locator('.cm-panel-item .body').click();             // …un deuxième l'ouvre, son texte en place dans le champ
   await expect(page.locator('.cm-inline-edit')).toBeVisible();
-  await page.keyboard.press('Escape');                            // 1er Échap : annule le champ, le tiroir reste
+  await page.keyboard.press('Escape');                            // 1er Échap : annule le champ et referme le retour, le tiroir reste
   await expect(page.locator('.cm-inline-edit')).toHaveCount(0);
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.keyboard.press('Escape');                            // 2e : ferme le tiroir
@@ -101,22 +102,23 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await accord;
   await expect(page.locator('.cm-panel-item')).toHaveCount(0);
   await expect(page.locator('#cmStatus')).toContainText('retours de cette page effacés.');
-  // État vide (Léa 3.3) : la phrase, une seule touche « nouveau retour » et l'aide en dessous.
-  await expect(page.locator('.cm-panel-empty')).toHaveText("aucun retour sur cette page pour l'instant.");
+  // État vide (décision b3 du 26/10, V2) : la phrase, puis comment laisser un retour (les gestes, un par ligne), et une seule
+  // touche « nouveau retour » ; l'aide « ou ⌥+A » de la 0.2.0 laisse la place aux gestes (liste.spec.js, L5, mot pour mot).
+  await expect(page.locator('.cm-panel-empty p').first()).toHaveText("aucun retour sur cette page pour l'instant.");
+  await expect(page.locator('.cm-panel-empty p').nth(1)).toHaveText('pour en laisser un, appuie sur « nouveau retour », puis :');
+  await expect(page.locator('.cm-panel-empty li')).toHaveCount(4);
   await expect(page.locator('#cmPanel button', { hasText: 'nouveau retour' })).toHaveCount(1);
-  await expect(page.locator('#cmNewAide')).toBeVisible();
-  await expect(page.locator('#cmNewAide')).toHaveText(/^ou (option|alt)\+A, de n'importe où sur la page\.$/);
-  if (H.IS_MAC) await expect(page.locator('#cmNewAide .wm-repere svg[data-icone="Option"]')).toHaveCount(1);   // ⌥ en icône, dans son carré
-  // Live : « masquer witmit » en minuscules, avec son repère et l'info-bulle qui dit comment revenir.
+  await expect(page.locator('#cmNewAide')).toHaveCount(0);
+  // Live : « masquer witmit » en minuscules, sans raccourci affiché (V2, fiche Touche) ; l'info-bulle dit comment revenir,
+  // et le nom accessible garde « option deux fois ».
   await page.goto(H.fileUrl('generic-dashboard-live.html') + '?witmit=on');
   await page.locator('#cmPanelBtn').click();
   const masquer = page.locator('#cmHideBtn');
   await expect(masquer).toHaveText(/^masquer witmit/);
   await expect(masquer).toHaveAttribute('title', /^cacher witmit sur ce site\. pour le retrouver : (⌥|alt) deux fois, ou \?witmit=on dans l'adresse$/);
-  await expect(masquer.locator('.wm-repere')).toBeVisible();
-  // Repère « ⌥ deux fois » : ⌥ en icône dans son carré, « deux fois » à côté ; nom accessible « option deux fois ».
-  await expect(masquer.locator('.wm-repere-double')).toHaveText(/^(option|alt)deux fois$/);
-  if (H.IS_MAC) await expect(masquer.locator('.wm-repere svg[data-icone="Option"]')).toHaveCount(1);
+  await expect(masquer.locator('.wm-repere')).toHaveCount(0);
+  // à l'écran : le libellé seul (le texte réservé aux lecteurs d'écran, .wm-lu, est hors de la vue)
+  expect(await masquer.evaluate((el) => { const c = el.cloneNode(true); c.querySelectorAll('.wm-lu').forEach((n) => n.remove()); return c.textContent.trim(); })).toBe('masquer witmit');
   await expect(masquer).toHaveAccessibleName(H.IS_MAC ? 'masquer witmit option deux fois' : 'masquer witmit alt deux fois');
   await expect(masquer).not.toHaveAttribute('aria-keyshortcuts', /.*/);
   await masquer.click();
@@ -156,6 +158,7 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   const lignes = page.locator('.cm-panel-item');
   await expect(lignes.nth(0).locator('.del')).toHaveCount(0);
   await expect(lignes.nth(1).locator('.del')).toHaveCount(1);
+  await H.ouvrirRetour(page, lignes.nth(1));                                 // c1 (V2) : la corbeille est dans le retour ouvert
   await expect(lignes.nth(1).locator('.del')).toHaveAccessibleName('supprimer ce retour');
   await expect(page.locator('#cmClearPageBtn')).toBeVisible();
   await expect(page.locator('#cmClearSiteBtn')).toBeVisible();

@@ -208,16 +208,17 @@ test('8. touche N : liste ouverte, ferme la liste et lance le mode ; liste ferm�
   await H.activate(page);
   await H.addPin(page, CIBLE, 'Retour à modifier');
   await page.locator('#cmPanelBtn').click();
-  await page.locator('.cm-panel-item .body').first().click();
+  await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : un clic choisit, un deuxième ouvre le champ
   const champ = page.locator('.cm-panel-item textarea.cm-inline-edit');
   await expect(champ).toBeFocused();
   await page.keyboard.press('n');
   await expect(champ).toHaveValue('Retour à modifiern');
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-  await page.keyboard.press('Escape');                                  // annule la modification
+  await page.keyboard.press('Escape');                                  // annule la modification (et referme le retour)
+  // Lot 8 (B10) : le viseur n'est plus un « clic en dehors » de la liste ; il arrête le mode, comme ⌥+A, sans toucher à la
+  // liste, qui reste ouverte (le bouton witmit, lui, est la liste).
   await H.deactivate(page);
   // Avec maj, ctrl, alt ou ⌘ : rien.
-  await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   for (const t of ['Shift+KeyN', 'Control+KeyN', 'Alt+KeyN', 'Meta+KeyN']) {
     await page.keyboard.press(t);
@@ -422,4 +423,70 @@ test('20. aucun preventDefault sur alt seule, witmit caché comme visible', asyn
   await expect(page.locator('body')).toHaveClass(/cm-concealed/);
   await page.keyboard.press('Alt');
   expect(await prisesAlt(page)).toEqual([false, false, false, false, false]);
+});
+
+// Lot 10 bis (Paula, sur l'aperçu de TellUs) : N1, « ?witmit=on » se coupait après le « ? » à 1280 px ; N2, le message
+// de masquage restait jusqu'à 6 s après la révélation, à côté des boutons revenus (défaut de 0.2.0).
+// Lignes occupées par « ?witmit=on » dans le message, mesurées sur le texte lui-même (plage sur les nœuds texte).
+async function lignesDeLAdresse(page) {
+  return page.evaluate(() => {
+    const t = document.querySelector('#cmStatus .wm-toast-texte');
+    const w = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+    const noeuds = [];
+    let texte = '';
+    for (let n = w.nextNode(); n; n = w.nextNode()) { noeuds.push([n, texte.length]); texte += n.data; }
+    const debut = texte.indexOf('?witmit=on');
+    if (debut < 0) return -1;
+    const fin = debut + '?witmit=on'.length;
+    const ou = (pos) => { for (let i = noeuds.length - 1; i >= 0; i--) if (pos >= noeuds[i][1]) return [noeuds[i][0], pos - noeuds[i][1]]; };
+    const r = document.createRange();
+    r.setStart(...ou(debut));
+    r.setEnd(...ou(fin));
+    return new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size;
+  });
+}
+
+test('21. message de masquage : « ?witmit=on » jamais coupé après le « ? », de 300 à 1440 px, « ⌥ deux fois » comme « alt deux fois » (N1)', async ({ page }) => {
+  const largeurs = [];
+  for (let l = 300; l <= 480; l += 1) largeurs.push(l);       // la largeur du message suit l'écran jusqu'à ~467 px
+  for (let l = 500; l <= 1440; l += 20) largeurs.push(l);      // puis elle est fixe (420 px)
+  for (const geste of [RACC_DOUBLE_ALT, 'alt deux fois']) {
+    if (geste !== RACC_DOUBLE_ALT) {
+      await page.addInitScript(() => {                         // un autre système que le Mac : « alt deux fois »
+        Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => ({ platform: 'Windows' }) });
+        Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'Win32' });
+      });
+    }
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await ouvrirPropre(page, LIVE, '?witmit=on');
+    await page.evaluate(() => window.cmReveal(false));
+    const toast = page.locator('#cmStatus');
+    await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + geste + ", ou ?witmit=on dans l'adresse.");   // texte inchangé
+    const coupees = [];
+    for (const l of largeurs) {
+      await page.setViewportSize({ width: l, height: 800 });
+      const n = await lignesDeLAdresse(page);
+      if (n !== 1) coupees.push(l + ' px : ' + n);
+    }
+    expect(coupees, geste).toEqual([]);
+  }
+});
+
+test('22. le message de masquage part dès la révélation par ⌥ deux fois, sans attendre ses 6 s (N2)', async ({ page }) => {
+  await ouvrirPropre(page, LIVE, '?witmit=on');
+  await H.doubleAlt(page);
+  const toast = page.locator('#cmStatus');
+  await expect(page.locator('body')).toHaveClass(/cm-concealed/);
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveClass(/wm-toast-masquage/);
+  await H.doubleAlt(page);
+  await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
+  await expect(page.locator('#cmPanelBtn')).toBeVisible();
+  await expect(toast).not.toHaveClass(/show/);
+  await expect(toast).not.toHaveClass(/wm-toast-masquage/);
+  await expect(toast).toBeHidden({ timeout: 500 });           // fondu de 200 ms, pas les 6 s du message
+  // Un nouveau masquage le remontre en entier.
+  await H.doubleAlt(page);
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveClass(/wm-toast-masquage/);
 });

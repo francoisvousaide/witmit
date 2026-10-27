@@ -134,16 +134,17 @@ for (const P of PAGES) {
     test('9. la pastille reste accrochée à son élément après redimensionnement', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Ancrage');
-      // Ancrage F6 (fiche Reperes) : bord droit de l'épingle aligné sur le cadre de l'élément (16 px de marge),
-      // bord bas 22 px au-dessus de l'élément (6 px au-dessus du cadre), ou 22 px sous lui faute de place en haut.
+      // Ancrage (fiche Epingle, V2) : l'épingle à cheval sur le coin haut droit du cadre de l'élément (16 px de
+      // marge), son centre sur le coin ; ou sur son coin bas gauche faute de place en haut à droite.
       const ancrage = async () => {
         const cible = await page.locator(P.pinTarget).first().boundingBox();
         const el = await page.locator('.cm-box-outline').boundingBox();   // boîte de l'élément visé
         const pin = await page.locator('.cm-pin').boundingBox();
-        const dessous = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-dessous'));
+        const basGauche = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-bas-gauche'));
+        const cx = pin.x + pin.width / 2, cy = pin.y + pin.height / 2;
         return {
-          droite: Math.abs((pin.x + pin.width) - (el.x + el.width + 16)),
-          bas: dessous ? Math.abs(pin.y - (el.y + el.height + 22)) : Math.abs((pin.y + pin.height) - (el.y - 22)),
+          droite: basGauche ? Math.abs(cx - (el.x - 16)) : Math.abs(cx - (el.x + el.width + 16)),
+          bas: basGauche ? Math.abs(cy - (el.y + el.height + 16)) : Math.abs(cy - (el.y - 16)),
           surLaCible: Math.abs((el.x + el.width) - (cible.x + cible.width)) < 30 && Math.abs(el.y - cible.y) < 30,
           hauteur: pin.height
         };
@@ -195,12 +196,13 @@ for (const P of PAGES) {
       await H.addPin(page, P.pinTarget, 'Retrouve-moi');
       await H.deactivate(page);
       await page.locator('#cmPanelBtn').click();
-      await page.locator('.cm-panel-item .body').click();
+      await page.locator('.cm-panel-item .body').click();              // 1er clic (c1, V2) : le retour est choisi
       await expect(page.locator('body')).toHaveClass(/cm-active/);
       await expect(page.locator('#cmPanel')).toHaveClass(/show/); // le bloc reste ouvert
       await expect(page.locator('.cm-pin')).toBeVisible();
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola/); // onde sur le cadre
       await expect(page.locator('.cm-popup')).toHaveCount(0);                // pas de bulle…
+      await page.locator('.cm-panel-item .body').click();              // 2e clic : ouvert, son texte en place dans le champ
       await expect(page.locator('.cm-panel-item textarea')).toHaveValue('Retrouve-moi'); // …on modifie dans la liste
       await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus/);   // cadre et pastille en couleur active
       await expect(page.locator('.cm-pin')).toHaveClass(/cm-focus/);
@@ -227,10 +229,12 @@ for (const P of PAGES) {
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
       await expect(page.locator('.cm-panel-item')).toHaveCount(1);
       await expect(page.locator('.cm-panel-item .txt')).toHaveText('Dans la liste');
-      await expect(page.locator('#cmPanelCount')).toHaveText('1');
+      await expect(page.locator('#cmPanelCount')).toHaveCount(0);       // V2 : plus de compteur ; la ligne de compte donne le nombre
+      await expect(page.locator('#cmPanelSub')).toHaveText(/^1 à suivre — 1 retour sur 1 page du site/);
       await page.mouse.click(30, 400);
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await page.locator('#cmPanelBtn').click();
+      await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 : les actions sont dans le retour ouvert
       await page.locator('.cm-panel-item .del').click();
       await expect(page.locator('.cm-panel-item')).toHaveCount(0);
       await expect(page.locator('.cm-pin')).toHaveCount(0);
@@ -376,19 +380,19 @@ for (const P of PAGES) {
     });
 
     test('16. couleurs : épingle, verre et encre aux jetons de witmit, que la page ait ses variables CSS ou non', async ({ page }) => {
-      // Jetons de la charte (design system, tokens.css) : le verre prend l'inverse du fond de la page.
+      // Jetons de la charte V2 (design system, tokens.json) : le verre prend le thème du site.
       const JETONS = {
-        'client-sombre': { verre: 'rgba(20, 19, 17, 0.66)', encre: 'rgb(246, 243, 238)' },
-        'client-clair': { verre: 'rgba(236, 232, 224, 0.6)', encre: 'rgb(20, 20, 18)' }
+        'client-sombre': { verre: 'rgba(27, 27, 27, 0.7)', encre: 'rgb(255, 255, 255)', repere: 'rgb(244, 244, 244)' },
+        'client-clair': { verre: 'rgba(250, 250, 250, 0.72)', encre: 'rgb(20, 20, 20)', repere: 'rgb(20, 20, 20)' }
       };
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Couleur');
       await page.waitForTimeout(1800); // laisse passer l'effet « vient d'être commenté »
       // Épingle (fiches Epingle et Reperes) : face en verre des fenêtres choisie d'après le fond derrière elle,
-      // champagne et chiffre encre sur fond clair, graphite et chiffre blanc cassé sur fond sombre.
+      // titane clair et chiffre encre sur fond clair, titane sombre et chiffre clair sur fond sombre.
       const pin = await page.locator('.cm-pin').evaluate((el) => ({ fond: getComputedStyle(el).backgroundColor, chiffre: getComputedStyle(el).color, sombre: el.classList.contains('wm-sur-sombre') }));
       expect(pin.fond).toBe(pin.sombre ? JETONS['client-sombre'].verre : JETONS['client-clair'].verre);
-      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].encre : JETONS['client-clair'].encre);
+      expect(pin.chiffre).toBe(pin.sombre ? JETONS['client-sombre'].repere : JETONS['client-clair'].repere);
       const t = await page.getAttribute('body', 'data-wm-theme');
       expect(Object.keys(JETONS)).toContain(t);
       await page.locator('.cm-pin').click();

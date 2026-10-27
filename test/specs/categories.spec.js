@@ -73,7 +73,8 @@ test.describe('Bulle et stockage (Kiosque)', () => {
       const p = document.querySelector('.cm-popup').getBoundingClientRect();
       return Array.from(document.querySelectorAll('.cm-popup .cm-cat-choix')).every((el) => {
         const r = el.getBoundingClientRect();
-        return r.left >= p.left && r.right <= p.right && r.top >= p.top && r.bottom <= p.bottom && r.height === 36;
+        const f = getComputedStyle(el, '::before');   // V2 : face de 36 px dans une zone cliquable de 44 px (fiche Touche)
+        return r.left >= p.left && r.right <= p.right && r.top >= p.top && r.bottom <= p.bottom && r.height === 44 && r.height - parseFloat(f.top) - parseFloat(f.bottom) === 36;
       });
     });
     expect(dedans).toBe(true);
@@ -144,6 +145,7 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     await page.locator('#cmPanelBtn').click();
     await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveText('bug fonctionnel');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toBeHidden();
+    await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les détails sont dans le retour ouvert
     await page.locator('.cm-panel-item details.cm-tech summary').click();
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toContainText('cible : main');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toContainText('boom test');
