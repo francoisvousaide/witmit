@@ -215,9 +215,10 @@ test('8. touche N : liste ouverte, ferme la liste et lance le mode ; liste ferm�
   await expect(champ).toHaveValue('Retour à modifiern');
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.keyboard.press('Escape');                                  // annule la modification (et referme le retour)
+  // Lot 8 (B10) : le viseur n'est plus un « clic en dehors » de la liste ; il arrête le mode, comme ⌥+A, sans toucher à la
+  // liste, qui reste ouverte (le bouton witmit, lui, est la liste).
   await H.deactivate(page);
   // Avec maj, ctrl, alt ou ⌘ : rien.
-  await page.locator('#cmPanelBtn').click();
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   for (const t of ['Shift+KeyN', 'Control+KeyN', 'Alt+KeyN', 'Meta+KeyN']) {
     await page.keyboard.press(t);

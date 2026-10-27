@@ -118,7 +118,7 @@ test.describe('Thème suivi et matières (V2)', () => {
       return {
         theme: document.body.getAttribute('data-wm-theme'),
         fond: verre.backgroundColor, flou: verre.backdropFilter || verre.webkitBackdropFilter,
-        ombre: getComputedStyle(ombre.firstElementChild).backgroundColor, ombreDecalage: getComputedStyle(ombre).top, ombreFlou: getComputedStyle(ombre).filter,
+        ombreCopie: getComputedStyle(ombre).display, ombreVerre: verre.boxShadow,
         encre: getComputedStyle(document.querySelector('.cm-popup .cm-titre')).color,
         metal: btn.color,
       };
@@ -132,11 +132,15 @@ test.describe('Thème suivi et matières (V2)', () => {
     expect(sombre).toMatchObject({ theme: 'client-sombre', encre: 'rgb(255, 255, 255)', metal: 'rgb(244, 244, 244)' });   // métal sombre, signe clair
   });
 
+  // Lot 8 : l'ombre (clair) et la lueur (sombre) sont un box-shadow du verre, glissé de 22 px et flou de 56 px (même géométrie que
+  // l'ancienne copie floutée de 28 px), qui ne se peint jamais sous la face ; la copie .wm-ombre est cachée.
   test('4c. verre 72 % en clair et 70 % en sombre, flou de 40 px, saturation 1,9 ; ombre macOS à 34 % ; lueur blanche à 22 %', async ({ page }) => {
     const clair = await matieres(page, 'v2-verre-clair', '#ffffff');
-    expect(clair).toMatchObject({ fond: 'rgba(250, 250, 250, 0.72)', flou: 'blur(40px) saturate(1.9)', ombre: 'rgba(0, 0, 0, 0.34)', ombreDecalage: '22px', ombreFlou: 'blur(28px)' });
+    expect(clair).toMatchObject({ fond: 'rgba(250, 250, 250, 0.72)', flou: 'blur(40px) saturate(1.9)', ombreCopie: 'none' });
+    expect(clair.ombreVerre).toContain('rgba(0, 0, 0, 0.34) 0px 22px 56px 0px');
     const sombre = await matieres(page, 'v2-verre-sombre', '#101010');
-    expect(sombre).toMatchObject({ fond: 'rgba(27, 27, 27, 0.7)', flou: 'blur(40px) saturate(1.9)', ombre: 'rgba(255, 255, 255, 0.22)', ombreDecalage: '22px', ombreFlou: 'blur(28px)' });
+    expect(sombre).toMatchObject({ fond: 'rgba(27, 27, 27, 0.7)', flou: 'blur(40px) saturate(1.9)', ombreCopie: 'none' });
+    expect(sombre.ombreVerre).toContain('rgba(255, 255, 255, 0.22) 0px 22px 56px 0px');
   });
 });
 
@@ -695,7 +699,7 @@ test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const st = (sel, pseudo) => page.locator(sel).first().evaluate((el, ps) => {
     const cs = getComputedStyle(el, ps);
-    return { clip: cs.clipPath, rayon: cs.borderRadius, bord: cs.borderTopColor, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor, graisse: cs.fontWeight };
+    return { clip: cs.clipPath, rayon: cs.borderRadius, bord: cs.borderTopColor, trait: cs.borderTopWidth, ombre: cs.boxShadow, couleur: cs.color, fond: cs.backgroundColor, curseur: cs.cursor, graisse: cs.fontWeight };
   }, pseudo || null);
   const jetons = await page.locator('.cm-popup').evaluate((el) => {
     const cs = getComputedStyle(el), v = (n) => cs.getPropertyValue(n).trim();
@@ -716,7 +720,9 @@ test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal
   expect(save.graisse).toBe('500');                                     // en graisse 500
   const sec = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)'), secAvant = await st('#cmPanel .cm-panel-foot .wm-touche:not(.wm-principale)', '::before');
   expect(secAvant.fond).toBe(jetons.face);                              // secondaire : face grise
-  expect(secAvant.bord).toBe(jetons.lisere);
+  // Lot 8 (B3) : liseré de 0,5 px en ombre intérieure (un border de 0,5 px est dessiné à 1 px par Chromium), aucun border.
+  expect(secAvant.ombre).toBe(jetons.lisere + ' 0px 0px 0px 0.5px inset');
+  expect(secAvant.trait).toBe('0px');
   expect([sec.couleur, sec.graisse]).toEqual([jetons.ink, '400']);      // libellé ink, graisse normale
   const annuler = await st('.cm-popup .cm-cancel'), annulerAvant = await st('.cm-popup .cm-cancel', '::before');
   expect(annulerAvant.fond).toBe(jetons.face);                          // « annuler » : un vrai bouton gris, plus un texte seul
@@ -839,7 +845,8 @@ test('19e. bord du verre visible sans découpe : trait de 1 px et ombre de conta
       expect(v.ombre).toContain('rgba(0, 0, 0, 0.14) 0px 0px 0px 1px inset');   // trait contour-fenetre
       expect(v.ombre).toContain('rgba(0, 0, 0, 0.14) 0px 1px 3px 0px');         // ombre de contact
     } else {
-      expect(v.ombre).toBe('rgba(255, 255, 255, 0.16) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.05) 0px 0px 0px 1px');   // un seul trait dedans
+      // un seul trait dedans ; puis la lueur, portée par le verre lui-même depuis le lot 8 (box-shadow, jamais sous la face)
+      expect(v.ombre).toBe('rgba(255, 255, 255, 0.16) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.05) 0px 0px 0px 1px, rgba(255, 255, 255, 0.22) 0px 22px 56px 0px');
     }
   }
 });
@@ -975,7 +982,10 @@ test('22. voyant (F8) : disque net de 7 px, sans ombre ; cerne intérieur seulem
     await H.retourColle(page, [c.id + ' pris_en_compte']);            // l'équipe a changé le statut : voyant allumé (C5)
     const v = await page.locator('#cmCount').evaluate((el) => {
       const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-      return { w: r.width, h: r.height, rond: cs.borderTopLeftRadius, ombre: cs.boxShadow, fond: cs.backgroundColor, cerne: parseFloat(cs.borderTopWidth) > 0, entier: Number.isInteger(r.left * devicePixelRatio) && Number.isInteger(r.top * devicePixelRatio) };
+      // Lot 8 (B6) : le cerne est une ombre intérieure de 1,5 px (un border de 1,5 px est dessiné à 1 px) ; « sans ombre » : aucune ombre dehors.
+      const ombres = cs.boxShadow === 'none' ? [] : cs.boxShadow.split(/,(?![^(]*\))/).map((o) => o.trim());
+      return { w: r.width, h: r.height, rond: cs.borderTopLeftRadius, ombre: ombres.filter((o) => !/inset/.test(o)).join(', ') || 'none', fond: cs.backgroundColor,
+        cerne: ombres.some((o) => /0px 0px 0px 1\.5px inset/.test(o)) && parseFloat(cs.borderTopWidth) === 0, entier: Number.isInteger(r.left * devicePixelRatio) && Number.isInteger(r.top * devicePixelRatio) };
     });
     expect(v, nom).toMatchObject({ w: 7, h: 7, rond: '50%', ombre: 'none', fond: 'rgb(247, 130, 26)', cerne, entier: true });
   }
@@ -1030,7 +1040,7 @@ test('24. une seule encre par repère, d’après le fond derrière lui ; un pet
   // clair ; inactif : pointillés gris (noir à 42 %).
   expect(petit).toMatchObject({ coin: 'rgb(20, 20, 20)', trait: '2px 2px', marge: 16, rayon: '6px', contour: 'dashed 1px rgba(0, 0, 0, 0.42)', sombre: false });
   // Grand élément sur la moitié sombre : crochets blancs, pointillés blancs à 50 %.
-  expect(grand).toMatchObject({ coin: 'rgb(255, 255, 255)', marge: 16, rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)', sombre: true });
+  expect(grand).toMatchObject({ coin: 'rgb(244, 244, 244)', marge: 16, rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)', sombre: true });
   // Épingles : verre titane clair et chiffre encre sur fond clair ; verre titane sombre et chiffre blanc sur fond sombre.
   const pins = await page.locator('.cm-pin').evaluateAll((ps) => ps.map((p) => ({ fond: getComputedStyle(p).backgroundColor, chiffre: getComputedStyle(p).color, h: p.getBoundingClientRect().height })));
   expect(pins).toEqual([
@@ -1058,8 +1068,9 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   await page.mouse.move(400, 900);
   await expect(page.locator('.cm-pin .wm-voyant-epingle')).toHaveCount(1);
   await expect(page.locator('.cm-pin')).toHaveAttribute('aria-label', 'retour 1, pris en compte, nouveau');
-  const v = await page.locator('.cm-pin .wm-voyant-epingle').evaluate((el) => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return { w: r.width, h: r.height, fond: cs.backgroundColor, ombre: cs.boxShadow }; });
-  expect(v).toEqual({ w: 7, h: 7, fond: 'rgb(247, 130, 26)', ombre: 'none' });
+  // Fond clair : cerne intérieur de 1,5 px en ombre intérieure (lot 8, B6), aucune ombre dehors.
+  const v = await page.locator('.cm-pin .wm-voyant-epingle').evaluate((el) => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return { w: r.width, h: r.height, fond: cs.backgroundColor, ombre: cs.boxShadow, bord: cs.borderTopWidth }; });
+  expect(v).toEqual({ w: 7, h: 7, fond: 'rgb(247, 130, 26)', ombre: 'rgb(10, 10, 10) 0px 0px 0px 1.5px inset', bord: '0px' });
   // Traité : contour en pointillés, ni ombre ni liseré.
   await H.retourColle(page, [c.id + ' resolu']);
   await page.mouse.move(400, 900);                                // aucun survol (ligne de la liste ou épingle)
@@ -1173,7 +1184,7 @@ test('35. cadre actif fermé (gris léger, contour, ombres, crochets pleins à 5
   await planche(page);
   for (const [cible, sombre] of [['#moitieClaire > p', false], ['#moitieSombre > p', true]]) {
     await tracerEtLire(page, cible);
-    const coin = sombre ? 'rgb(255, 255, 255)' : 'rgb(20, 20, 20)';
+    const coin = sombre ? 'rgb(244, 244, 244)' : 'rgb(20, 20, 20)';   // lot 8 : une seule encre claire, #f4f4f4 (encre-repere-claire)
     // Zone lâchée, fenêtre ouverte : actif.
     const actif = await cadreDe(page.locator('.cm-box-editable'));
     expect(actif, cible).toMatchObject({ coin, coinBas: coin, trait: '2px 2px', traitBas: '2px 2px', bras: '12px 12px', place: '5px 5px', placeBas: '5px 5px',
@@ -1190,7 +1201,7 @@ test('35. cadre actif fermé (gris léger, contour, ombres, crochets pleins à 5
   // Enregistrées, pas sélectionnées : inactives, pointillés de 1 px, ni fond ni ombre, crochets à 55 % (couleur pleine).
   const inactifs = await Promise.all([0, 1].map((n) => cadreDe(page.locator('.cm-box-saved').nth(n))));
   expect(inactifs[0]).toMatchObject({ coin: 'rgb(20, 20, 20)', opacite: '0.55 0.55', fond: 'rgba(0, 0, 0, 0)', ombre: 'none', rayon: '6px', contour: 'dashed 1px rgba(0, 0, 0, 0.42)' });
-  expect(inactifs[1]).toMatchObject({ coin: 'rgb(255, 255, 255)', opacite: '0.55 0.55', fond: 'rgba(0, 0, 0, 0)', ombre: 'none', rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)' });
+  expect(inactifs[1]).toMatchObject({ coin: 'rgb(244, 244, 244)', opacite: '0.55 0.55', fond: 'rgba(0, 0, 0, 0)', ombre: 'none', rayon: '6px', contour: 'dashed 1px rgba(255, 255, 255, 0.5)' });
   // Plusieurs éléments (⌘+clic, ctrl+clic hors Mac) : chaque élément visé a le même cadre, 16 px de marge, actif puis inactif.
   const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
   const b1 = await H.visibleBox(page, '#boutonClair'), b2 = await H.visibleBox(page, '#boutonSombre');
@@ -1200,7 +1211,7 @@ test('35. cadre actif fermé (gris léger, contour, ombres, crochets pleins à 5
   await expect(page.locator('.cm-box-editing')).toHaveCount(2);
   const enSaisie = await Promise.all([0, 1].map((n) => cadreDe(page.locator('.cm-box-editing').nth(n))));
   expect(enSaisie[0]).toMatchObject({ coin: 'rgb(20, 20, 20)', opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 16, rayon: '6px', place: '5px 5px' });
-  expect(enSaisie[1]).toMatchObject({ coin: 'rgb(255, 255, 255)', opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 16, rayon: '6px' });
+  expect(enSaisie[1]).toMatchObject({ coin: 'rgb(244, 244, 244)', opacite: '1 1', fond: 'rgba(128, 128, 128, 0.12)', contour: null, marge: 16, rayon: '6px' });
   await page.locator('.cm-popup textarea').fill('deux boutons');
   await page.locator('.cm-popup textarea').press('Enter');
   await expect(page.locator('.cm-box-outline')).toHaveCount(2);
@@ -1230,8 +1241,8 @@ test('36. couleur des sélections (data-selection-color) : gris par défaut, ora
       expect(trace.bord, requete + ' ' + cote).toBe('solid 1px ' + contour);
       const actif = await cadreDe(page.locator('.cm-box-editable'));
       expect(actif.ombre, requete + ' ' + cote).toContain(contour + ' 0px 0px 0px 1px');
-      // Crochets toujours pleins (#141414 en clair, blanc en sombre) ; poignées toujours grises, jamais orange.
-      expect(actif.coin, requete + ' ' + cote).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(255, 255, 255)');
+      // Crochets toujours pleins (#141414 en clair, #f4f4f4 en sombre, la même encre que l’épingle ; lot 8) ; poignées toujours grises, jamais orange.
+      expect(actif.coin, requete + ' ' + cote).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(244, 244, 244)');
       expect(actif.opacite).toBe('1 1');
       const prises = await poigneesDe(page);
       expect(prises).toHaveLength(6);
@@ -1243,7 +1254,7 @@ test('36. couleur des sélections (data-selection-color) : gris par défaut, ora
       await page.waitForTimeout(1500);
       const inactif = await cadreDe(page.locator('.cm-box-saved').last());
       expect(inactif.contour, requete + ' ' + cote).toBe('dashed 1px ' + pointilles);
-      expect(inactif.coin).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(255, 255, 255)');
+      expect(inactif.coin).toBe(cote === 'clair' ? 'rgb(20, 20, 20)' : 'rgb(244, 244, 244)');
     }
   }
 });

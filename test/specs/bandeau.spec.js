@@ -140,7 +140,7 @@ test.describe('Bandeau (fiche Bandeau, décision b3)', () => {
     return { fautes, croixLibre: !!(dessus && dessus.closest('.cm-panel-fermer')), p: p.toJSON(), l: l.toJSON() };
   });
 
-  for (const w of [375, 320, 600]) {
+  for (const w of [375, 320, 600, 700]) {
     test(`B3. ${w} px, liste ouverte et mode actif : le bandeau ne recouvre ni la tête de la liste, ni sa croix « fermer », ni ses retours`, async ({ page }) => {
       await page.setViewportSize({ width: w, height: 800 });
       const nom = 'tellus-accueil.html';
@@ -151,13 +151,13 @@ test.describe('Bandeau (fiche Bandeau, décision b3)', () => {
       expect(r.fautes).toEqual([]);
       expect(r.croixLibre).toBe(true);
       expect(r.p.height).toBe(44);
-      if (w <= 480) {
+      if (w < 628) {                                                      // sous 628 px (600 compris) : moins de 24 px d’air à côté de la liste, sur la liste (lot 8, Paula É4)
         // Posé en haut de la liste, de 8 px à 8 px de ses bords visibles (fiche Mobile).
         expect(r.p.top).toBe(8);
         expect(r.p.left).toBeGreaterThanOrEqual(r.l.left + 8 - 0.5);
         expect(r.p.right).toBeLessThanOrEqual(Math.min(r.l.right, w) - 8 + 0.5);
       } else {
-        expect(r.p.right).toBeLessThanOrEqual(r.l.left);                   // 600 px : il tient sur la page rétrécie (Paula É2), à gauche de la liste
+        expect(r.p.right).toBeLessThanOrEqual(r.l.left);                   // assez large : il tient sur la page rétrécie (Paula É2), à gauche de la liste
       }
       // La croix se clique vraiment, et la liste fermée rend sa place au bandeau.
       await page.locator('#cmPanel .cm-panel-fermer').click();
@@ -169,32 +169,54 @@ test.describe('Bandeau (fiche Bandeau, décision b3)', () => {
     });
   }
 
-  test('B4. 375 et 320 px, liste fermée : le bandeau d’une ligne ne recouvre pas le texte du titre de la page', async ({ page }) => {
-    // Police de repli imposée (la police web de la page de test vient du réseau) : le cas le plus haut pour le titre.
-    await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
-    for (const w of [375, 320]) {
-      await page.setViewportSize({ width: w, height: 800 });
+  // Encre du titre (h1) sous le bandeau : la zone du bandeau est capturée deux fois, bandeau et halo cachés, titre montré
+  // puis titre caché ; les pixels qui changent sont l'encre du titre. Toujours mesurée, quelle que soit la place du
+  // bandeau (lot 8 : plus de raccourci « le bandeau s'arrête au-dessus de la boîte du titre »).
+  async function encreDuTitreSousLeBandeau(page) {
+    const p = await page.locator('#cmPill').boundingBox();
+    const vw = await page.evaluate(() => document.documentElement.clientWidth);
+    const x = Math.max(0, Math.floor(p.x)), y = Math.max(0, Math.floor(p.y));
+    const clip = { x, y, width: Math.min(Math.ceil(p.x + p.width), vw) - x, height: Math.ceil(p.y + p.height) - y };
+    await page.evaluate(() => { const st = document.createElement('style'); st.id = 'essaiB4'; st.textContent = '#cmPill, #cmFrame { visibility:hidden !important; }'; document.head.appendChild(st); });
+    const avec = await page.screenshot({ clip });
+    await page.evaluate(() => { document.querySelector('h1').style.visibility = 'hidden'; });
+    const sans = await page.screenshot({ clip });
+    await page.evaluate(() => { document.querySelector('h1').style.visibility = ''; document.getElementById('essaiB4').remove(); });
+    return page.evaluate(async ([a, b]) => {
+      const lire = async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        return x.getImageData(0, 0, img.width, img.height).data; };
+      const d1 = await lire(a), d2 = await lire(b);
+      let n = 0;
+      for (let i = 0; i < d1.length; i += 4) if (Math.abs(d1[i] - d2[i]) + Math.abs(d1[i + 1] - d2[i + 1]) + Math.abs(d1[i + 2] - d2[i + 2]) > 30) n++;
+      return n;
+    }, [avec.toString('base64'), sans.toString('base64')]);
+  }
+
+  // Deux passes : police web de la page bloquée (police de repli), puis police laissée se charger. Aucune des deux n'est
+  // présentée comme le pire cas : le titre ne doit jamais passer sous le bandeau.
+  for (const polices of ['bloquées', 'chargées']) {
+    test(`B4. le bandeau ne recouvre jamais l'encre du titre : liste fermée à 375 et 320 px ; liste ouverte de 560 à 760 px (polices ${polices})`, async ({ page }) => {
+      if (polices === 'bloquées') await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+      await page.setViewportSize({ width: 375, height: 800 });
       await page.goto(H.fileUrl('tellus-accueil.html'));
       await H.clearStorage(page); await page.reload();
       await H.activate(page);
-      await page.waitForTimeout(300);
-      const m = await page.evaluate(() => ({ t: document.querySelector('h1').getBoundingClientRect().toJSON(), bas: document.getElementById('cmPill').getBoundingClientRect().bottom }));
-      if (m.bas <= m.t.top) continue;                                      // le bandeau s'arrête au-dessus de la boîte du titre
-      // Sinon : aucune encre du titre dans les lignes que le bandeau recouvre (bandeau et halo cachés le temps de la capture).
-      await page.addStyleTag({ content: '#cmPill, #cmFrame { visibility:hidden !important; }' });
-      const clip = { x: Math.floor(m.t.left), y: Math.floor(m.t.top), width: Math.floor(Math.min(m.t.width, w - m.t.left)), height: Math.ceil(m.bas - Math.floor(m.t.top)) };
-      const png = await page.screenshot({ clip });
-      const encre = await page.evaluate(async (b64) => {
-        const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
-        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
-        const d = x.getImageData(0, 0, img.width, img.height).data, fond = [d[0], d[1], d[2]];
-        let n = 0;
-        for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - fond[0]) + Math.abs(d[i + 1] - fond[1]) + Math.abs(d[i + 2] - fond[2]) > 60) n++;
-        return n;
-      }, png.toString('base64'));
-      expect(encre, `${w} px : pixels du titre sous le bandeau`).toBe(0);
-    }
-  });
+      await page.waitForTimeout(500);                                      // fin des animations d'entrée de la page
+      for (const w of [375, 320]) {
+        await page.setViewportSize({ width: w, height: 800 });
+        await page.waitForTimeout(150);
+        expect(await encreDuTitreSousLeBandeau(page), `${w} px, liste fermée : pixels du titre sous le bandeau`).toBe(0);
+      }
+      await page.setViewportSize({ width: 760, height: 800 });
+      await ouvrirListe(page);
+      for (let w = 760; w >= 560; w -= 4) {
+        await page.setViewportSize({ width: w, height: 800 });
+        await page.waitForTimeout(80);
+        expect(await encreDuTitreSousLeBandeau(page), `${w} px, liste ouverte : pixels du titre sous le bandeau`).toBe(0);
+      }
+    });
+  }
 });
 
 test.describe('Bandeau : corrections du renvoi', () => {
@@ -255,7 +277,7 @@ test.describe('Bandeau : corrections du renvoi', () => {
     expect(await coins()).toEqual(['inline', 'inline']);
   });
 
-  test('Paula É2. liste ouverte, de 1 280 à 600 px : le bandeau est centré sur la page rétrécie ; il passe sur la liste seulement s’il est plus large que la page moins 16 px', async ({ page }) => {
+  test('Paula É2. liste ouverte, de 1 280 à 600 px : le bandeau est centré sur la page rétrécie ; il passe sur la liste dès qu’il lui reste moins de 24 px d’air de chaque côté (lot 8, Paula É4)', async ({ page }) => {
     await page.goto(H.fileUrl('tellus-accueil.html'));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -271,7 +293,7 @@ test.describe('Bandeau : corrections du renvoi', () => {
         window.dispatchEvent(new Event('resize'));
         return { centre: r.left + r.width / 2, pageVue, naturelle, surListe: document.getElementById('cmPill').classList.contains('wm-sur-liste') };
       });
-      expect(m.surListe, `${w} px`).toBe(m.naturelle > m.pageVue - 16);
+      expect(m.surListe, `${w} px`).toBe(m.naturelle + 48 > m.pageVue);
       if (!m.surListe) expect(Math.abs(m.centre - m.pageVue / 2), `${w} px`).toBeLessThanOrEqual(1);
     }
   });
