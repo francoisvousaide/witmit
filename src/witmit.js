@@ -1,5 +1,5 @@
 /*!
- * witmit 0.2.0 — widget d'annotation visuelle (charte « Objet »)
+ * witmit 0.3.0 — widget d'annotation visuelle (charte V2 : thème du site, verre et titane, orange en signal)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Police : celle du système (aucun fichier de police chargé).
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
@@ -63,7 +63,7 @@
     // (fiche Selection, décision de François du 26/10). Par défaut, et pour toute autre valeur : gris ("gray").
     selectionColor: /^\s*orange\s*$/i.test((SCRIPT_EL && SCRIPT_EL.getAttribute('data-selection-color')) || '') ? 'orange' : 'gris'
   };
-  var VERSION = '0.2.0';
+  var VERSION = '0.3.0';
 
   /* ---------- police : celle du système (V2) ----------
      Plus aucune police embarquée ni chargée : witmit écrit avec la police système (SF Pro sur Mac, Segoe UI
@@ -188,8 +188,8 @@
      Les couches de witmit (fenêtres, bandeau, messages, visionneuse, boutons ronds, halo, repères) vivent dans un seul
      conteneur, #wmRacine, enfant de <html> à côté de <body>. Pourquoi : une page qui anime l'opacité de son <body>
      (fondu d'entrée « animation: … both », comme TellUs) en fait une racine d'arrière-plan ; le verre posé dedans
-     ne floute plus la page et son texte reste lisible dessous. Hors de <body>, le verre floute tout le site. Seule la
-     liste, mate et sans verre, reste dans <body> (voir injectUI).
+     ne floute plus la page et son texte reste lisible dessous. Hors de <body>, le verre floute tout le site. La liste
+     y vit aussi (renvoi du lot 8) ; les repères sont dans un calque à part, #wmReperes (voir poserRepere).
      L'état de witmit reste écrit sur <body> (thème, mode, clavier…), recopié tel quel sur la racine (etatCorps) :
      CORPS désigne l'un ou l'autre, avec la spécificité d'un simple « body » (:is(body,div) compte comme un élément,
      :where ne compte rien). Le surlignage d'un passage (mark.cm-highlight), lui, reste dans le texte de la page. */
@@ -201,6 +201,7 @@
   /* Calque des repères (poserRepere) : même origine ; liste ouverte, coupé en largeur au bord de la liste (couperReperes). */
   .wm-reperes { position:absolute; left:0; top:0; width:0; height:0; margin:0; padding:0; border:0; overflow:visible; display:block; }
   .wm-reperes.wm-coupe { overflow-x:clip; overflow-y:visible; }
+  .wm-reperes.wm-coupe-tout { visibility:hidden; }
   /* ---------- jetons de la charte V2 (design system witmit, version 6, tokens.json) ----------
      Valeurs recopiées telles quelles, préfixées --wm-. Elles ne sont JAMAIS posées sur :root, html ni
      body : rien ne fuit dans la page hôte, et aucune variable de l'hôte n'entre dans witmit.
@@ -1189,10 +1190,18 @@
   function couperReperes() {
     if (!REPERES) return;
     var panel = document.getElementById('cmPanel');
-    if (!panel || !panel.classList.contains('show')) { REPERES.classList.remove('wm-coupe'); REPERES.style.width = ''; return; }   // liste fermée
+    if (!panel || !panel.classList.contains('show')) {   // liste fermée : tout est rendu
+      REPERES.classList.remove('wm-coupe', 'wm-coupe-tout'); REPERES.style.width = ''; REPERES.inert = false; return;
+    }
     var vw = document.documentElement.clientWidth;
+    var largeur = Math.max(0, window.scrollX + vw - Math.min(panel.offsetWidth, vw));
     REPERES.classList.add('wm-coupe');
-    REPERES.style.width = Math.max(0, window.scrollX + vw - Math.min(panel.offsetWidth, vw)) + 'px';
+    REPERES.style.width = largeur + 'px';
+    // Liste qui couvre toute la page visible (pleine largeur sous 480 px) : les épingles, invisibles sous la liste, ne doivent plus
+    // être atteintes par Tab ni par un lecteur d'écran (lot 9, Léa R2). Rendues à la fermeture de la liste.
+    var tout = largeur === 0 || panel.offsetWidth >= vw;   // la liste couvre toute la page visible
+    REPERES.classList.toggle('wm-coupe-tout', tout);
+    REPERES.inert = tout;
   }
   function etatCorps(nom, valeur) {
     [document.body, racine()].forEach(function (n) {

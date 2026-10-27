@@ -241,7 +241,7 @@ test('9. voyant : allumé par un message de l’équipe, éteint après lecture 
   }, KEY);
   await page.reload();
   await expect.poll(async () => ((await ticket(page)).thread || []).length, { timeout: 15000 }).toBe(3);   // relecture faite
-  await expect(voyant).toBeHidden();                                         // pas de vague de points jaunes
+  await expect(voyant).toBeHidden();                                         // pas de vague de voyants orange
   expect((await ticket(page)).vuLe).toBeTruthy();
 });
 

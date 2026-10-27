@@ -486,3 +486,48 @@ test.describe('Renvoi du lot 8 (relectures de Paula et de Léa)', () => {
     }
   });
 });
+
+test.describe('Lot 9 (relecture de Léa, R2)', () => {
+  // Sous 480 px, la liste ouverte couvre toute la page : le calque des repères, coupé à une largeur nulle, sort aussi de
+  // l'ordre du clavier (inert, visibility hidden) ; liste fermée, les épingles redeviennent atteignables par Tab.
+  test('R2. sous 480 px, liste ouverte : les épingles cachées sous la liste ne sont plus atteignables au clavier ; rendues à la fermeture', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(pageEssai('lot9-r2'));
+    await H.clearStorage(page); await page.reload();
+    await H.activate(page);
+    await H.addPin(page, '#bloc', 'sous la liste');
+    await page.waitForTimeout(400);
+    const pin = page.locator('.cm-pin:not(.cm-pin-secondary)').first();
+    await expect(pin).toHaveAttribute('tabindex', '0');
+    const etat = () => page.evaluate(() => {
+      const c = document.getElementById('wmReperes'), p = document.querySelector('.cm-pin:not(.cm-pin-secondary)');
+      p.focus();
+      return { inert: c.inert, visibilite: getComputedStyle(c).visibility, focusSurEpingle: document.activeElement === p };
+    });
+    expect(await etat()).toEqual({ inert: false, visibilite: 'visible', focusSurEpingle: true });
+    await page.locator('#cmPanelBtn').click();
+    await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+    await page.waitForTimeout(300);
+    expect(await etat()).toEqual({ inert: true, visibilite: 'hidden', focusSurEpingle: false });
+    // Au clavier : Tab, depuis le premier élément de la liste, ne quitte jamais la liste pour une épingle.
+    await page.locator('#cmPanel button:visible').first().focus();
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(() => !!(document.activeElement && document.activeElement.closest('.cm-pin'))), `Tab ${i + 1}`).toBe(false);
+    }
+    await page.locator('#cmPanel .cm-panel-fermer').click();
+    await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+    await page.waitForTimeout(300);
+    expect(await etat()).toEqual({ inert: false, visibilite: 'visible', focusSurEpingle: true });
+  });
+});
+
+test('Lot 9. version : window.witmit.version, l’en-tête du widget, package.json et le titre du README disent 0.3.0', async ({ page }) => {
+  const racine = path.resolve(__dirname, '..', '..');
+  const paquet = JSON.parse(fs.readFileSync(path.join(racine, 'package.json'), 'utf8')).version;
+  expect(paquet).toBe('0.3.0');
+  await page.goto(pageEssai('lot9-version'));
+  expect(await page.evaluate(() => window.witmit.version)).toBe(paquet);
+  expect(fs.readFileSync(path.join(racine, 'src', 'witmit.js'), 'utf8').split('\n')[1]).toContain('witmit ' + paquet);
+  expect(fs.readFileSync(path.join(racine, 'README.md'), 'utf8').split('\n')[0]).toContain('(' + paquet + ',');
+});

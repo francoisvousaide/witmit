@@ -510,6 +510,9 @@ const textesVisibles = (page) => page.evaluate(() => {
   document.querySelectorAll('.cm-ui, .cm-popup, .cm-lightbox').forEach((root) => {
     [root, ...root.querySelectorAll('*')].forEach((el) => {
       if (el.closest('[data-wm-fourni="page"]')) return;
+      // Toutes les couches de witmit vivent dans #wmRacine (lot 8) : un bloc de la page qui porte la classe cm-ui
+      // (maquettes TellUs : .mock-controls et sa touche de thème, 12 px) reste du texte de la page.
+      if (!el.closest('#wmRacine')) return;
       if (!Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.nodeValue.trim())) return;
       if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) return;
       const r = el.getBoundingClientRect();
@@ -521,14 +524,14 @@ const textesVisibles = (page) => page.evaluate(() => {
   return out;
 });
 
-test('7. taille de texte : aucun texte visible de witmit sous 12 px, en maquette (page sombre et claire) et en live', async ({ page }) => {
+test('7. taille de texte : aucun texte visible de witmit sous 13 px (V2), en maquette (page sombre et claire) et en live', async ({ page }) => {
   test.setTimeout(60000);
   const verifier = async (etape) => {
     // taille 0 : chiffre gardé dans le voyant (#cmCount) mais jamais dessiné (le voyant est un disque, décision B)
     const tous = await textesVisibles(page);
     // (V2, b3 : le bandeau seul n'a plus que deux textes, « annotation » et « terminer ».)
     expect(tous.length, etape + ' : textes relevés').toBeGreaterThanOrEqual(2);
-    const petits = tous.filter((t) => t.taille > 0 && t.taille < 12);
+    const petits = tous.filter((t) => t.taille > 0 && t.taille < 13);
     expect(petits, etape).toEqual([]);
   };
   await parcoursMaquette(page, MAQUETTE, verifier);
