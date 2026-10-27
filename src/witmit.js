@@ -1050,6 +1050,7 @@
   .cm-status.show > * { opacity:1; }
   .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
   .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
+  .cm-status .wm-insecable { white-space:nowrap; }   /* « ?witmit=on » jamais coupé (lot 10 bis, N1) */
   @media (max-width:480px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
   /* Entre 481 et 680 px, liste fermée, un message centré atteindrait les deux boutons du coin : il monte aussi à 84 px
      (fiche BoutonWitmit : les deux boutons restent toujours visibles). Liste ouverte : placerStatus(). */
@@ -1455,7 +1456,9 @@
     on = on !== false;
     try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
     closePopup(true); cmToggle(false); cmTogglePanel(false);
-    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000 });   // 6 s, comme un échec (Léa)
+    // « ?witmit=on » d'un seul tenant (Paula, lot 10 bis, N1) : jamais coupé après le « ? ».
+    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000, insecable: '?witmit=on' });   // 6 s, comme un échec (Léa)
+    else retirerMessageMasquage();   // N2 : witmit revient, le message qui disait comment le retrouver n'a plus lieu d'être
     applyReveal(on);
   };
   function readUrlSwitch() {
@@ -4459,7 +4462,16 @@
     if (!txt) { txt = document.createElement('span'); txt.className = 'wm-contenu'; el.appendChild(txt); }
     var ic = ICONE_TOAST[opts.type];
     txt.innerHTML = (ic ? icone(ic[0], 16, ic[1]) : '') + '<span class="wm-toast-texte"></span>';
-    txt.lastChild.textContent = msg;
+    var i = opts.insecable ? msg.indexOf(opts.insecable) : -1;
+    if (i < 0) txt.lastChild.textContent = msg;
+    else {
+      // Un morceau à garder d'un seul tenant (une adresse) : span sans retour à la ligne, texte inchangé (rien d'invisible
+      // ajouté : le copier-coller de « ?witmit=on » reste exact).
+      var ins = document.createElement('span');
+      ins.className = 'wm-insecable';
+      ins.textContent = opts.insecable;
+      txt.lastChild.append(msg.slice(0, i), ins, msg.slice(i + opts.insecable.length));
+    }
     clearTimeout(masquageTimer);
     el.classList.toggle('wm-toast-masquage', !!opts.masquage);
     el.classList.toggle('wm-toast-echec', echec);
@@ -4469,6 +4481,14 @@
       el.classList.remove('show');
       if (opts.masquage) masquageTimer = setTimeout(function () { el.classList.remove('wm-toast-masquage'); }, 250);
     }, duree);
+  }
+  /* Le message de masquage, s'il est encore affiché, part dès que witmit est révélé (Paula, lot 10 bis, N2 ; défaut de
+     0.2.0 : il restait jusqu'à 6 s à côté des boutons revenus). Un autre message en cours n'est pas touché. */
+  function retirerMessageMasquage() {
+    var el = document.getElementById('cmStatus');
+    if (!el || !el.classList.contains('wm-toast-masquage')) return;
+    clearTimeout(statusTimer); clearTimeout(masquageTimer);
+    el.classList.remove('show', 'wm-toast-masquage');
   }
 
   /* ---------- capture d'écran d'un encadré ----------
