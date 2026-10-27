@@ -198,6 +198,9 @@
   /* La racine : un point à l'origine du document, sans taille ni boîte ; ses couches sont fixes ou absolues. Pas de
      transform, d'opacité ni de filtre : elle ne coupe aucun flou et ne change pas le repère des couches absolues. */
   .wm-racine { position:absolute; left:0; top:0; width:0; height:0; margin:0; padding:0; border:0; overflow:visible; display:block; }
+  /* Calque des repères (poserRepere) : même origine ; liste ouverte, coupé en largeur au bord de la liste (couperReperes). */
+  .wm-reperes { position:absolute; left:0; top:0; width:0; height:0; margin:0; padding:0; border:0; overflow:visible; display:block; }
+  .wm-reperes.wm-coupe { overflow-x:clip; overflow-y:visible; }
   /* ---------- jetons de la charte V2 (design system witmit, version 6, tokens.json) ----------
      Valeurs recopiées telles quelles, préfixées --wm-. Elles ne sont JAMAIS posées sur :root, html ni
      body : rien ne fuit dans la page hôte, et aucune variable de l'hôte n'entre dans witmit.
@@ -603,9 +606,6 @@
   /* Liste ouverte pleine largeur (sous 480 px) : aucune page n'est visible, le halo se cache (il se voyait dans les coins
      arrondis de la liste ; Paula É3). */
   .cm-frame.wm-sous-liste, .cm-frame.show.wm-sous-liste { visibility:hidden; opacity:0; transition:none; }
-  /* Liste pleine largeur (sous 480 px) : rien de la page n’est visible ; les repères (dans la racine de witmit, hors de
-     <body>, où vit la liste) ne passent pas par-dessus elle (lot 8). */
-  .wm-racine.wm-liste-plein-ecran > :is(.cm-pin, .cm-box, #cmLinks, .wm-onde) { visibility:hidden; }
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
      Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
@@ -923,6 +923,8 @@
   /* Actions : cercles de 30 px empilés, 14 px d'écart (zones de 44 px sans chevauchement). */
   .cm-panel-item .cm-item-actions { flex:none; display:flex; flex-direction:column; align-items:center; gap:14px; }
   .cm-panel-item.cm-done .num { border-color:var(--wm-line); color:var(--wm-ink-soft); }
+  /* Choisi et terminé : le numéro reste plein (face encre), chiffre à la couleur du fond de la liste (lot 8, Paula É2). */
+  .cm-panel-item.cm-current.cm-done .num { color:var(--wm-liste-fond); border-color:var(--wm-ink); }
   .cm-panel-item.cm-done .txt { color:var(--wm-ink-soft); }
   /* Vignette de capture : 112 × 64 px, arrondi de 5 px ; au survol, la loupe dans un rond posé sur l'image. */
   .cm-ui .cm-vignette { position:relative; isolation:isolate; flex:none; display:block; width:112px; height:64px; margin:0; padding:0; border:0; border-radius:var(--wm-radius-champ); background:transparent; box-shadow:none; cursor:zoom-in; }
@@ -1173,6 +1175,25 @@
     return RACINE;
   }
   function poser(el) { racine().appendChild(el); return el; }
+  /* Les repères sur le site (épingles, cadres, lignes, onde) vivent dans un calque à part de la racine, #wmReperes, à
+     l'origine du document. Liste ouverte, ce calque est coupé au bord de la liste (overflow-x: clip, largeur = la page
+     visible) : un repère situé sous la liste n'y est ni visible ni cliquable, quel que soit le rang de <body> de la page
+     (lot 8, Léa É2). Couper par overflow ne coupe pas le flou du verre des épingles (ce n'est ni un filtre ni un masque). */
+  var REPERES = null;
+  function poserRepere(el) {
+    if (!REPERES) { REPERES = document.createElement('div'); REPERES.id = 'wmReperes'; REPERES.className = 'wm-reperes'; }
+    if (REPERES.parentNode !== racine()) racine().appendChild(REPERES);
+    REPERES.appendChild(el);
+    return el;
+  }
+  function couperReperes() {
+    if (!REPERES) return;
+    var panel = document.getElementById('cmPanel');
+    if (!panel || !panel.classList.contains('show')) { REPERES.classList.remove('wm-coupe'); REPERES.style.width = ''; return; }   // liste fermée
+    var vw = document.documentElement.clientWidth;
+    REPERES.classList.add('wm-coupe');
+    REPERES.style.width = Math.max(0, window.scrollX + vw - Math.min(panel.offsetWidth, vw)) + 'px';
+  }
   function etatCorps(nom, valeur) {
     [document.body, racine()].forEach(function (n) {
       if (typeof valeur === 'boolean') n.classList.toggle(nom, valeur);
@@ -1188,9 +1209,6 @@
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
     while (wrap.firstChild) poser(wrap.firstChild);
-    // La liste, elle, reste dans <body> : mate, sans verre, elle n'a pas de flou à protéger ; elle garde avec les couches de
-    // la page le rang qu'elle avait en 0.2.0 (des boutons ronds fournis par la page peuvent passer par-dessus elle, lot 8).
-    document.body.appendChild(document.getElementById('cmPanel'));
     habiller(document.getElementById('cmPanel'));
     habiller(document.getElementById('cmPill'));
     habiller(document.getElementById('cmStatus'), true);   // message passager : trop petit pour les coins witmit
@@ -1211,6 +1229,8 @@
       var tb = document.getElementById('cmToggleBtn');
       if (tb) { tb.setAttribute('aria-label', 'mode annotation'); tb.setAttribute('aria-keyshortcuts', 'Alt+A'); }
     }
+    REPERES = document.createElement('div'); REPERES.id = 'wmReperes'; REPERES.className = 'wm-reperes';
+    poser(REPERES);
   }
 
   /* ---------- catégories : règles par mots-clés, 100 % locales (aucune IA, rien ne sort) ----------
@@ -1720,6 +1740,7 @@
     if (outils) outils.hidden = !outilsVus;
     var pied = document.getElementById('cmPanelPied');
     if (pied) pied.classList.toggle('wm-outils-visibles', !!(outilsVus || (foot && !foot.hidden)));
+    if (typeof placerBoutons === 'function' && listeOuverte()) placerBoutons();   // le pied a pu changer de hauteur (lot 8, Léa É1)
   }
 
   // Marques d'envoi (Léa 2.3 et 3.5) : une icône et un mot en gras ; « à renvoyer » est le bouton du nouvel essai.
@@ -1934,7 +1955,7 @@
     box.dataset.id = id;
     assurerCadre(box);
     dimensionnerCadre(box, x, y, w, h);
-    poser(box);
+    poserRepere(box);
   }
   /* Place de l'épingle (fiche Epingle, V2) : à cheval sur un coin du cadre, son centre sur le coin. Deux places,
      sur les coins sans crochet witmit : en haut à droite d'habitude ; en bas à gauche quand il n'y a pas la place
@@ -1982,7 +2003,7 @@
     o.setAttribute('aria-hidden', 'true');
     o.style.left = (r.x - m) + 'px'; o.style.top = (r.y - m) + 'px';
     o.style.width = (r.w + 2 * m) + 'px'; o.style.height = (r.h + 2 * m) + 'px';
-    poser(o);
+    poserRepere(o);
     setTimeout(function () { o.remove(); }, DUREE_ONDE + 50);
   }
   // Repères qui portent l'onde d'un retour : chacun de ses cadres (plusieurs éléments : ils s'allument et s'éteignent
@@ -2082,7 +2103,7 @@
         if (secondaire) p.setAttribute('aria-hidden', 'true');   // annoncée une seule fois, par l'épingle principale
         p.onclick = openEditor;
         p.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(e); } };
-        poser(p);
+        poserRepere(p);
         // (hors mode annotation, l'épingle est masquée et ne se mesure pas : 24 ou 20 px de côté)
         var w = p.offsetWidth || (secondaire ? 20 : 24), h = p.offsetHeight || (secondaire ? 20 : 24);
         var pt = place(w, h);
@@ -2152,7 +2173,7 @@
     if (!svg) {
       svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.id = 'cmLinks'; svg.setAttribute('class', 'cm-ui');
-      poser(svg);
+      poserRepere(svg);
     }
     svg.style.width = document.documentElement.scrollWidth + 'px';
     svg.style.height = document.documentElement.scrollHeight + 'px';
@@ -3122,7 +3143,7 @@
       // Cadre de sélection, état actif (fiche Reperes) : 16 px de marge, coins et traits pleins.
       box.className = 'cm-box cm-ui cm-box-editing' + (fondSombreAutour(el) ? ' wm-sur-sombre cm-focus-light' : '');
       assurerCadre(box);
-      poser(box);
+      poserRepere(box);
       editOutlines.push({ el: el, box: box });
     });
     positionEditOutline();
@@ -3356,6 +3377,9 @@
       r.epingle = el.classList.contains('cm-pin');
       out.push(r);
     }
+    // Le bandeau du mode annotation (et son « terminer ») : pas plus recouvrable qu'une épingle (lot 8, Paula É1).
+    var pill = document.getElementById('cmPill');
+    if (pill && pill.classList.contains('show') && pill.getClientRects().length) { var rp = rectOf(pill); rp.epingle = true; out.push(rp); }
     return out;
   }
   var POIDS_EPINGLE = 1e7;
@@ -3781,7 +3805,7 @@
       // En tracé (fiche Selection, V2) : zone grisée à 26 %, contour plein de 1 px gris (ou orange), ombre dehors et
       // dedans, arrondi de 6 px, sans crochets ; teinte d'après le fond sous le point de départ (T7).
       dragBoxEl.className = 'cm-box cm-ui' + (fondSombreSous(pageElementAt(dragStart.x - window.scrollX, dragStart.y - window.scrollY)) ? ' wm-sur-sombre' : '');
-      poser(dragBoxEl);
+      poserRepere(dragBoxEl);
     }
     dragBoxEl.style.left = Math.min(dragStart.x, e.pageX) + 'px';
     dragBoxEl.style.top = Math.min(dragStart.y, e.pageY) + 'px';
@@ -4046,44 +4070,65 @@
     // Liste fermée alors que le focus y était (Échap, croix, « nouveau retour ») : il revient au bouton witmit, pas à la page.
     if (focusDedans) { var pbf = document.getElementById('cmPanelBtn'); if (pbf) { try { pbf.focus({ preventScroll: true }); } catch (e) { pbf.focus(); } } }
   };
-  /* Boutons ronds fournis par la page (C8) : sous 480 px, liste ouverte, la liste couvre l'écran ; le bloc fixe de la page
-     qui les porte passe par-dessus elle, au-dessus de son pied (fiches Mobile et BoutonWitmit ; défaut de 0.2.0, lot 8).
-     Son z-index et son bas d’origine lui sont rendus dès que la liste se ferme ou que l’écran s’élargit (pushPage s’en occupe alors). */
-  var fourniStyle = null;
-  function placerBoutonsFournis() {
-    if (fourniStyle) {
-      var f = fourniStyle.el;
-      f.style.zIndex = fourniStyle.z; f.style.bottom = fourniStyle.bas;
-      if (!fourniStyle.avaitStyle && !f.getAttribute('style')) f.removeAttribute('style');   // rendu tel quel, sans attribut vide
-      fourniStyle = null;
-    }
-    var pb = document.getElementById('cmPanelBtn');
-    if (!pb || pb.getAttribute('data-wm-fourni') !== 'page' || !listeOuverte()) return;
-    if (!(window.matchMedia && window.matchMedia('(max-width:480px)').matches)) return;
-    var bloc = pb;
-    while (bloc && bloc !== document.body && getComputedStyle(bloc).position !== 'fixed') bloc = bloc.parentElement;
-    if (!bloc || bloc === document.body) return;
-    var pied = document.getElementById('cmPanelPied');
-    fourniStyle = { el: bloc, z: bloc.style.zIndex, bas: bloc.style.bottom, avaitStyle: bloc.hasAttribute('style') };
-    bloc.style.zIndex = '855';
-    if (pied) bloc.style.bottom = (pied.offsetHeight + 12) + 'px';
+  /* Boutons ronds fournis par la page (C8) : sous 480 px, liste ouverte, la liste couvre l'écran et ils doivent passer
+     par-dessus elle (fiches Mobile et BoutonWitmit ; défaut de 0.2.0). La liste vit dans la racine de witmit, hors de
+     <body> : un bloc de la page ne peut pas passer devant elle quand <body> est un contexte d'empilement (TellUs). witmit
+     prend donc les deux boutons qu'elle a adoptés dans un bloc à lui (.cm-fab.wm-fab-fourni), posé comme ses propres
+     boutons, et les rend à leur place exacte (même parent, même voisin) dès que la liste se ferme ou que l'écran s'élargit.
+     Les autres éléments du bloc de la page restent avec la page, sous la liste (lot 8, Léa É1). */
+  var adoptes = null;   // { fab, places: [{ el, parent, suivant }] }
+  function rendreBoutonsFournis() {
+    if (!adoptes) return;
+    var a = adoptes; adoptes = null;
+    var focus = document.activeElement;
+    a.places.slice().reverse().forEach(function (p) {
+      if (!p.parent.isConnected) return;
+      p.parent.insertBefore(p.el, p.suivant && p.suivant.parentNode === p.parent ? p.suivant : null);
+    });
+    a.fab.remove();
+    if (focus && a.places.some(function (p) { return p.el === focus; })) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
   }
+  function prendreBoutonsFournis() {
+    var bs = ['cmToggleBtn', 'cmPanelBtn'].map(function (id) { return document.getElementById(id); })
+      .filter(function (b) { return b && b.getAttribute('data-wm-fourni') === 'page'; });
+    if (!bs.length) return;
+    var focus = document.activeElement;
+    var fab = document.createElement('div');
+    fab.className = 'cm-fab cm-ui wm-fab-fourni';
+    adoptes = { fab: fab, places: bs.map(function (b) { return { el: b, parent: b.parentNode, suivant: b.nextSibling }; }) };
+    bs.forEach(function (b) { fab.appendChild(b); });
+    poser(fab);
+    if (focus && bs.indexOf(focus) >= 0) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  /* Place des deux boutons ronds (ceux de witmit, ou ceux de la page qu'il a pris) : liste fermée, dans leur coin ; liste
+     ouverte au-dessus de 480 px, à 24 px à gauche d'elle ; sous 480 px, la liste couvre l'écran : à 16 px du bord droit
+     (fiches BoutonWitmit et Mobile ; Paula É3), au-dessus de son pied, ou de l'encart « coller un retour » quand il est
+     ouvert, et la liste des retours réserve en bas la hauteur des boutons + 12 px, et au moins les 76 px de la fiche Mobile,
+     pour que rien n’y soit caché (Léa É1). */
   function placerBoutons() {
-    placerBoutonsFournis();
+    var etroit = !!(window.matchMedia && window.matchMedia('(max-width:480px)').matches);
+    var ouverte = listeOuverte();
+    if (ouverte && etroit) { if (!adoptes) prendreBoutonsFournis(); } else rendreBoutonsFournis();
+    var liste = document.getElementById('cmList');
+    if (liste) { liste.style.paddingBottom = ''; liste.style.scrollPaddingBottom = ''; }
     var fab = document.querySelector('.cm-fab');
     if (!fab) return;
     var panel = document.getElementById('cmPanel');
-    if (!listeOuverte()) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    var base = etroit ? 16 : 24;   // marge de la fiche (M1 sous 480 px)
-    var vw = document.documentElement.clientWidth;
-    // Sous 480 px, la liste couvre l'écran (M1) : les boutons montent au-dessus de son pied, pour ne pas cacher « nouveau retour ».
-    var pied = document.getElementById('cmPanelPied');
-    fab.style.bottom = etroit && pied ? (pied.offsetHeight + 12) + 'px' : '';
-    // À 24 px à gauche de la liste ; sur un écran trop étroit, au plus près du bord gauche, par-dessus la liste.
-    var right = Math.min(panel.offsetWidth + base, vw - fab.offsetWidth - 16);
-    fab.style.right = Math.max(base, right) + 'px';
+    if (!ouverte) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
     fab.classList.add('wm-decale');
+    if (etroit) {
+      var encart = document.getElementById('cmFeedbackBox');
+      var dessous = encart && !encart.hidden && encart.getClientRects().length ? encart : document.getElementById('cmPanelPied');
+      fab.style.bottom = dessous ? Math.round(window.innerHeight - dessous.getBoundingClientRect().top + 12) + 'px' : '';
+      fab.style.right = '16px';
+      if (liste) { var reserve = Math.max(76, fab.offsetHeight + 12); liste.style.paddingBottom = reserve + 'px'; liste.style.scrollPaddingBottom = reserve + 'px'; }
+      return;
+    }
+    fab.style.bottom = '';
+    // À 24 px à gauche de la liste ; sur un écran trop étroit pour les loger à côté, au plus près du bord gauche.
+    var vw = document.documentElement.clientWidth;
+    var right = Math.min(panel.offsetWidth + 24, vw - fab.offsetWidth - 16);
+    fab.style.right = Math.max(24, right) + 'px';
   }
   window.addEventListener('resize', placerBoutons);
   /* Message passager, liste ouverte sur ordinateur : il monte à 84 px du bas (au-dessus des deux boutons, décalés à
@@ -4201,7 +4246,7 @@
     var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
     var cadre = document.getElementById('cmFrame');
     if (cadre) cadre.classList.toggle('wm-sous-liste', !!(listeOuverte() && etroit));
-    racine().classList.toggle('wm-liste-plein-ecran', !!(listeOuverte() && etroit));
+    couperReperes();
     if (montre) {
       pill.classList.remove('wm-sur-liste');
       pill.style.width = ''; pill.style.maxWidth = '';
@@ -4727,11 +4772,13 @@
     var open = typeof show === 'boolean' ? show : box.hidden;
     box.hidden = !open;
     if (open) { var ta = box.querySelector('textarea'); ta.value = ''; ta.focus(); }
+    placerBoutons();   // encart ouvert : les boutons ronds se posent au-dessus de lui sous 480 px (Léa É1)
   };
   window.cmApplyFeedback = function () {
     var box = document.getElementById('cmFeedbackBox');
     var res = applyFeedback(box.querySelector('textarea').value);
     box.hidden = true;
+    placerBoutons();
     var acc = function (n, un, plusieurs) { return n + ' ' + (n > 1 ? plusieurs : un); };
     cmStatus(acc(res.applied, 'retour mis à jour', 'retours mis à jour') + (res.unknown ? ' · ' + acc(res.unknown, 'identifiant inconnu', 'identifiants inconnus') : '') + (res.ignored ? ' · ' + acc(res.ignored, 'ligne ignorée', 'lignes ignorées') : ''), { type: 'fait' });
   };
