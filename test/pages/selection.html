@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sélection witmit (page test, 0.4.0)</title>
+<!-- Page de contrôle du lot 2 de la course 0.4.0 (fiches Selection, Reperes, Epingle) : une carte (règle simple), une
+     carte très arrondie (étau par l'arrondi), une pastille, une case, une petite icône, un bouton rond (étau par la
+     taille ou l'arrondi), un champ et une liste déroulante (règle simple dès 32 px), un titre et des paragraphes
+     (présélection en surlignage, clic = passage de texte), et un grand espace vide pour tracer une zone (R23). Mise en
+     page fluide : tout rétrécit quand la liste witmit pousse la page. Aucune ressource extérieure. -->
+<script src="../../src/witmit.js" data-project="selection"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 40px 160px; background: #f6f1ea; color: #1d1b18; font-family: Georgia, 'Times New Roman', serif; }
+  h1 { margin: 0 0 12px; font-size: 26px; }
+  p { line-height: 1.6; max-width: 62ch; margin: 0 0 16px; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; margin: 28px 0; }
+  .carte { width: 260px; padding: 18px; border-radius: 8px; background: #fff; border: 1px solid rgba(0,0,0,.12); }
+  .carte h3 { margin: 0 0 6px; font-size: 17px; }
+  .carte-ronde { width: 220px; height: 120px; padding: 18px; border-radius: 24px; background: #e7dccb; }
+  .pastille { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #1f4e5a; color: #fff; font: 600 11px/1 system-ui, sans-serif; }
+  .case { width: 16px; height: 16px; margin: 0; }
+  .icone-mini { display: inline-block; width: 24px; height: 24px; border-radius: 4px; background: #c96f2d; }
+  .bouton-rond { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #1f4e5a; color: #fff; font: 600 18px/1 system-ui, sans-serif; }
+  .champ { width: 220px; height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid rgba(0,0,0,.3); font: inherit; }
+  .liste { width: 180px; height: 36px; border-radius: 6px; font: inherit; }
+  .vide { display: flex; gap: 0; margin-top: 24px; }
+  .vide-gauche { flex: 1; height: 260px; }
+  .vide-droite { flex: 1; height: 260px; position: relative; }
+  .vide-droite .repere { position: absolute; left: 50%; top: 40%; width: 10px; height: 10px; border-radius: 50%; background: #9a8f80; }
+</style>
+</head>
+<body>
+<h1 id="titre">Une page pour viser</h1>
+<p id="para1">Witmit pose son cadre sur ce qu'on vise : une carte, une pastille, une case. Double-clic sur un mot, triple-clic sur un paragraphe, maj et glisser pour un passage. Ce paragraphe sert aux essais de surlignage et de présélection.</p>
+<p id="para2">Un second paragraphe, plus court, pour suivre la présélection d'un texte à l'autre.</p>
+<div class="rangee">
+  <div class="carte" id="carte"><h3>Une carte</h3><div>Son cadre colle à sa boîte, crochets dedans.</div></div>
+  <div class="carte-ronde" id="carteRonde"><div>Une carte très arrondie</div></div>
+  <span class="pastille" id="pastille">3</span>
+  <input type="checkbox" class="case" id="case" aria-label="une case">
+  <span class="icone-mini" id="iconeMini" role="img" aria-label="une icône"></span>
+  <button type="button" class="bouton-rond" id="boutonRond" aria-label="ajouter">+</button>
+</div>
+<div class="rangee">
+  <input class="champ" id="champ" placeholder="ton prénom">
+  <select class="liste" id="liste"><option>premier choix</option><option>second choix</option></select>
+</div>
+<div class="vide" id="vide"><div class="vide-gauche" id="videGauche"></div><div class="vide-droite" id="videDroite"><span class="repere" id="repere"></span></div></div>
+</body>
+</html>

@@ -73,7 +73,7 @@ test('2. voyant : visible seulement s’il y a du nouveau ; un retour tout juste
   await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);
 });
 
-test('3. zones d’au moins 44 × 44 px : bouton witmit, « réduire » et icônes seules, épingle', async ({ page }) => {
+test('3. zones d’au moins 44 × 44 px : bouton witmit, « réduire » et icônes seules ; épingle : 24 px à la souris (ZB-304)', async ({ page }) => {
   // Bouton witmit : 52 px dessinés, zone comprise.
   const w = await page.locator('#cmPanelBtn').boundingBox();
   expect([w.width, w.height]).toEqual([52, 52]);
@@ -90,13 +90,13 @@ test('3. zones d’au moins 44 × 44 px : bouton witmit, « réduire » et icôn
   expect(cercles.length).toBeGreaterThan(1);
   expect(cercles.map((c) => c.nom)).toContain('réduire witmit');
   for (const c of cercles) expect(c.touche, c.nom).toBe(true);
-  // Épingle (F6) : 24 px dessinés, zone de 44 px par un ::after transparent ; à 10 px hors du dessin (9,5 px, pour
-  // rester dans la zone malgré les positions au demi-pixel), le clic la touche encore ; à 14 px, plus.
+  // Épingle (ZB-304, fiche Epingle) : zone cliquable de 24 px à la souris (44 px au doigt : selection.spec 15) ; juste au
+  // bord du dessin (0,5 px dedans), le clic la touche ; à 2 px dehors, plus.
   await page.waitForTimeout(1400);                                      // fin de l'onde du retour choisi
   const e = await page.locator('.cm-pin').first().evaluate((el) => {
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const touche = (x, y) => { const t = document.elementFromPoint(x, y); return !!(t && t.closest('.cm-pin') === el); };
-    return { w: r.width, h: r.height, gauche: touche(r.left - 9.5, cy), droite: touche(r.right + 9.5, cy), haut: touche(cx, r.top - 9.5), bas: touche(cx, r.bottom + 9.5), loin: touche(r.left - 14, cy) };
+    return { w: r.width, h: r.height, gauche: touche(r.left + 0.5, cy), droite: touche(r.right - 0.5, cy), haut: touche(cx, r.top + 0.5), bas: touche(cx, r.bottom - 0.5), loin: touche(r.left - 2, cy) };
   });
   expect(e).toEqual({ w: 24, h: 24, gauche: true, droite: true, haut: true, bas: true, loin: false });
 });
@@ -391,7 +391,7 @@ const textesVisibles = (page) => page.evaluate(() => {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;                                // texte réservé aux lecteurs d'écran (wm-lu) : 1 px
       if (r.width <= 1 && r.height <= 1) return;
-      out.push({ texte: Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join('').trim().slice(0, 40), taille: parseFloat(getComputedStyle(el).fontSize), cls: (el.className && el.className.baseVal === undefined ? el.className : el.tagName) });
+      out.push({ texte: Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join('').trim().slice(0, 40), taille: parseFloat(getComputedStyle(el).fontSize), cls: (el.className && el.className.baseVal === undefined ? el.className : el.tagName), pin18: !!el.closest('.cm-pin.wm-pin-18') });
     });
   });
   return out;
@@ -404,7 +404,8 @@ test('7. taille de texte : aucun texte visible de witmit sous 13 px (V2), en maq
     const tous = await textesVisibles(page);
     // (V2, b3 : le bandeau seul n'a plus que deux textes, « annotation » et « terminer ».)
     expect(tous.length, etape + ' : textes relevés').toBeGreaterThanOrEqual(2);
-    const petits = tous.filter((t) => t.taille > 0 && t.taille < 13);
+    // Seule exception (fiche Epingle) : le chiffre d'une épingle de 18 px, en 11 px, comme une pastille d'app.
+    const petits = tous.filter((t) => t.taille > 0 && t.taille < 13 && !(t.taille === 11 && t.pin18));
     expect(petits, etape).toEqual([]);
   };
   await parcoursMaquette(page, MAQUETTE, verifier);

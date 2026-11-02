@@ -114,16 +114,16 @@ test('3. ⌥+A montre witmit replié, même ouvert avant de le cacher ; ?witmit=
   await replie(page);
 });
 
-test('4. ⌥+A, witmit caché par ⌥ deux fois puis ouvert : il reste montré au repli (mémorisé)', async ({ page }) => {
+test('4. ⌥+A, witmit caché par ⌥ deux fois puis ouvert : ⌥+A le cache entièrement (R27, fiche BoutonWitmit, parcours 6)', async ({ page }) => {
   await ouvrirPropre(page, LIVE);
   await H.doubleAlt(page);
   await ouvert(page);
   await page.keyboard.press(H.CACHER);
-  expect(await revealed(page)).toBe('1');
-  await page.keyboard.press('Escape');
+  // Comme ⌥+A sur un witmit montré : tout se replie, witmit caché, message de masquage, mémoire effacée.
   await replie(page);
-  await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
-  await expect(page.locator('#cmPanelBtn')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/cm-concealed/);
+  await expect(page.locator('#cmStatus')).toHaveClass(/wm-toast-masquage/);
+  expect(await revealed(page)).toBe(null);
 });
 
 test('5. ⌥ deux fois, witmit ouvert : il se replie ; caché par ⌥ deux fois, il redevient caché', async ({ page }) => {

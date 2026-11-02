@@ -85,8 +85,10 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
       }));
       expect(s).toEqual({ racine: true, dansBody: 0, etat: true });
       // À l'écran : toute la fenêtre, du haut jusqu'au bas.
+      // (3 px de retrait : hors des coins arrondis de 9 px de la fenêtre, où la page se voit sans verre ; 0.4.0, le cadre
+      // collé à l'élément rapproche la fenêtre du texte de la carte, qui passait sous ces coins.)
       const r = await page.locator('.cm-popup').boundingBox();
-      const e = await ecartSous(page, { x: Math.ceil(r.x), y: Math.ceil(r.y), width: Math.floor(r.width), height: Math.floor(r.height) }, '.page');
+      const e = await ecartSous(page, { x: Math.ceil(r.x) + 3, y: Math.ceil(r.y) + 3, width: Math.floor(r.width) - 6, height: Math.floor(r.height) - 6 }, '.page');
       expect(e.nets, 'pixels nets de la page sous le verre').toBe(0);
       expect(e.max).toBeLessThanOrEqual(40);
     });
@@ -159,7 +161,7 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
     expect(g).toEqual(['solid', '1px']);
   });
 
-  test('B5. une seule encre claire pour les repères : crochets du cadre et de l’épingle en #f4f4f4 sur fond sombre', async ({ page }) => {
+  test('B5. une seule encre claire pour les repères : crochets du cadre et chiffre de l’épingle en #f4f4f4 sur fond sombre', async ({ page }) => {
     await page.goto(pageEssai('encre-sombre', { fond: '#121212' }));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -168,12 +170,12 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
     await page.mouse.move(5, 5);
     const e = await page.evaluate(() => ({
       cadre: getComputedStyle(document.querySelector('.cm-box-saved > .wm-cadre'), '::before').borderTopColor,
-      epingle: getComputedStyle(document.querySelector('.cm-pin'), '::before').borderTopColor,
+      epingle: getComputedStyle(document.querySelector('.cm-pin')).color,   // 0.4.0 : plus de crochets dans l'épingle, son chiffre
     }));
     expect(e).toEqual({ cadre: 'rgb(244, 244, 244)', epingle: 'rgb(244, 244, 244)' });
   });
 
-  test('B6. cerne du voyant de l’épingle : 1,5 px en ombre intérieure ; le voyant du bouton witmit, posé sur le symbole, n’en a pas (0.4.0)', async ({ page }) => {
+  test('B6. voyant de l’épingle sans cerne (0.4.0, fiche Epingle) ; le voyant du bouton witmit, posé sur le symbole, n’en a pas non plus', async ({ page }) => {
     await page.goto(H.fileUrl('planche-charte.html'));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -183,7 +185,7 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
     await page.waitForTimeout(1400);                                      // fin de l’onde ; le mode reste lancé, la liste ouverte
     await page.mouse.move(5, 5);
     const v = await page.evaluate(() => ['.cm-pin .wm-voyant-epingle', '#cmCount'].map((s) => { const cs = getComputedStyle(document.querySelector(s)); return [cs.boxShadow, cs.borderTopWidth]; }));
-    expect(v).toEqual([['rgb(10, 10, 10) 0px 0px 0px 1.5px inset', '0px'], ['none', '0px']]);
+    expect(v).toEqual([['none', '0px'], ['none', '0px']]);
   });
 
   // 0.4.0 : witmit ouvert, la liste (340 px) pousse la page ; 940 px d'écran laissent 600 px à la page d'essai.

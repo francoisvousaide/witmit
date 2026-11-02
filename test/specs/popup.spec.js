@@ -86,15 +86,17 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     expect(afterReload.x - before.x).toBeGreaterThan(250);
   });
 
-  test('pastille de texte : en haut à gauche, au début du passage, sans cacher le texte', async ({ page }) => {
+  test('pastille de texte (0.4.0) : épingle de 18 px au bout du passage, sur le coin haut droit de sa dernière ligne, décalée de 0,40', async ({ page }) => {
     const t = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
     await H.drag(page, t.x + 2, t.y + 10, t.x + 120, t.y + 10, { shift: true });
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
-    const mark = await page.locator('mark.cm-highlight').first().boundingBox();
+    const fin = await page.locator('mark.cm-highlight').last().evaluate((m) => { const r = [...m.getClientRects()].pop(); return { r: r.right, t: r.top, b: r.bottom }; });
     const pin = await page.locator('.cm-pin').boundingBox();
-    expect(pin.y + pin.height).toBeLessThanOrEqual(mark.y + 8); // au-dessus du texte (la pointe inclinée peut effleurer)
-    expect(Math.abs(pin.x + pin.width / 2 - mark.x)).toBeLessThan(14); // au niveau du début du passage
+    expect(pin.height).toBe(18);
+    expect(Math.abs(pin.x + 9 - (fin.r + 7.2))).toBeLessThan(0.6);   // au bout du passage, 90 % hors du surlignage
+    expect(Math.abs(pin.y + 9 - (fin.t - 7.2))).toBeLessThan(0.6);
+    expect(pin.y + pin.height).toBeLessThanOrEqual(fin.t + 2);       // sans cacher le texte
     await page.reload(); await H.activate(page);
     const pin2 = await page.locator('.cm-pin').boundingBox();
     expect(Math.abs(pin2.x - pin.x)).toBeLessThan(3); // même position après rechargement

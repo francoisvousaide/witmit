@@ -136,19 +136,22 @@ for (const P of PAGES) {
     test('9. la pastille reste accrochée à son élément après redimensionnement', async ({ page }) => {
       await H.activate(page);
       await H.addPin(page, P.pinTarget, 'Ancrage');
-      // Ancrage (fiche Epingle, V2) : l'épingle à cheval sur le coin haut droit du cadre de l'élément (16 px de
-      // marge), son centre sur le coin ; ou sur son coin bas gauche faute de place en haut à droite.
+      // Ancrage (fiche Epingle, 0.4.0) : sur le coin haut droit du cadre dessiné de l'élément (règle simple ou étau),
+      // à cheval (24 px, élément de 32 px et plus) ou décalée vers l'extérieur (18 px : 0,25 × 18, 0,30 sous 20 px de
+      // côté) ; sur le coin bas gauche faute de place en haut à droite.
       const ancrage = async () => {
         const cible = await page.locator(P.pinTarget).first().boundingBox();
-        const el = await page.locator('.cm-box-outline').boundingBox();   // boîte de l'élément visé
+        const el = await page.locator('.cm-box-outline > .wm-cadre').boundingBox();   // cadre dessiné de l'élément visé
         const pin = await page.locator('.cm-pin').boundingBox();
         const basGauche = await page.locator('.cm-pin').evaluate((e) => e.classList.contains('wm-bas-gauche'));
+        const cote = Math.min(cible.width, cible.height), taille = cote < 32 ? 18 : 24;
+        const d = taille === 24 ? 0 : (cote < 20 ? 0.30 : 0.25) * 18;
         const cx = pin.x + pin.width / 2, cy = pin.y + pin.height / 2;
         return {
-          droite: basGauche ? Math.abs(cx - (el.x - 16)) : Math.abs(cx - (el.x + el.width + 16)),
-          bas: basGauche ? Math.abs(cy - (el.y + el.height + 16)) : Math.abs(cy - (el.y - 16)),
+          droite: basGauche ? Math.abs(cx - (el.x - d)) : Math.abs(cx - (el.x + el.width + d)),
+          bas: basGauche ? Math.abs(cy - (el.y + el.height + d)) : Math.abs(cy - (el.y - d)),
           surLaCible: Math.abs((el.x + el.width) - (cible.x + cible.width)) < 30 && Math.abs(el.y - cible.y) < 30,
-          hauteur: pin.height
+          hauteur: pin.height === taille
         };
       };
       const avant = await ancrage();
@@ -159,7 +162,7 @@ for (const P of PAGES) {
         expect(a.droite).toBeLessThan(2);
         expect(a.bas).toBeLessThan(2);
         expect(a.surLaCible).toBe(true);
-        expect(a.hauteur).toBe(24);
+        expect(a.hauteur).toBe(true);
       }
     });
 
