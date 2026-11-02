@@ -446,3 +446,60 @@ test('15. épingle : zone cliquable de 44 px au doigt (pointeur grossier)', asyn
   expect(zones).toEqual([[44, 44], [44, 44]]);
   await ctx.close();
 });
+
+test('16. passage en création (fenêtre ouverte) : état actif, orange à 42 % et crochets P pleins, quel que soit le geste (renvoi É1)', async ({ page }) => {
+  await ouvrir(page);
+  const actif = () => page.locator('mark.cm-highlight').evaluateAll((ms) => ({
+    fonds: [...new Set(ms.map((m) => getComputedStyle(m).backgroundColor))],
+    debut: ms[0].classList.contains('wm-debut') ? getComputedStyle(ms[0], '::before').opacity : null,
+    fin: ms[ms.length - 1].classList.contains('wm-fin') ? getComputedStyle(ms[ms.length - 1], '::after').opacity : null }));
+  const q = await boite(page, '#para1'), q2 = await boite(page, '#para2');
+  const gestes = [
+    ['double-clic', () => page.mouse.dblclick(q.l + 60, q.t + 12)],
+    ['clic sur un paragraphe', () => page.mouse.click(q2.l + 30, q2.t + q2.h / 2)],
+    ['triple-clic', () => page.mouse.click(q2.l + 30, q2.t + q2.h / 2, { clickCount: 3 })],
+    ['maj+glisser', () => H.drag(page, q.l + 4, q.t + 10, q.l + 260, q.t + 36, { shift: true })],
+  ];
+  for (const [nom, geste] of gestes) {
+    await geste();
+    await expect(page.locator('.cm-popup'), nom).toHaveCount(1);
+    expect(await actif(), nom).toEqual({ fonds: ['rgba(247, 130, 26, 0.42)'], debut: '1', fin: '1' });
+    await page.keyboard.press('Escape');
+    await expect(page.locator('mark.cm-highlight'), nom).toHaveCount(0);
+  }
+  // Site sombre : 52 %. Puis, enregistré, le passage revient au repos (26 %, crochets à 75 %).
+  await page.evaluate(() => { document.body.style.background = '#14161a'; document.body.style.color = '#ece8e1'; });
+  await page.mouse.dblclick(q.l + 60, q.t + 12);
+  expect(await actif()).toEqual({ fonds: ['rgba(247, 130, 26, 0.52)'], debut: '1', fin: '1' });
+  await page.evaluate(() => { document.body.style.background = ''; document.body.style.color = ''; });
+  await page.keyboard.press('Escape');
+  await page.mouse.dblclick(q.l + 60, q.t + 12);
+  await page.locator('.cm-popup textarea').fill('au repos ensuite');
+  await page.locator('.cm-popup textarea').press('Enter');
+  await page.waitForTimeout(1400);
+  await page.mouse.move(5, 790);
+  expect(await actif()).toEqual({ fonds: ['rgba(247, 130, 26, 0.26)'], debut: '0.75', fin: '0.75' });
+});
+
+test('17. étau : l’arrondi rendu compte, en px comme en % (pilule 999px = pilule 50 %, borné à la moitié du plus petit côté ; renvoi É2)', async ({ page }) => {
+  await ouvrir(page);
+  const essai = async (style) => {
+    // la carte vidée de son texte (un titre serait pris comme passage) et remise à la forme voulue
+    await page.locator('#carte').evaluate((el, s) => { el.textContent = ''; el.style.cssText = ''; Object.assign(el.style, { padding: '0', boxSizing: 'border-box' }, s); }, style);
+    const e = await boite(page, '#carte');
+    await page.mouse.click(e.l + e.w - 3, e.t + e.h / 2);
+    await expect(page.locator('.cm-box-editing')).toHaveCount(1);
+    const c = await mesureCadre(page, '.cm-box-editing');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+    return c.etau;
+  };
+  const pilule = { width: '120px', height: '32px', overflow: 'hidden' };
+  expect(await essai({ ...pilule, borderRadius: '999px' })).toBe(false);   // arrondi rendu : 16 px
+  expect(await essai({ ...pilule, borderRadius: '50%' })).toBe(false);
+  const pilule34 = { width: '120px', height: '34px', overflow: 'hidden' };
+  expect(await essai({ ...pilule34, borderRadius: '999px' })).toBe(true);  // 17 px
+  expect(await essai({ ...pilule34, borderRadius: '50%' })).toBe(true);
+  expect(await essai({ width: '32px', height: '32px', overflow: 'hidden', borderRadius: '50%' })).toBe(false);
+  expect(await essai({ width: '34px', height: '34px', overflow: 'hidden', borderRadius: '50%' })).toBe(true);
+});

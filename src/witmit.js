@@ -1958,11 +1958,13 @@
   function margeEtau(c) { return COLLE_ETAU + CROCHETS[c].trait + AIR_ETAU; }
   var REGLE_ZONE = { etau: false, petit: false, tresPetit: false, crochet: 'G', marge: 0 };
   var REGLE_POINT = { etau: true, petit: true, tresPetit: true, crochet: 'M', marge: margeEtau('M'), point: true };
-  // Arrondi d'un coin en pixels (un pourcentage se compte sur le plus petit côté ; un arrondi elliptique : sa 1re valeur).
+  // Arrondi RENDU d'un coin en pixels (fiche Selection : pixels fixes) : un pourcentage se compte sur le plus petit côté,
+  // et tout arrondi est borné à la moitié du plus petit côté, comme le navigateur le dessine ; une pilule en 999px et la
+  // même en 50 % ont donc le même arrondi (renvoi É2). Un arrondi elliptique : sa 1re valeur.
   function arrondiPx(v, cote) {
     v = String(v || '0').trim().split(/\s+/)[0];
     var n = parseFloat(v) || 0;
-    return /%$/.test(v) ? n / 100 * cote : n;
+    return Math.min(/%$/.test(v) ? n / 100 * cote : n, cote / 2);
   }
   function regleCadre(el) {
     if (!el) return REGLE_POINT;
@@ -4045,6 +4047,13 @@
     var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
     openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
       { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
+    // Passage en création, fenêtre ouverte : état actif (fiche Reperes, « Passage de texte », Actif ; fiche Selection,
+    // « Les états ») : orange à 42 % (52 % sur site sombre), crochets P pleins au début et à la fin. renderMarkers
+    // recalcule ces états une fois le retour enregistré ; abandonné, le passage est retiré.
+    if (marks.length) {
+      marquerPassage(marks, fondSombreAutour(marks[0]));
+      marks.forEach(function (m) { m.classList.add('cm-focus'); });
+    }
   }
 
   /* Le mot sous le pointeur : lettres (accents compris), chiffres, apostrophes et traits d'union. */
