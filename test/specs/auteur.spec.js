@@ -11,7 +11,7 @@ const waitState = (page, i, st) => expect.poll(async () => ((await ticket(page, 
 const identify = (page, user) => page.evaluate((u) => window.witmit.identify(u), user);
 const author = (page) => page.locator('#cmAuthor');
 async function openDrawer(page) {
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmPanel')).toBeVisible();
 }
 
@@ -30,7 +30,7 @@ test.describe('mode live (Supabase simulé)', () => {
     await openDrawer(page);
     await expect(author(page)).toBeVisible();
     await expect(author(page)).toHaveText('tes retours sont signés : Camille');
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await H.activate(page);
     await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Colonne trop étroite');
     await waitState(page, 0, 'sent');

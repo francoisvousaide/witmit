@@ -3,7 +3,8 @@
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Police : celle du système (aucun fichier de police chargé).
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
- * Raccourcis : ⌥ deux fois / alt deux fois montre et cache witmit (mode live) · ⌥+A / alt+A lance et arrête le mode annotation
+ * Gestes (0.4.0) : le bouton witmit ou ⌥ deux fois / alt deux fois ouvre d'un coup la liste et le mode annotation ;
+ * « réduire » ou échap replient tout · ⌥+A / alt+A cache ou réaffiche witmit · ?witmit=on|off dans l'adresse
  * Auteur (site où l'on est connecté) : window.witmit.identify({ nom: 'Camille' }) · identify(null) — voir plus bas.
  *
  * Icônes : tracés de Phosphor Icons, graisse Regular (@phosphor-icons/core 2.1.1), recopiés dans l'objet ICONES.
@@ -74,7 +75,6 @@
      (viewBox 0 0 256 256, couleur du texte). Aucun fichier ni aucune requête en plus. Une icône n'a qu'un
      sens dans tout le widget (fiche Icones du design system) ; le nom accessible est porté par le bouton. */
   var ICONES = {
-    CrosshairSimple: '<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,191.63V184a8,8,0,0,0-16,0v31.63A88.13,88.13,0,0,1,40.37,136H72a8,8,0,0,0,0-16H40.37A88.13,88.13,0,0,1,120,40.37V72a8,8,0,0,0,16,0V40.37A88.13,88.13,0,0,1,215.63,120H184a8,8,0,0,0,0,16h31.63A88.13,88.13,0,0,1,136,215.63Z"/>',
     CursorClick: '<path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/>',
     BoundingBox: '<path d="M208,96a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96V48A16,16,0,0,0,80,32H48A16,16,0,0,0,32,48V80A16,16,0,0,0,48,96h8v64H48a16,16,0,0,0-16,16v32a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16v-8h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V176a16,16,0,0,0-16-16h-8V96ZM176,48h32V80H176ZM48,48H80V63.9a.51.51,0,0,0,0,.2V80H48ZM80,208H48V176H80v15.9a.51.51,0,0,0,0,.2V208Zm128,0H176V176h32Zm-24-48h-8a16,16,0,0,0-16,16v8H96v-8a16,16,0,0,0-16-16H72V96h8A16,16,0,0,0,96,80V72h64v8a16,16,0,0,0,16,16h8Z"/>',
     TextT: '<path d="M208,56V88a8,8,0,0,1-16,0V64H136V192h24a8,8,0,0,1,0,16H96a8,8,0,0,1,0-16h24V64H64V88a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z"/>',
@@ -102,8 +102,7 @@
     X: '<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>',
     Trash: '<path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/>',
     Check: '<path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/>',
-    DotsSixVertical: '<path d="M104,60A12,12,0,1,1,92,48,12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,116Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,116ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,184Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,184Z"/>',
-    EyeSlash: '<path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/>',
+    DotsSixVertical: '<path d="M104,60A12,12,0,1,1,92,48,12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,116Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,116ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,184Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,184Z"/>',   // poignée de la fenêtre (retirée au lot 3)
     CaretRight: '<path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/>',
     CaretDown: '<path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>',
     CaretUp: '<path d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"/>',
@@ -117,7 +116,9 @@
     EnvelopeSimple: '<path d="M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM203.43,64,128,133.15,52.57,64ZM216,192H40V74.19l82.59,75.71a8,8,0,0,0,10.82,0L216,74.19V192Z"/>',
     ArrowElbowDownLeft: '<path d="M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"/>',
     Command: '<path d="M180,144H160V112h20a36,36,0,1,0-36-36V96H112V76a36,36,0,1,0-36,36H96v32H76a36,36,0,1,0,36,36V160h32v20a36,36,0,1,0,36-36ZM160,76a20,20,0,1,1,20,20H160ZM56,76a20,20,0,0,1,40,0V96H76A20,20,0,0,1,56,76ZM96,180a20,20,0,1,1-20-20H96Zm16-68h32v32H112Zm68,88a20,20,0,0,1-20-20V160h20a20,20,0,0,1,0,40Z"/>',
-    Option: '<path d="M232,192a8,8,0,0,1-8,8H160.94a15.92,15.92,0,0,1-14.31-8.84L95.06,88H32a8,8,0,0,1,0-16H95.06a15.92,15.92,0,0,1,14.31,8.84L160.94,184H224A8,8,0,0,1,232,192ZM152,88h72a8,8,0,0,0,0-16H152a8,8,0,0,0,0,16Z"/>'
+    Option: '<path d="M232,192a8,8,0,0,1-8,8H160.94a15.92,15.92,0,0,1-14.31-8.84L95.06,88H32a8,8,0,0,1,0-16H95.06a15.92,15.92,0,0,1,14.31,8.84L160.94,184H224A8,8,0,0,1,232,192ZM152,88h72a8,8,0,0,0,0-16H152a8,8,0,0,0,0,16Z"/>',
+    // « réduire » de la tête de la liste (0.4.0, fiche Tiroir) : la liste qui rentre vers le bord.
+    ArrowLineRight: '<path d="M189.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L164.69,136H32a8,8,0,0,1,0-16H164.69L106.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,189.66,133.66ZM216,32a8,8,0,0,0-8,8V216a8,8,0,0,0,16,0V40A8,8,0,0,0,216,32Z"/>'
   };
   // <svg> d'une icône, à la taille voulue (px). Taille écrite en style : une règle de l'hôte sur « svg »
   // (largeur à 100 %, display:block du preflight de Tailwind) ne la change pas. cls : classes en plus.
@@ -168,15 +169,27 @@
     (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || ''
   );
   var RACC_DOUBLE_ALT = IS_MAC ? '⌥ deux fois' : 'alt deux fois';
-  var RACC_ANNOTER = IS_MAC ? '⌥+A' : 'alt+A';
-  // « masquer witmit » n'affiche plus de raccourci (V2, fiche Touche) : « ⌥ deux fois » reste dans son info-bulle et
-  // dans son nom accessible (« masquer witmit option deux fois », texte réservé aux lecteurs d'écran).
+  var RACC_CACHER = IS_MAC ? '⌥+A' : 'alt+A';   // 0.4.0 (R27) : cache ou réaffiche witmit entièrement
+
+  /* ---------- le logo witmit (fiche Identity, version du 02/11/2026) ----------
+     Le symbole (le picto dans son cadre arrondi, 52 × 52) et le mot, recopiés des fichiers witmit-symbole.svg,
+     witmit-symbole-sombre.svg, witmit-mot.svg et witmit-mot-blanc.svg, sans leur bloc de métadonnées (manifeste de provenance) ; tracés
+     inchangés. Rien n'est chargé d'ailleurs. Seuls les identifiants des dégradés sont préfixés (wm-…) pour ne jamais
+     croiser un identifiant de la page hôte. Le voyant orange n'en fait pas partie : il est posé par le code. */
+  var PICTO_WITMIT = '<g transform="translate(9 9) scale(1.214)"><path d="M6,18.5 L6,7 L9.5,7 L9.5,17.5 L12.5,17.5 L12.5,11.5 L15.5,11.5 L15.5,17.5 L18.5,17.5 L18.5,7 L19.5,7 A2.5,2.5 0 0 1 22,9.5 L22,21 L8.5,21 A2.5,2.5 0 0 1 6,18.5 Z M0,10 L0,3.5 A2.5,2.5 0 0 1 2.5,1 L9,1 L9,2.5 L2.5,2.5 A1,1 0 0 0 1.5,3.5 L1.5,10 L0,10 Z M28,18 L28,24.5 A2.5,2.5 0 0 1 25.5,27 L19,27 L19,25.5 L25.5,25.5 A1,1 0 0 0 26.5,24.5 L26.5,18 L28,18 Z" fill="__ENCRE__"></path></g>';
+  var SYMBOLE_CLAIR = '<svg class="wm-symbole wm-symbole-clair" data-logo="symbole" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" focusable="false"><defs><linearGradient id="wm-symbole-fc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"></stop><stop offset="1" stop-color="#ececea"></stop></linearGradient></defs><rect width="52" height="52" rx="12" fill="url(#wm-symbole-fc)"></rect><rect x=".25" y=".25" width="51.5" height="51.5" rx="11.75" fill="none" stroke="#000" stroke-opacity=".12" stroke-width=".5"></rect>' + PICTO_WITMIT.replace('__ENCRE__', '#141412') + '</svg>';
+  var SYMBOLE_SOMBRE = '<svg class="wm-symbole wm-symbole-sombre" data-logo="symbole-sombre" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" focusable="false"><defs><linearGradient id="wm-symbole-fs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2b29"></stop><stop offset="1" stop-color="#141412"></stop></linearGradient></defs><rect width="52" height="52" rx="12" fill="url(#wm-symbole-fs)"></rect><rect x=".5" y=".5" width="51" height="51" rx="11.5" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1"></rect>' + PICTO_WITMIT.replace('__ENCRE__', '#f4f4f4') + '</svg>';
+  var TRACE_MOT = 'M8.4,50 L62,50 L62,8.4 A8.4,8.4 0 0 0 53.6,0 L50,0 L50,38 L37,38 L37,13 L25,13 L25,38 L12,38 L12,0 L0,0 L0,41.6 A8.4,8.4 0 0 0 8.4,50 Z M71,50 L71,0 L83,0 L83,50 L71,50 Z M71,-6 L71,-18 L83,-18 L83,-6 L71,-6 Z M98,0 L98,-19 L110,-19 L110,0 L120,0 L120,12 L110,12 L110,50 L98,50 L98,12 L92,12 L92,0 L98,0 Z M180.6,0 L127,0 L127,41.6 A8.4,8.4 0 0 0 135.4,50 L139,50 L139,12 L152,12 L152,37 L164,37 L164,12 L177,12 L177,50 L189,50 L189,8.4 A8.4,8.4 0 0 0 180.6,0 Z M198,50 L198,0 L210,0 L210,50 L198,50 Z M198,-6 L198,-18 L210,-18 L210,-6 L198,-6 Z M225,0 L225,-19 L237,-19 L237,0 L247,0 L247,12 L237,12 L237,50 L225,50 L225,12 L219,12 L219,0 L225,0 Z M-23.4,-0.4 L-23.4,-25.4 A9,9 0 0 1 -14.4,-34.4 L10.6,-34.4 L10.6,-29 L-14.4,-29 A3.6,3.6 0 0 0 -18,-25.4 L-18,-0.4 L-23.4,-0.4 Z M270.4,39.4 L270.4,64.4 A9,9 0 0 1 261.4,73.4 L236.4,73.4 L236.4,68 L261.4,68 A3.6,3.6 0 0 0 265,64.4 L265,39.4 L270.4,39.4 Z';
+  function motWitmit(classe, encre, logo) {
+    return '<svg class="wm-mot ' + classe + '" data-logo="' + logo + '" xmlns="http://www.w3.org/2000/svg" viewBox="-23.4 -34.4 293.8 107.8" width="293.8" height="107.8" aria-hidden="true" focusable="false"><path d="' + TRACE_MOT + '" fill="' + encre + '"></path></svg>';
+  }
+  var MOT_WITMIT = motWitmit('wm-mot-encre', '#141412', 'mot') + motWitmit('wm-mot-blanc', '#f4f4f4', 'mot-blanc');
   // État vide de la liste (décision b3 du 26/10, textes mot pour mot) : les gestes quittent le bandeau pour la liste vide ;
   // « ⌘ » sur Mac, « ctrl » ailleurs, et « maj », chacun dans le petit carré, en chasse fixe du système (fiche Tiroir).
   var ETAT_VIDE_HTML = '<div class="cm-panel-empty cm-panel-vide">' +
     "<p>aucun retour sur cette page pour l'instant.</p>" +
-    // « nouveau retour » et ses guillemets collés par des espaces insécables (É5, lot 7) : jamais un « seul en fin de ligne.
-    '<p class="cm-vide-mode">pour en laisser un, appuie sur «\u00a0nouveau\u00a0retour\u00a0», puis :</p>' +
+    // 0.4.0 (fiche Tiroir) : plus de « nouveau retour », le mode est déjà actif quand la liste est ouverte.
+    '<p class="cm-vide-mode">pour en laisser un, vise un élément de la page\u00a0:</p>' +
     '<ul class="cm-vide-gestes">' +
       '<li><b>clic</b> : un élément</li>' +
       '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
@@ -316,9 +329,8 @@
     --wm-ombre-epingle-metal-sombre: inset 0 1px 1px rgba(255,255,255,.28), 0 3px 10px rgba(0,0,0,.28);
     --wm-ombre-epingle-metal-clair: inset 0 1px 1px #ffffff, 0 3px 10px rgba(0,0,0,.45);
     /* Halo du mode annotation (fiche Bandeau) : orange, mêmes valeurs sur tous les sites, sans variante de thème. */
-    --wm-halo-filet: rgba(10,10,10,.9);
-    --wm-halo-lueur-courte: rgba(247,130,26,.42);
-    --wm-halo-lueur: rgba(247,130,26,.40);
+    --wm-halo-lueur-courte: rgba(247,130,26,.38);
+    --wm-halo-lueur: rgba(247,130,26,.55);
     /* Rond de la loupe posé sur une capture (fiche Tiroir) : sur l'image, jamais sur le verre. */
     --wm-loupe-fond: rgba(22,22,22,.66);
     /* Mise en page seulement (pas d'identité) : la barre de navigation de l'hôte, si elle est déclarée. */
@@ -479,68 +491,41 @@
   ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-voyant, ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .cm-count-badge { box-shadow:none; }
   .cm-ui .cm-count-badge:empty, .cm-ui .cm-count-badge[data-zero="1"] { display:none; }
 
-  /* ---------- Les deux boutons ronds (fiche BoutonWitmit ; décisions C6, F8, L1) ----------
-     Bouton witmit (#cmPanelBtn, 52 px) : il ouvre et ferme la liste, enfoncé = liste ouverte. Collé à sa
-     gauche, le bouton du mode annotation (#cmToggleBtn, 40 px dessinés, 44 px cliquables) : enfoncé = mode
-     actif. Métal poli, clair sur un site clair et sombre sur un site sombre (même attribut que le verre, V2) ;
-     l'état se lit à l'enfoncement, jamais à la teinte. Créés seulement si la page n'a pas déjà les siens. */
-  .cm-fab { position:fixed; right:24px; bottom:24px; z-index:845; display:flex; align-items:center; gap:8px; margin:0; padding:0;
-    transition:right 240ms cubic-bezier(0.16, 1, 0.3, 1); }  /* sous le panneau (850), sauf quand il le chevauche (écran étroit) */
-  .cm-fab.wm-decale { z-index:855; }                        /* liste ouverte : à gauche de la liste, toujours cliquables */
-  .cm-ui .wm-bouton { position:relative; flex:none; box-sizing:border-box; display:flex; align-items:center; justify-content:center; margin:0; padding:0; border-radius:50%;
-    font-size:0; line-height:0; cursor:pointer; outline:none; transition:box-shadow 120ms ease;
-    /* métal sombre (défaut, site sombre ; le métal clair suit « client-clair ») */
-    border:1px solid var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
-    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
-      linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
-  .cm-ui .wm-bouton[aria-pressed="true"], .cm-ui .wm-bouton[aria-expanded="true"] { box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
-  ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton, .cm-ui .wm-bouton.wm-metal-clair {
-    border-color:var(--wm-metal-light-trait); color:var(--wm-metal-light-signe); box-shadow:var(--wm-ombre-bouton-clair);
-    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-light-reflet) 0%, transparent 70%),
-      linear-gradient(165deg, var(--wm-metal-light-hi) 0%, var(--wm-metal-light-mi) 42%, var(--wm-metal-light-lo) 62%, var(--wm-metal-light-fin) 100%); }
-  ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-pressed="true"], ${CORPS}[data-wm-theme="client-clair"] .cm-ui .wm-bouton[aria-expanded="true"],
-  .cm-ui .wm-bouton.wm-metal-clair[aria-pressed="true"], .cm-ui .wm-bouton.wm-metal-clair[aria-expanded="true"] { box-shadow:var(--wm-ombre-bouton-enfonce); }
-  .cm-ui .wm-bouton.wm-metal-sombre { border-color:var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
-    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
-      linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
-  .cm-ui .wm-bouton.wm-metal-sombre[aria-pressed="true"], .cm-ui .wm-bouton.wm-metal-sombre[aria-expanded="true"] { box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
-  .cm-ui .wm-bouton-witmit { width:52px; height:52px; }
-  .cm-ui .wm-bouton-mode { width:40px; height:40px; }
-  .cm-ui .wm-bouton-mode::before { content:''; position:absolute; inset:-3px; border-radius:50%; }   /* zone cliquable de 44 px : 40 px moins le trait (le ::before part du bord intérieur), + 2 × 3 */
-  /* Le signe du bouton witmit : le logo B1 calé à 28 px, centré sans décalage (fiche BoutonWitmit). Jamais agrandi ni réduit. */
-  .cm-ui .wm-bouton-witmit .wm-signe { display:flex; margin:0; color:inherit; }
-  .cm-ui .wm-bouton-witmit .wm-logo { display:block; flex:none; width:28px; height:28px; }
-  /* Voyant du bouton witmit : 7 px, logé à 10 px du haut et 9 px de la droite du rond (coordonnées entières). */
-  .cm-ui .wm-bouton-witmit .cm-count-badge { position:absolute; left:35px; top:9px; }
-  .cm-ui .wm-bouton.wm-metal-clair .cm-count-badge { box-shadow:inset 0 0 0 1.5px var(--wm-accent-ring); }
-  .cm-ui .wm-bouton.wm-metal-sombre .cm-count-badge { box-shadow:none; }
-  /* Focus clavier (fiche Etats, forme ronde) : outline de 2 px à 2 px. Le bouton est posé sur le site, pas
-     sur le verre : le trait prend l'encre qui tranche sur le site (sombre sur un site clair, et l'inverse). */
-  .cm-ui .wm-bouton:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:2px; }
-  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton:focus-visible { outline-color:var(--wm-encre-repere-claire); }
-  @media (max-width:480px) { .cm-fab { right:16px; bottom:16px; } }   /* M1 : à 16 px des bords sur un téléphone */
-  @media (prefers-reduced-motion:reduce) { .cm-fab, .cm-ui .wm-bouton { transition:none; } }
-  @media (forced-colors:active) { .cm-ui .wm-bouton { border-color:ButtonText; } .cm-ui .wm-bouton[aria-pressed="true"], .cm-ui .wm-bouton[aria-expanded="true"] { border-width:3px; } }
+  /* ---------- Le bouton witmit (fiches BoutonWitmit et Identity, 0.4.0) ----------
+     Un seul bouton, la seule porte d'entrée : le symbole witmit à 52 px, carré aux coins d'iPhone (arrondi de 12 px), face
+     claire sur un site clair et face encre sur un site sombre, avec l'ombre (site clair) ou la lueur (site sombre) des
+     fenêtres. Le voyant « nouveau » (7 px, à 8 px du haut et 7 px de la droite, sans cerne) est posé par le code : il n'est
+     pas dans le logo. Pas d'état enfoncé : le bouton quitte la page (fondu de 160 ms) quand witmit s'ouvre et revient
+     quand il se replie. Créé seulement si la page n'a pas déjà son #cmPanelBtn (voir injectUI). */
+  .cm-fab { position:fixed; right:24px; bottom:24px; z-index:845; display:flex; align-items:center; margin:0; padding:0; }
+  .cm-ui .wm-bouton-witmit { position:relative; flex:none; box-sizing:border-box; display:block; width:52px; height:52px; margin:0; padding:0; border:0; border-radius:12px;
+    background:none; font-size:0; line-height:0; color:inherit; cursor:pointer; outline:none;
+    box-shadow:0 1px 3px rgba(0,0,0,.14), 0 22px 56px rgba(0,0,0,.34); }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton-witmit { box-shadow:0 0 0 1px rgba(255,255,255,.05), 0 22px 56px rgba(255,255,255,.22); }   /* le liseré à 16 % dedans est dans le symbole */
+  .cm-ui .wm-bouton-witmit .wm-symbole { display:block; width:52px; height:52px; max-width:none; margin:0; border-radius:12px; }
+  .cm-ui .wm-bouton-witmit .wm-symbole-sombre { display:none; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton-witmit .wm-symbole-clair { display:none; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton-witmit .wm-symbole-sombre { display:block; }
+  /* Face imposée (planche de la charte) : wm-face-claire ou wm-face-sombre sur le bouton. */
+  :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-claire .wm-symbole-clair, :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-sombre .wm-symbole-sombre { display:block; }
+  :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-claire .wm-symbole-sombre, :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-sombre .wm-symbole-clair { display:none; }
+  :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-claire { box-shadow:0 1px 3px rgba(0,0,0,.14), 0 22px 56px rgba(0,0,0,.34); }
+  :is(body,div) .cm-ui .wm-bouton-witmit.wm-face-sombre { box-shadow:0 0 0 1px rgba(255,255,255,.05), 0 22px 56px rgba(255,255,255,.22); }
+  /* Voyant « nouveau » : disque orange plein de 7 px, sans cerne, le même sur les deux faces. */
+  .cm-ui .wm-bouton-witmit .cm-count-badge, ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton-witmit .cm-count-badge { position:absolute; top:8px; right:7px; left:auto; box-shadow:none; }
+  /* Focus clavier (fiche Etats) : contour de 2 px à 3 px du bord, à l'encre des repères (le bouton est posé sur le site). */
+  .cm-ui .wm-bouton-witmit:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:3px; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-bouton-witmit:focus-visible { outline-color:var(--wm-encre-repere-claire); }
+  /* witmit ouvert : le bouton quitte la page, en fondu de 160 ms ; il revient de même. */
+  #cmPanelBtn.wm-bouton-witmit { opacity:1; visibility:visible; transition:opacity 160ms ease, visibility 0s linear 0s; }
+  ${CORPS}.cm-ouvert #cmPanelBtn.wm-bouton-witmit { opacity:0; visibility:hidden; pointer-events:none; transition:opacity 160ms ease, visibility 0s linear 160ms; }
+  @media (prefers-reduced-motion:reduce) { #cmPanelBtn.wm-bouton-witmit, ${CORPS}.cm-ouvert #cmPanelBtn.wm-bouton-witmit { transition:none; } }
+  @media (forced-colors:active) { .cm-ui .wm-bouton-witmit { border:1px solid ButtonText; } }
 
-  /* Boutons fournis par la page (C8, maquettes TellUs) : witmit les adopte (data-wm-fourni="page") sans toucher à leur
-     contenu. Lot 8 (fiche BoutonWitmit) : le même métal poli que les boutons de witmit, clair sur un site clair et sombre sur
-     un site sombre ; l'état (.cm-on, aria-pressed, aria-expanded) se lit à l'enfoncement, jamais à la teinte. 40 px. */
-  .cm-ui[data-wm-fourni="page"] { position:relative; box-sizing:border-box; width:40px; height:40px; margin:0; padding:0; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; font-size:16px; line-height:1; cursor:pointer; transition:box-shadow 120ms ease;
-    border:1px solid var(--wm-metal-dark-trait); color:var(--wm-metal-dark-signe); box-shadow:var(--wm-ombre-bouton);
-    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-dark-reflet) 0%, transparent 70%),
-      linear-gradient(165deg, var(--wm-metal-dark-hi) 0%, var(--wm-metal-dark-mi) 42%, var(--wm-metal-dark-lo) 62%, var(--wm-metal-dark-fin) 100%); }
-  .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { box-shadow:var(--wm-ombre-bouton-enfonce-sombre); }
-  ${CORPS}[data-wm-theme="client-clair"] .cm-ui[data-wm-fourni="page"] {
-    border-color:var(--wm-metal-light-trait); color:var(--wm-metal-light-signe); box-shadow:var(--wm-ombre-bouton-clair);
-    background:radial-gradient(ellipse 75% 50% at 50% 14%, var(--wm-metal-light-reflet) 0%, transparent 70%),
-      linear-gradient(165deg, var(--wm-metal-light-hi) 0%, var(--wm-metal-light-mi) 42%, var(--wm-metal-light-lo) 62%, var(--wm-metal-light-fin) 100%); }
-  ${CORPS}[data-wm-theme="client-clair"] .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { box-shadow:var(--wm-ombre-bouton-enfonce); }
-  .cm-ui[data-wm-fourni="page"]:focus { outline:none; }
-  .cm-ui[data-wm-fourni="page"]:focus-visible { outline:2px solid var(--wm-encre-repere); outline-offset:2px; }
-  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui[data-wm-fourni="page"]:focus-visible { outline-color:var(--wm-encre-repere-claire); }
-  @media (forced-colors:active) { .cm-ui[data-wm-fourni="page"] { border-color:ButtonText; } .cm-ui[data-wm-fourni="page"]:is(.cm-on, [aria-pressed="true"], [aria-expanded="true"]) { border-width:3px; } }
-  .cm-ui[data-wm-fourni="page"] .cm-count-badge { position:absolute; top:3px; right:3px; }
+  /* Sous 480 px de large (fiche Mobile, décision du 02/11) : witmit est désactivé, rien à l'écran. La racine entière est
+     retirée de l'affichage (bouton, liste, halo, fenêtres, repères) ; son contenu reste en place pour revenir tel quel. */
+  .wm-racine.wm-etroit { display:none !important; }
+  ${CORPS}.wm-etroit #cmPanelBtn { display:none !important; }   /* un bouton fourni par la page, posé hors de la racine */
 
   /* Mode live, widget caché : aucune couche visible (toutes portent cm-ui) tant qu'il n'est pas révélé */
   ${CORPS}.cm-concealed .cm-ui:not(.wm-toast-masquage) { display:none !important; }   /* sauf le message qui dit comment revenir (Léa 45) */
@@ -552,61 +537,31 @@
   ${CORPS}.cm-active .cm-popup .cm-tete { cursor:move; }
   ${CORPS}.cm-active .cm-popup textarea { cursor:text; }
   ${CORPS}.cm-active .cm-popup .cm-vignette { cursor:zoom-in; }
-  ${CORPS} .cm-pill .cm-drag-handle { cursor:grab; }              /* la poignée ⠿ : main ouverte… */
-  ${CORPS} .cm-pill.cm-dragging, ${CORPS} .cm-pill.cm-dragging * { cursor:grabbing; } /* …qui se referme pendant le déplacement */
 
-  /* Halo du mode annotation (fiche Bandeau, V2) : trait orange de 3 px au bord de la page, filet halo-filet de 1 px
-     juste à l'intérieur (il cerne l'orange sur le clair et disparaît de lui-même sur le sombre), lueur
-     courte fixe, puis la lueur qui respire (4 s par souffle ; fixe à mi-course si les animations sont réduites).
-     Une seule règle pour tous les sites. Seule l'opacité de la lueur (::after) est animée : rien
-     ne se repeint à chaque image. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre. Elle est
-     posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
+  /* Halo du mode annotation (fiche Bandeau ; décision de François du 29/10 ; spec 0.4.0, sujet 8) : trait orange de 1,5 px
+     au bord de la page, sans filet ; lueur courte fixe (orange à 38 %) ; puis la lueur qui respire (orange à 55 %), dont
+     seule l'opacité bouge, de 0,2 à 1 et retour, 4 s par souffle : elle ne s'éteint jamais. Fixe à 0,6 si les animations
+     sont réduites. Une seule règle pour tous les sites. La couche ne capte aucun clic et n'est l'ancêtre d'aucun verre.
+     Elle est posée au-dessus du site mais SOUS toutes les couches witmit (815 : la plus basse, les cadres, est à 820). */
   /* Apparition et disparition en fondu de 200 ms sur l'opacité de la couche ; cachée par visibility (pas display)
      pour que le fondu de sortie se joue (F11). La couche n'est le parent d'aucun verre : son opacité ne coupe aucun flou. */
-  /* Liste ouverte (fiche Tiroir, à la manière de Claude in Chrome) : la page rétrécit, et le halo la suit. pushPage() pose
-     right (la largeur de la liste) sur cette couche ; elle glisse avec l'ouverture de la liste (240 ms), et revient à 0. */
+  /* witmit ouvert (fiche Tiroir, à la manière de Claude in Chrome) : la page rétrécit, et le halo la suit. pushPage() pose
+     right (la largeur de la liste) sur cette couche : il s'arrête au bord de la liste et glisse avec elle (240 ms). */
   .cm-frame { position:fixed; inset:0; z-index:815; pointer-events:none; visibility:hidden; opacity:0; border:0 solid transparent; transition:opacity 200ms ease, visibility 0s linear 200ms, right 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   .cm-frame.show { visibility:visible; opacity:1; transition:opacity 200ms ease, visibility 0s linear 0s, right 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   .cm-frame::before, .cm-frame::after { content:''; position:absolute; inset:0; pointer-events:none; border:0 solid transparent; }
-  .cm-frame::before { box-shadow: inset 0 0 0 3px var(--wm-accent), inset 0 0 0 4px var(--wm-halo-filet), inset 0 0 10px 2px var(--wm-halo-lueur-courte); }
-  .cm-frame::after { box-shadow: inset 0 0 26px 6px var(--wm-halo-lueur); opacity:0; animation: wmHaloSouffle 4s ease-in-out infinite; }
-  @keyframes wmHaloSouffle { 0%, 100% { opacity:0; } 50% { opacity:1; } }
+  .cm-frame::before { box-shadow: inset 0 0 0 1.5px var(--wm-accent), inset 0 0 12px 2px var(--wm-halo-lueur-courte); }
+  .cm-frame::after { box-shadow: inset 0 0 44px 12px var(--wm-halo-lueur); opacity:.2; animation: wmHaloSouffle 4s ease-in-out infinite; }
+  @keyframes wmHaloSouffle { 0%, 100% { opacity:.2; } 50% { opacity:1; } }
   @media (prefers-reduced-motion:reduce) {
     .cm-frame, .cm-frame.show { transition:none; }   /* aucun fondu (Léa 48) */
-    .cm-frame::after { animation:none; opacity:.5; }
+    .cm-frame::after { animation:none; opacity:.6; }
   }
   @media (forced-colors:active) {
     .cm-frame::before { border:3px solid Highlight; }
-    .cm-popup, .cm-panel, .cm-pill, .cm-status, .cm-toggle-btn { border-color:CanvasText; }
+    .cm-popup, .cm-panel, .cm-status { border-color:CanvasText; }
   }
-
-  /* Bandeau du mode annotation (fiche Bandeau ; décision b3 du 26/10) : fenêtre de verre de 44 px, au thème du site,
-     coins witmit (habiller), centrée à 12 px sous la barre de navigation, déplaçable par sa poignée (position
-     gardée). Une seule ligne, partout : la poignée, le voyant et « annotation », puis « terminer » ; plus de gestes
-     (ils sont dans la liste vide). Placement : placerBandeau(). */
-  .cm-pill { position:fixed; top:calc(var(--wm-nav-h) + 12px); left:50%; transform:translateX(-50%); z-index:900; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-weight:400; font-size:14px; line-height:20px; text-align:left; display:none; white-space:nowrap; cursor:default; touch-action:none; width:max-content; max-width:calc(100vw - 16px); }
-  .cm-pill.show { display:block; }
-  .cm-pill .wm-bandeau-corps { position:relative; display:flex; align-items:center; gap:8px; height:44px; padding:0 22px 0 18px; }
-  .cm-pill .wm-poignee { display:inline-flex; align-items:center; justify-content:center; flex:none; width:20px; height:44px; color:var(--wm-ink-soft); }
-  .cm-pill.cm-dragging .wm-poignee { color:var(--wm-ink); }
-  .cm-pill .wm-bandeau-mode { display:inline-flex; align-items:center; gap:6px; flex:none; font-weight:500; color:var(--wm-ink); }
-  .cm-pill .wm-bandeau-mode .wm-voyant { flex:none; }
-  /* « terminer » : bouton principal orange compact, la touche de la fiche Touche telle quelle (face de 30 px dans une
-     zone cliquable de 44 px, toute la hauteur du bandeau), sans repère « échap » : le raccourci reste dans l'info-bulle
-     et dans aria-keyshortcuts. */
-  .cm-ui.cm-pill .wm-terminer { flex:none; margin:0; }
-  /* Liste ouverte sans place à côté d'elle pour le bandeau (liste pleine largeur sous 480 px, ou page restante trop
-     étroite) : le bandeau se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), dans une place que
-     la liste lui laisse (wm-sous-bandeau) ; il ne recouvre ni la tête de la liste, ni sa croix, ni ses retours.
-     « terminer » au bout à droite ; à cette place, le bandeau ne se déplace pas. */
-  .cm-pill.wm-sur-liste { max-width:none; }
-  .cm-pill.wm-sur-liste .wm-terminer { margin-left:auto; }
-  ${CORPS} .cm-pill.wm-sur-liste .cm-drag-handle { cursor:default; }
-  .cm-panel.wm-sous-bandeau { padding-top:60px; }   /* 8 + 44 + 8 px */
-  .cm-panel.wm-sous-bandeau > .wm-contour path:first-child { display:none; }   /* son coin haut gauche passerait sous celui du bandeau (Paula É1) */
-  /* Liste ouverte pleine largeur (sous 480 px) : aucune page n'est visible, le halo se cache (il se voyait dans les coins
-     arrondis de la liste ; Paula É3). */
-  .cm-frame.wm-sous-liste, .cm-frame.show.wm-sous-liste { visibility:hidden; opacity:0; transition:none; }
+  /* Plus de bandeau du mode annotation (fiche Bandeau, 0.4.0) : la liste ouverte dit déjà que witmit est actif. */
 
   /* ---------- Repères sur le site (fiches Reperes, Epingle, Selection ; F6, F7, F10, T7) ----------
      Une seule encre par repère, choisie d'après le fond du site derrière lui (isDarkBehind) : #141414 sur fond
@@ -762,7 +717,7 @@
      Réglages du Mac (champ arrondi, catégorie en touches dépliées, I4 ; ou lecture seule), puis les boutons
      dessous, à droite, sans bande de pied. Les marges laissent libres les deux coins witmit. */
   .cm-popup { position:absolute; z-index:950; width:340px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
-  @media (max-width:480px) { .cm-popup { width:min(340px, calc(100vw - 16px)); } }
+  @media (max-width:479.98px) { .cm-popup { width:min(340px, calc(100vw - 16px)); } }
   .cm-popup .cm-tete { position:relative; padding:14px 14px 6px 22px; border-bottom:0; cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
   .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
   .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
@@ -835,20 +790,27 @@
     transition:transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 240ms; }
   .cm-panel.show { transform:translateX(0); visibility:visible; transition-delay:0s; }
   /* Sous 480 px, la liste couvre tout l’écran : aucun arrondi et aucun filet contre le bord (Paula, lot 4 ; lot 8). */
-  @media (max-width:480px) { .cm-panel { width:100vw; } .wm-habille.cm-panel { --wm-rayon: 0; } .cm-ui.cm-panel > .wm-verre { box-shadow:none; } }
+  @media (max-width:479.98px) { .cm-panel { width:100vw; } .wm-habille.cm-panel { --wm-rayon: 0; } .cm-ui.cm-panel > .wm-verre { box-shadow:none; } }
   @media (prefers-reduced-motion:reduce) { .cm-panel { transition:none; } }
   .cm-panel > .wm-ombre { display:none; }
   .cm-panel > .wm-verre { box-shadow:inset 1px 0 0 var(--wm-liste-separation); backdrop-filter:none; -webkit-backdrop-filter:none; }
   /* Tête : marges 14 / 14 / 14 / 24, sans filet. */
   .cm-panel-head { flex:none; padding:14px 14px 14px 24px; }
   .cm-panel-head-row { display:flex; align-items:center; gap:10px; margin:0 0 6px; }
-  .cm-panel-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
+  /* Le mot witmit en tête (fiches Tiroir et Identity) : lettres de 16 px (le w fait 50 unités du dessin : échelle 0,32),
+     encre sur un site clair, blanc cassé sur un site sombre ; il porte ses deux coins witmit. */
+  .cm-panel-mot { flex:1; min-width:0; display:flex; align-items:center; margin:0; }
+  .cm-panel-mot .wm-mot { display:block; flex:none; width:94px; height:34.5px; max-width:none; margin:0; }
+  .cm-panel-mot .wm-mot-blanc { display:none; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-panel-mot .wm-mot-encre { display:none; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-panel-mot .wm-mot-blanc { display:block; }
   .cm-panel-ligne, .cm-panel-sub, .cm-panel-author { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; min-height:22px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-author[hidden], .cm-panel-ailleurs[hidden] { display:none; }
   .cm-panel-author b { color:var(--wm-ink); font-weight:500; }
   .cm-panel-filtres { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12px; min-height:28px; margin-top:2px; }
   .cm-panel-filtres:not(:has(> :not([hidden]))) { display:none; }   /* maquette, page vide : aucune ligne de filtres */
-  /* « masquer les terminés » (case de 16 px) et « masquer witmit » : textes seuls, zone de 44 px de haut. */
+  /* « masquer les terminés » (case de 16 px) : texte seul, zone de 44 px de haut. « masquer witmit » a quitté la liste
+     (R27, 0.4.0) : ⌥+A cache witmit. */
   .cm-ui .cm-filtre { position:relative; display:inline-flex; align-items:center; gap:6px; height:28px; margin:0; padding:0; background:none; border:0; border-radius:var(--wm-radius-bouton); box-shadow:none;
     font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); cursor:pointer; white-space:nowrap; text-transform:none; }
   .cm-ui .cm-filtre::before { content:''; position:absolute; left:0; right:0; top:-8px; bottom:-8px; }
@@ -864,7 +826,7 @@
   .cm-panel-list { flex:1; min-height:0; overflow-y:auto; margin:0 10px 10px; padding:4px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
     box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc);
     scroll-padding:4px; }   /* la ligne choisie au clavier garde 4 px d'air au bord du bloc, en haut comme en bas */
-  @media (max-width:480px) { .cm-panel-list { padding-bottom:76px; scroll-padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) ; la ligne choisie aussi */
+  @media (max-width:479.98px) { .cm-panel-list { padding-bottom:76px; scroll-padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) ; la ligne choisie aussi */
   .cm-panel-list:focus { outline:none; }
   .cm-panel-item { position:relative; isolation:isolate; display:flex; align-items:center; gap:10px; margin:0 0 2px; padding:9px 10px; }
   .cm-panel-item:last-child { margin-bottom:0; }
@@ -1000,7 +962,12 @@
   /* Pied : outils de la page et rapport (mode maquette, ou retour pas encore parti en live), puis « nouveau retour ». */
   /* Pied (fiche Tiroir) : sans filet ; marges 6 / 24 / 22 / 18 ; tous les boutons à droite (décision du 26/10). Entre
      deux rangées de boutons, 14 px ; entre deux boutons d'une rangée, 8 px : les zones de 44 px ne se recouvrent pas. */
-  .cm-panel-pied { flex:none; padding:6px 24px 22px 18px; }
+  .cm-panel-pied { flex:none; padding:12px 24px 22px 24px; }
+  /* L'aide du pied (fiche Tiroir, 0.4.0) : plus de bouton « nouveau retour », le mode est déjà actif. Centrée, 13 px ;
+     la seconde ligne en ink-soft. */
+  .cm-panel-aide { margin:0; text-align:center; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.5; color:var(--wm-ink); }
+  .cm-panel-aide > span { display:block; color:var(--wm-ink-soft); }
+  .cm-panel-pied.wm-outils-visibles .cm-panel-aide { margin-top:14px; }
   .cm-panel-foot { display:flex; flex-wrap:wrap; align-items:center; }
   .cm-panel-foot[hidden], .cm-panel-foot button[hidden], .cm-panel-foot label[hidden] { display:none; }
   .cm-panel-tools { justify-content:flex-end; gap:14px 16px; }
@@ -1018,9 +985,6 @@
   .cm-panel-report .cm-scope input:focus-visible + .wm-case { outline:2px solid var(--wm-ink); outline-offset:2px; }
   .cm-panel-report .cm-scope .wm-case { pointer-events:none; }   /* la case dessinée laisse le clic à la vraie case */
   .cm-ui .cm-panel-report .wm-touche { font-size:13px; font-weight:400; }
-  .cm-panel-new { flex-direction:column; align-items:flex-end; }   /* boutons à droite, jamais sur toute la largeur (fiche Touche) */
-  .cm-panel-pied.wm-outils-visibles .cm-panel-new { margin-top:14px; }
-  .cm-ui .cm-new-btn { width:auto; }
 
   /* Visionneuse (fiche Visionneuse) : fenêtre witmit centrée, sans voile ; le site reste visible autour.
      .cm-lightbox ne prend aucun clic (le clic à côté atteint la page, où il ferme la visionneuse). */
@@ -1051,7 +1015,7 @@
   .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
   .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
   .cm-status .wm-insecable { white-space:nowrap; }   /* « ?witmit=on » jamais coupé (lot 10 bis, N1) */
-  @media (max-width:480px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
+  @media (max-width:479.98px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
   /* Entre 481 et 680 px, liste fermée, un message centré atteindrait les deux boutons du coin : il monte aussi à 84 px
      (fiche BoutonWitmit : les deux boutons restent toujours visibles). Liste ouverte : placerStatus(). */
   @media (min-width:481px) and (max-width:680px) { .cm-status { bottom:84px; } }
@@ -1060,26 +1024,17 @@
   var HTML = `
 <div class="cm-frame cm-ui" id="cmFrame"></div>
 
-<div class="cm-pill cm-ui" id="cmPill" role="region" aria-label="witmit : mode annotation">
-  <div class="wm-bandeau-corps">
-    <span class="cm-drag-handle wm-poignee" title="glisse pour déplacer le bandeau">${icone('DotsSixVertical', 16)}</span>
-    <span class="wm-bandeau-mode"><span class="wm-voyant" aria-hidden="true"></span>annotation</span>
-    <button type="button" class="wm-touche wm-principale wm-petite wm-terminer" onclick="cmTerminer()" aria-keyshortcuts="Escape" title="terminer l'annotation · échap ou ${RACC_ANNOTER}">terminer</button>
-  </div>
-</div>
-
 <div class="cm-panel cm-ui" id="cmPanel" role="region" aria-label="witmit : tes retours sur cette page">
   <div class="cm-panel-head">
     <div class="cm-panel-head-row">
-      <span class="cm-panel-titre">En marge de cette page</span>
-      <button type="button" class="wm-cercle cm-panel-fermer" onclick="cmTogglePanel(false)" aria-label="fermer" title="fermer">${icone('X', 14)}</button>
+      <span class="cm-panel-mot" role="img" aria-label="witmit">${MOT_WITMIT}</span>
+      <button type="button" class="wm-cercle cm-panel-reduire" onclick="cmReduire()" aria-label="réduire witmit" aria-keyshortcuts="Escape" title="réduire witmit · ${RACC_CACHER} pour le cacher">${icone('ArrowLineRight', 15)}</button>
     </div>
     <div class="cm-panel-author" id="cmAuthor" hidden></div>
     <div class="cm-panel-sub" id="cmPanelSub"></div>
     <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
     <div class="cm-panel-filtres">
       <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
-      <button type="button" class="cm-filtre cm-hide-widget" onclick="cmReveal(false)" id="cmHideBtn" title="cacher witmit sur ce site. pour le retrouver : ${RACC_DOUBLE_ALT}, ou ?witmit=on dans l'adresse" hidden>${icone('EyeSlash', 14)}masquer witmit<span class="wm-lu"> ${IS_MAC ? 'option' : 'alt'} deux fois</span></button>
     </div>
   </div>
   <div class="cm-panel-list" id="cmList" aria-label="tes retours sur cette page"></div>
@@ -1100,22 +1055,18 @@
       <button type="button" class="wm-touche wm-petite" onclick="cmCopy()">${icone('Copy', 14)}copier</button>
       <button type="button" class="wm-touche wm-petite" onclick="cmSendMail()">${icone('EnvelopeSimple', 14)}envoyer par email</button>
     </div>
-    <div class="cm-panel-foot cm-panel-new">
-      <button type="button" class="wm-touche wm-principale cm-new-btn" onclick="cmNouveauRetour()" id="cmNewBtn" aria-keyshortcuts="N" title="nouveau retour : N, ou ${RACC_ANNOTER} de n'importe où sur la page">nouveau retour</button>
-    </div>
+    <p class="cm-panel-aide" id="cmPanelAide">clique un élément de la page pour laisser un retour<span>glisser : une zone · échap : réduire witmit</span></p>
   </div>
 </div>
 
 <div class="cm-status cm-ui" id="cmStatus" role="status" aria-live="polite" aria-atomic="true"></div>
 `;
-  /* Signe du bouton witmit : le logo B1 calé à 28 px (fiche Identity, décision de François du 25/10/2026),
-     tracé au pixel entier, repris tel quel de la fiche BoutonWitmit. Couleur du bouton (currentColor) : blanc cassé
-     sur métal sombre, encre sur métal clair. Jamais agrandi ni réduit : il perdrait son calage. */
-  var SIGNE_WITMIT = '<svg class="wm-logo" data-logo="B1" viewBox="0 0 28 28" width="28" height="28" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false">' +
-    '<path d="M0,1 L9,1 L9,4 L3,4 L3,10 L0,10 Z M5,6 L9,6 L9,18 L12,18 L12,11 L16,11 L16,18 L19,18 L19,6 L20,6 L23,9 L23,22 L8,22 L5,19 Z M28,27 L19,27 L19,24 L25,24 L25,18 L28,18 Z"/></svg>';
+  /* Le bouton witmit (fiche BoutonWitmit) : les deux faces du symbole, l'une montrée selon le thème du site, et le voyant
+     « nouveau ». Info-bulle de Léa : les gestes écrits en mots. */
+  var SIGNE_WITMIT = SYMBOLE_CLAIR + SYMBOLE_SOMBRE;
+  var BULLE_BOUTON = IS_MAC ? 'option deux fois : ouvrir · option A : cacher' : 'alt deux fois : ouvrir · alt A : cacher';
   var BUTTONS_HTML = `
-<button type="button" class="wm-bouton wm-bouton-mode cm-ui" onclick="cmToggle()" id="cmToggleBtn" aria-pressed="false" aria-label="mode annotation" aria-keyshortcuts="Alt+A">${icone('CrosshairSimple', 20)}</button>
-<button type="button" class="wm-bouton wm-bouton-witmit cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" aria-expanded="false" aria-controls="cmPanel" aria-label="witmit"><span class="wm-signe">${SIGNE_WITMIT}</span><span class="cm-count-badge" id="cmCount" data-zero="1" aria-hidden="true"></span></button>
+<button type="button" class="wm-bouton-witmit cm-ui" onclick="cmTogglePanel()" id="cmPanelBtn" aria-expanded="false" aria-controls="cmPanel" aria-label="witmit" title="${BULLE_BOUTON}">${SIGNE_WITMIT}<span class="cm-count-badge" id="cmCount" data-zero="1" aria-hidden="true"></span></button>
 `;
 
   /* ---------- habillage des fenêtres (F2, F3) ----------
@@ -1164,7 +1115,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { habilles.slice().forEach(tracerContour); });
   // Réservé aux pages de test du dépôt (planche de la charte) : dessiner les touches et les icônes avec le vrai
   // code. Ce n'est pas une interface publique : elle peut changer sans prévenir.
-  window.witmit._planche = { icone: icone, habiller: habiller, icones: Object.keys(ICONES), signe: SIGNE_WITMIT };
+  window.witmit._planche = { icone: icone, habiller: habiller, icones: Object.keys(ICONES), signe: SIGNE_WITMIT, mot: MOT_WITMIT };
 
   /* Le widget injecte lui-même son style et son interface — la page hôte n'a rien à copier. */
   /* Racine de witmit (voir CORPS) : créée au besoin, remise en place si la page l'a retirée. poser(el) y range une
@@ -1219,26 +1170,34 @@
     var wrap = document.createElement('div');
     wrap.innerHTML = HTML;
     while (wrap.firstChild) poser(wrap.firstChild);
-    habiller(document.getElementById('cmPanel'));
-    habiller(document.getElementById('cmPill'));
+    habiller(document.getElementById('cmPanel'), true);   // 0.4.0 (fiche Tiroir) : plus de coins witmit, la liste porte le mot witmit qui a les siens
     habiller(document.getElementById('cmStatus'), true);   // message passager : trop petit pour les coins witmit
-    if (!document.getElementById('cmToggleBtn')) {
+    // 0.4.0 (fiche BoutonWitmit) : un seul bouton. Une page qui fournit encore les deux boutons des maquettes (C8) : son
+    // #cmPanelBtn reste à sa place mais devient le bouton witmit (le symbole et le voyant, sans son ancien contenu) ; son
+    // #cmToggleBtn, l'ancien bouton du mode, est retiré de l'affichage (plus de second bouton).
+    var pb = document.getElementById('cmPanelBtn');
+    if (!pb) {
       var fab = document.createElement('div');
       fab.className = 'cm-fab cm-ui';
       fab.innerHTML = BUTTONS_HTML;
       poser(fab);
     } else {
-      // Boutons fournis par la page (C8) : adoptés tels quels, contenu compris ; seuls leurs attributs
-      // d'état et leur nom accessible sont posés par witmit (majBoutons).
-      ['cmToggleBtn', 'cmPanelBtn'].forEach(function (id) {
-        var b = document.getElementById(id);
-        if (b) b.setAttribute('data-wm-fourni', 'page');
-      });
-      var pb = document.getElementById('cmPanelBtn');
-      if (pb) pb.setAttribute('aria-controls', 'cmPanel');
-      var tb = document.getElementById('cmToggleBtn');
-      if (tb) { tb.setAttribute('aria-label', 'mode annotation'); tb.setAttribute('aria-keyshortcuts', 'Alt+A'); }
+      var voyant = pb.querySelector('#cmCount');
+      pb.setAttribute('data-wm-fourni', 'page');
+      pb.classList.remove('cm-toggle-btn');
+      pb.classList.add('wm-bouton-witmit', 'cm-ui');
+      pb.innerHTML = SIGNE_WITMIT;
+      if (!voyant) { voyant = document.createElement('span'); voyant.id = 'cmCount'; voyant.setAttribute('data-zero', '1'); }
+      voyant.className = 'cm-count-badge';
+      voyant.setAttribute('aria-hidden', 'true');
+      pb.appendChild(voyant);
+      pb.setAttribute('type', 'button');
+      pb.setAttribute('aria-controls', 'cmPanel');
+      pb.title = BULLE_BOUTON;
+      pb.onclick = function () { cmTogglePanel(); };
     }
+    var tb = document.getElementById('cmToggleBtn');
+    if (tb) { tb.setAttribute('data-wm-fourni', 'page'); tb.hidden = true; tb.style.setProperty('display', 'none', 'important'); }
     REPERES = document.createElement('div'); REPERES.id = 'wmReperes'; REPERES.className = 'wm-reperes';
     poser(REPERES);
   }
@@ -1433,41 +1392,47 @@
   var STORAGE_KEY = 'witmit_' + CONFIG.project + '_v1'; // PARTAGÉ entre toutes les pages du projet ouvertes dans le même navigateur
   var EMAIL_TO = CONFIG.email;
 
-  /* ---------- mode live : widget invisible par défaut sur un site en production ----------
-     Révélé par le raccourci (⌥ deux fois / alt deux fois) ou par ?witmit=on dans l'URL, mémorisé dans le navigateur
-     (clé REVEAL_KEY) ; ?witmit=off ou le bouton « Masquer witmit » du tiroir le cache et oublie.
-     Le paramètre d'URL est retiré aussitôt pour ne pas traîner dans les liens copiés. */
+  /* ---------- witmit caché ou montré (0.4.0 : R27 et f1, fiches BoutonWitmit et Bandeau) ----------
+     ⌥+A (alt+A hors Mac) cache witmit entièrement, ou le fait réapparaître (bouton au repos) ; le choix est mémorisé
+     dans le navigateur (clé REVEAL_KEY : '1' montré, '0' caché ; sans valeur : caché en mode live, montré en maquette).
+     ?witmit=on et ?witmit=off dans l'adresse font de même (paramètre retiré aussitôt de l'adresse). ⌥ deux fois, witmit
+     caché, le fait apparaître le temps d'un retour, sans rien mémoriser : il s'ouvre d'un coup, et en se repliant
+     (« réduire » ou Échap) il redevient caché. Même règle dans les deux modes. */
   var REVEAL_KEY = 'witmit_' + CONFIG.project + '_reveal';
   var LIVE = CONFIG.mode === 'live';
+  var reveleParAlt = false;   // witmit caché, ouvert par ⌥ deux fois : il redeviendra caché au repli
   function isRevealed() {
-    if (!LIVE) return true;
-    try { return localStorage.getItem(REVEAL_KEY) === '1'; } catch (e) { return false; }
+    var v = null;
+    try { v = localStorage.getItem(REVEAL_KEY); } catch (e) {}
+    if (v === '1') return true;
+    if (v === '0') return false;
+    return !LIVE;
   }
+  function memoriserRevele(on) {   // live : caché = la clé oubliée (comme en 0.3.0) ; maquette : '0'
+    try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else if (LIVE) localStorage.removeItem(REVEAL_KEY); else localStorage.setItem(REVEAL_KEY, '0'); } catch (e) {}
+  }
+  function estCache() { return document.body.classList.contains('cm-concealed'); }
   function applyReveal(on) {
     etatCorps('cm-concealed', !on);
-    var hideBtn = document.getElementById('cmHideBtn');
-    if (hideBtn) hideBtn.hidden = !LIVE;
   }
-  /* Montrer (⌥ deux fois, ?witmit=on) : seuls les deux boutons apparaissent — liste fermée, mode éteint, aucune
-     fenêtre (K1). Cacher (⌥ deux fois, « masquer witmit ») : tout se ferme et s'oublie, après un message qui dit
-     comment revenir ; ce message reste lisible malgré le masquage (Léa 45). */
+  /* Cacher (⌥+A, ?witmit=off) : tout se replie et s'oublie, après un message qui dit comment revenir ; ce message reste
+     lisible malgré le masquage (Léa 45). Montrer (⌥+A, ?witmit=on) : le bouton seul, au repos. */
   window.cmReveal = function (on) {
-    if (!LIVE) return;
     on = on !== false;
-    try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
-    closePopup(true); cmToggle(false); cmTogglePanel(false);
+    reveleParAlt = false;
+    memoriserRevele(on);
+    if (!on) cmReduire(true);
     // « ?witmit=on » d'un seul tenant (Paula, lot 10 bis, N1) : jamais coupé après le « ? ».
-    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_DOUBLE_ALT + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000, insecable: '?witmit=on' });   // 6 s, comme un échec (Léa)
+    if (!on) cmStatus('witmit est masqué. pour le retrouver : ' + RACC_CACHER + ", ou ?witmit=on dans l'adresse.", { masquage: true, duree: 6000, insecable: '?witmit=on' });   // 6 s, comme un échec (Léa)
     else retirerMessageMasquage();   // N2 : witmit revient, le message qui disait comment le retrouver n'a plus lieu d'être
     applyReveal(on);
   };
   function readUrlSwitch() {
-    if (!LIVE || !location.search) return;
+    if (!location.search) return;
     var params = new URLSearchParams(location.search);
     var v = params.get('witmit');
     if (v === null) return;
-    var on = /^(on|1|oui|true)$/i.test(v);
-    try { if (on) localStorage.setItem(REVEAL_KEY, '1'); else localStorage.removeItem(REVEAL_KEY); } catch (e) {}
+    memoriserRevele(/^(on|1|oui|true)$/i.test(v));
     params.delete('witmit');
     var qs = params.toString();
     try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
@@ -2709,9 +2674,9 @@
   function clavierDeLaListe(e) {
     var ae = document.activeElement;
     var panel = document.getElementById('cmPanel');
-    // (Les deux boutons ronds comptent : on ouvre souvent la liste par le bouton witmit, puis on descend aux flèches.)
+    // (Le bouton witmit compte : on ouvre souvent witmit par lui, puis on descend aux flèches.)
     var dansListe = !ae || ae === document.body || ae === document.documentElement || (panel && panel.contains(ae)) ||
-      !!(ae.closest && ae.closest('#cmPanelBtn, #cmToggleBtn'));
+      !!(ae.closest && ae.closest('#cmPanelBtn'));
     if (!dansListe) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       var items = Array.prototype.slice.call(document.querySelectorAll('#cmList .cm-panel-item'));
@@ -3389,9 +3354,6 @@
       r.epingle = el.classList.contains('cm-pin');
       out.push(r);
     }
-    // Le bandeau du mode annotation (et son « terminer ») : pas plus recouvrable qu'une épingle (lot 8, Paula É1).
-    var pill = document.getElementById('cmPill');
-    if (pill && pill.classList.contains('show') && pill.getClientRects().length) { var rp = rectOf(pill); rp.epingle = true; out.push(rp); }
     return out;
   }
   var POIDS_EPINGLE = 1e7;
@@ -3402,6 +3364,9 @@
   function placePopup(pop, R, fallbackX, fallbackY, meta) {
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    // 0.4.0 : la liste est toujours ouverte pendant le mode ; la fenêtre reste dans la page visible, à gauche de la liste.
+    var panneau = document.getElementById('cmPanel');
+    if (listeOuverte() && panneau && panneau.offsetWidth < vw - 200) vw -= panneau.offsetWidth;
     // Règle de largeur (M1) : 340 px (V2), jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
     // comprise, que 100vw ne retire pas).
     if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
@@ -3764,8 +3729,7 @@
   }
 
   function onMouseDown(e) {
-    if (!active || inUi(e.target)) return;
-    if (swallowClick) { e.preventDefault(); dragging = false; return; } // ce clic a servi à fermer le tiroir
+    if (!active || etroit || inUi(e.target)) return;
     // Clic sur un autre élément pendant la saisie : il remplacerait la fenêtre ouverte. Confirmation si son
     // texte n'est pas parti (décision d'Enzo du 25/10) ; refusée, le clic ne fait rien. ⌘/ctrl+clic ajoute
     // un élément à la fenêtre en cours sans la fermer : pas de question.
@@ -3826,8 +3790,7 @@
   }
 
   function onMouseUp(e) {
-    if (swallowClick) { swallowClick = false; dragging = false; return; }
-    if (!active || !dragging) { dragging = false; return; }
+    if (!active || etroit || !dragging) { dragging = false; return; }
     dragging = false;
     var s = window.getSelection();
     if (s) s.removeAllRanges();
@@ -3959,7 +3922,7 @@
   }
 
   function onClickCapture(e) {
-    if (!active) return;
+    if (!active || etroit) return;
     if (inUi(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
@@ -3978,8 +3941,8 @@
     return !!(texte && texte !== avant) || !!(rep && rep.value.trim());
   }
   /* Confirmation de Léa (3.9, décision 34) quand un geste qui vise autre chose ferme une fenêtre au texte
-     non parti : bouton witmit, bouton du mode, ⌥+A, ⌥ deux fois, « terminer », clic sur un autre élément pendant
-     la saisie (décision d'Enzo du 25/10). Jamais pour échap ni « annuler ». */
+     non parti : « réduire », ⌥+A, ⌥ deux fois, clic sur un autre élément pendant la saisie (décision d'Enzo du 25/10).
+     Jamais pour échap ni « annuler ». */
   function confirmerAbandon() {
     return !fenetreModifiee() || window.confirm("fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.");
   }
@@ -3987,26 +3950,15 @@
     var panel = document.getElementById('cmPanel');
     return !!(panel && panel.classList.contains('show'));
   }
-  /* État des deux boutons (C6, Léa 3.1) : bouton du mode enfoncé = mode actif (aria-pressed), bouton witmit
-     enfoncé = liste ouverte (aria-expanded), quel que soit le geste qui a changé l'état. */
+  /* État du bouton witmit (fiche BoutonWitmit) : aria-expanded suit l'état de witmit (ouvert ou replié) ; son nom
+     accessible dit le nombre de nouveaux retours. Pas d'état enfoncé : ouvert, il a quitté la page. */
   function majBoutons() {
-    var tb = document.getElementById('cmToggleBtn');
-    if (tb) {
-      tb.setAttribute('aria-pressed', active ? 'true' : 'false');
-      tb.classList.toggle('cm-on', active);
-      tb.title = active ? "terminer l'annotation · " + RACC_ANNOTER + ' ou échap' : 'mode annotation · ' + RACC_ANNOTER;
-      // Boutons fournis par une maquette : leurs deux faces (💬 / ✕) suivent le mode, s'ils les ont.
-      var off = tb.querySelector('.cm-btn-off'), on = tb.querySelector('.cm-btn-on');
-      if (off) off.style.display = active ? 'none' : 'inline';
-      if (on) on.style.display = active ? 'inline' : 'none';
-    }
     var pb = document.getElementById('cmPanelBtn');
     if (pb) {
       var ouverte = listeOuverte();
       pb.setAttribute('aria-expanded', ouverte ? 'true' : 'false');
       pb.removeAttribute('aria-pressed');
-      pb.classList.toggle('cm-on', ouverte);
-      pb.title = 'witmit : tes retours sur cette page';
+      pb.title = BULLE_BOUTON;
       pb.setAttribute('aria-label', nomBoutonWitmit());
     }
   }
@@ -4017,146 +3969,122 @@
     return 'witmit, ' + nbNouveaux + (nbNouveaux > 1 ? ' nouveaux retours' : ' nouveau retour');
   }
 
-  /* Mode annotation. cmToggle(true | false) : réglage direct (clic sur une ligne de la liste, révélation,
-     Échap…). cmToggle() sans argument : le geste du bouton du mode et de ⌥+A (K1) — lancer le mode ferme
-     la liste ; l'arrêter ferme la fenêtre, après confirmation si son texte n'est pas parti. */
-  window.cmToggle = function (force) {
-    var geste = typeof force !== 'boolean';
-    var cible = geste ? !active : force;
-    if (geste && !cible && !confirmerAbandon()) return;
-    if (geste && cible && listeOuverte()) cmTogglePanel(false);
-    active = cible;
+  /* ---------- ouvrir et réduire witmit (0.4.0 : fiches BoutonWitmit, Bandeau et Tiroir ; décisions f1 et R27) ----------
+     La liste et le mode annotation s'ouvrent et se replient ENSEMBLE : un clic sur le bouton witmit ou ⌥ deux fois ouvre
+     tout d'un coup (la liste sort à droite et pousse la page, le halo s'allume, le bouton quitte la page) ; « réduire » ou
+     Échap replient tout (la liste rentre, le halo s'éteint, le bouton revient, le focus aussi). Un clic hors de la liste ne
+     ferme rien : sur la page, il vise un élément. cmToggle(force) et cmTogglePanel(force), noms de 0.3.0 gardés pour
+     les boutons fournis par les pages et les appels internes, font désormais la même chose : true ouvre, false replie,
+     sans argument bascule (geste : confirmation si une fenêtre a un texte non parti). */
+  function poserMode(on) {
+    active = on;
     etatCorps('cm-active', active);
-    document.getElementById('cmFrame').classList.toggle('show', active);
-    document.getElementById('cmPill').classList.toggle('show', active);
-    placerBandeau();
+    var cadre = document.getElementById('cmFrame');
+    if (cadre) cadre.classList.toggle('show', active);
     // Les repères ne se dessinent qu'en mode annotation : les épingles sont replacées d'après la page telle
     // qu'elle est maintenant (elle a pu bouger pendant que les repères étaient cachés).
     if (active) renderMarkers();
-    if (!active) {
+    else {
       clearTimeout(clickTimer);
       closePopup(true);
       if (dragBoxEl) { dragBoxEl.remove(); dragBoxEl = null; }
       dragging = false;
       var s = window.getSelection(); if (s) s.removeAllRanges();
     }
-    majBoutons();
-  };
-  /* « terminer » du bandeau : arrête le mode (confirmation si la fenêtre a un texte non parti). */
-  window.cmTerminer = function () {
-    if (!confirmerAbandon()) return;
-    cmToggle(false);
-  };
-  /* Touche « nouveau retour » et touche N (liste ouverte) : ferme la liste et lance le mode, ne l'arrête jamais. */
-  window.cmNouveauRetour = function () {
-    if (listeOuverte()) cmTogglePanel(false);
-    if (!active) cmToggle(true);
-  };
-
-  /* Liste. cmTogglePanel() sans argument : le geste du bouton witmit — il ouvre ou ferme la liste, rien
-     d'autre (le mode actif continue) ; ouvrir ferme la fenêtre, après confirmation si son texte n'est pas
-     parti. Liste ouverte, les deux boutons passent à sa gauche, toujours visibles et cliquables. */
-  window.cmTogglePanel = function (force) {
+  }
+  function poserListe(show) {
     var panel = document.getElementById('cmPanel');
-    var show = (typeof force === 'boolean') ? force : !panel.classList.contains('show');
-    if (typeof force !== 'boolean' && show && !confirmerAbandon()) return;
     if (show) {
       applyTheme();
-      // Ouvrir le tiroir abandonne une bulle non enregistrée (et un clic simple encore en attente)
       clearTimeout(clickTimer); clickTimer = null;
       closePopup(true);
       flushPending(); refreshStatuses();
     }
     var etaitOuverte = panel.classList.contains('show');
-    var focusDedans = etaitOuverte && !show && panel.contains(document.activeElement);
+    var focusDedans = etaitOuverte && !show && (panel.contains(document.activeElement) || !document.activeElement || document.activeElement === document.body);
     panel.classList.toggle('show', show);
+    etatCorps('cm-ouvert', show);
     if (!show && !pendingPopup) setFocused(null);
-    if (!show && etaitOuverte) marquerVus();                      // le voyant s'éteint quand on ferme la liste après l'avoir vue (C5)
-    // Mode « pousser » au-dessus de 480 px (C7) ; en dessous, la liste couvre l'écran sans pousser la page (M1).
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    if (CONFIG.drawer === 'push') pushPage(show && !etroit ? panel.offsetWidth : 0);
+    if (!show && etaitOuverte) marquerVus();                      // le voyant s'éteint quand on replie après avoir vu la liste (C5)
+    if (CONFIG.drawer === 'push') pushPage(show ? panel.offsetWidth : 0);
     placerBoutons();
-    placerBandeau();
     placerStatus();
+    couperReperes();
     majBoutons();
-    // Liste fermée alors que le focus y était (Échap, croix, « nouveau retour ») : il revient au bouton witmit, pas à la page.
+    // witmit replié alors que le focus était dans la liste (Échap, « réduire ») : il revient au bouton witmit, pas à la page.
     if (focusDedans) { var pbf = document.getElementById('cmPanelBtn'); if (pbf) { try { pbf.focus({ preventScroll: true }); } catch (e) { pbf.focus(); } } }
+  }
+  /* Ouvrir : witmit caché apparaît (sans rien mémoriser si c'est ⌥ deux fois : il redeviendra caché au repli). */
+  window.cmOuvrir = function (parAlt) {
+    if (etroit) return;                                            // sous 480 px : witmit est désactivé
+    if (estCache()) { reveleParAlt = !!parAlt; retirerMessageMasquage(); applyReveal(true); }
+    if (!listeOuverte()) poserListe(true);
+    if (!active) poserMode(true);
   };
-  /* Boutons ronds fournis par la page (C8) : sous 480 px, liste ouverte, la liste couvre l'écran et ils doivent passer
-     par-dessus elle (fiches Mobile et BoutonWitmit ; défaut de 0.2.0). La liste vit dans la racine de witmit, hors de
-     <body> : un bloc de la page ne peut pas passer devant elle quand <body> est un contexte d'empilement (TellUs). witmit
-     prend donc les deux boutons qu'elle a adoptés dans un bloc à lui (.cm-fab.wm-fab-fourni), posé comme ses propres
-     boutons, et les rend à leur place exacte (même parent, même voisin) dès que la liste se ferme ou que l'écran s'élargit.
-     Les autres éléments du bloc de la page restent avec la page, sous la liste (lot 8, Léa É1). */
-  var adoptes = null;   // { fab, places: [{ el, parent, suivant }] }
-  function rendreBoutonsFournis() {
-    if (!adoptes) return;
-    var a = adoptes; adoptes = null;
-    var focus = document.activeElement;
-    a.places.slice().reverse().forEach(function (p) {
-      if (!p.parent.isConnected) return;
-      p.parent.insertBefore(p.el, p.suivant && p.suivant.parentNode === p.parent ? p.suivant : null);
-    });
-    a.fab.remove();
-    if (focus && a.places.some(function (p) { return p.el === focus; })) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
-  }
-  function prendreBoutonsFournis() {
-    var bs = ['cmToggleBtn', 'cmPanelBtn'].map(function (id) { return document.getElementById(id); })
-      .filter(function (b) { return b && b.getAttribute('data-wm-fourni') === 'page'; });
-    if (!bs.length) return;
-    var focus = document.activeElement;
-    var fab = document.createElement('div');
-    fab.className = 'cm-fab cm-ui wm-fab-fourni';
-    adoptes = { fab: fab, places: bs.map(function (b) { return { el: b, parent: b.parentNode, suivant: b.nextSibling }; }) };
-    bs.forEach(function (b) { fab.appendChild(b); });
-    poser(fab);
-    if (focus && bs.indexOf(focus) >= 0) { try { focus.focus({ preventScroll: true }); } catch (e) {} }
-  }
-  /* Place des deux boutons ronds (ceux de witmit, ou ceux de la page qu'il a pris) : liste fermée, dans leur coin ; liste
-     ouverte au-dessus de 480 px, à 24 px à gauche d'elle ; sous 480 px, la liste couvre l'écran : à 16 px du bord droit
-     (fiches BoutonWitmit et Mobile ; Paula É3), au-dessus de son pied, ou de l'encart « coller un retour » quand il est
-     ouvert, et la liste des retours réserve en bas la hauteur des boutons + 12 px, et au moins les 76 px de la fiche Mobile,
-     pour que rien n’y soit caché (Léa É1). */
+  /* Réduire (« réduire », Échap) : tout se replie ; witmit révélé par ⌥ deux fois redevient caché. sansConfirmer : le
+     texte d'une fenêtre ouverte est abandonné sans question (Échap, masquage). */
+  window.cmReduire = function (sansConfirmer) {
+    if (sansConfirmer !== true && !confirmerAbandon()) return false;
+    if (active) poserMode(false);
+    if (listeOuverte()) poserListe(false);
+    if (reveleParAlt) { reveleParAlt = false; applyReveal(false); }
+    return true;
+  };
+  function witmitOuvert() { return listeOuverte() || active; }
+  window.cmToggle = function (force) {
+    if (force === true) return cmOuvrir();
+    if (force === false) return cmReduire(true);
+    if (witmitOuvert()) cmReduire(); else cmOuvrir();
+  };
+  window.cmTogglePanel = window.cmToggle;
+
+  /* Le bouton witmit (le sien ou celui fourni par la page) : à sa place, liste fermée ; caché, liste ouverte (CSS). */
   function placerBoutons() {
-    var etroit = !!(window.matchMedia && window.matchMedia('(max-width:480px)').matches);
-    var ouverte = listeOuverte();
-    if (ouverte && etroit) { if (!adoptes) prendreBoutonsFournis(); } else rendreBoutonsFournis();
-    var liste = document.getElementById('cmList');
-    if (liste) { liste.style.paddingBottom = ''; liste.style.scrollPaddingBottom = ''; }
     var fab = document.querySelector('.cm-fab');
-    if (!fab) return;
-    var panel = document.getElementById('cmPanel');
-    if (!ouverte) { fab.style.right = ''; fab.style.bottom = ''; fab.classList.remove('wm-decale'); return; }
-    fab.classList.add('wm-decale');
-    if (etroit) {
-      var encart = document.getElementById('cmFeedbackBox');
-      var dessous = encart && !encart.hidden && encart.getClientRects().length ? encart : document.getElementById('cmPanelPied');
-      fab.style.bottom = dessous ? Math.round(window.innerHeight - dessous.getBoundingClientRect().top + 12) + 'px' : '';
-      fab.style.right = '16px';
-      if (liste) { var reserve = Math.max(76, fab.offsetHeight + 12); liste.style.paddingBottom = reserve + 'px'; liste.style.scrollPaddingBottom = reserve + 'px'; }
-      return;
-    }
-    fab.style.bottom = '';
-    // À 24 px à gauche de la liste ; sur un écran trop étroit pour les loger à côté, au plus près du bord gauche.
-    var vw = document.documentElement.clientWidth;
-    var right = Math.min(panel.offsetWidth + 24, vw - fab.offsetWidth - 16);
-    fab.style.right = Math.max(24, right) + 'px';
+    if (fab) { fab.style.right = ''; fab.style.bottom = ''; }
   }
-  window.addEventListener('resize', placerBoutons);
-  /* Message passager, liste ouverte sur ordinateur : il monte à 84 px du bas (au-dessus des deux boutons, décalés à
-     gauche de la liste) et se centre dans l'espace libre à gauche de la liste, comme le bandeau (placeLibreBandeau).
-     Liste fermée ou écran étroit : la règle CSS (20 px, ou 84 px sous 680 px). */
+  /* Message passager, witmit ouvert : il se centre dans la page visible, à gauche de la liste. Replié : la règle CSS. */
+  function placeLibre() {
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var panel = document.getElementById('cmPanel');
+    var libre = vw;
+    if (listeOuverte() && panel) libre = vw - panel.offsetWidth - 8;
+    return libre < 360 ? vw : libre;
+  }
   function placerStatus() {
     var el = document.getElementById('cmStatus');
     if (!el) return;
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    if (!listeOuverte() || etroit) { el.style.bottom = ''; el.style.left = ''; el.style.maxWidth = ''; return; }
-    var libre = placeLibreBandeau();
-    el.style.bottom = '84px';
+    if (!listeOuverte()) { el.style.bottom = ''; el.style.left = ''; el.style.maxWidth = ''; return; }
+    var libre = placeLibre();
     el.style.left = Math.round(libre / 2) + 'px';
     el.style.maxWidth = 'min(420px, ' + Math.max(200, libre - 16) + 'px)';
   }
   window.addEventListener('resize', placerStatus);
+
+  /* ---------- sous 480 px de large : witmit désactivé (fiche Mobile, décision du 02/11) ----------
+     Rien à l'écran (ni bouton, ni liste, ni halo, ni repères, ni présélection), la page n'est pas rétrécie, aucun
+     raccourci ne répond. witmit ouvert qui passe sous 480 px : tout se retire aussitôt, mais rien n'est oublié ; une
+     fenêtre de commentaire en cours garde son texte. Au-dessus de 480 px (480 compris), witmit reprend l'état où il était
+     (caché, replié ou ouvert). */
+  var etroit = false;
+  var MQ_ETROIT = window.matchMedia ? window.matchMedia('(max-width:479.98px)') : null;
+  function appliquerEtroit() {
+    var e = !!(MQ_ETROIT && MQ_ETROIT.matches);
+    if (e === etroit) return;
+    etroit = e;
+    etatCorps('wm-etroit', etroit);
+    var panel = document.getElementById('cmPanel');
+    if (etroit) {
+      annulerDoubleAlt();
+      etatCorps('cm-active', false);                              // plus de curseur en croix ni de clic visé sur la page
+      if (CONFIG.drawer === 'push') pushPage(0);
+    } else {
+      if (active) etatCorps('cm-active', true);
+      if (CONFIG.drawer === 'push' && listeOuverte() && panel) pushPage(panel.offsetWidth);
+      if (active) renderMarkers();
+    }
+  }
+  if (MQ_ETROIT) { if (MQ_ETROIT.addEventListener) MQ_ETROIT.addEventListener('change', appliquerEtroit); else if (MQ_ETROIT.addListener) MQ_ETROIT.addListener(appliquerEtroit); }
 
   /* ---------- le tiroir POUSSE la page au lieu de la recouvrir ----------
      Une page ne peut pas rétrécir sa propre fenêtre (seule une extension de navigateur le peut) :
@@ -4211,126 +4139,18 @@
   window.addEventListener('resize', function () {
     if (!pushWidth) return;
     var panel = document.getElementById('cmPanel');
-    pushPage(window.matchMedia && window.matchMedia('(max-width:480px)').matches ? 0 : (panel ? panel.offsetWidth : pushWidth));
+    pushPage(window.matchMedia && window.matchMedia('(max-width:479.98px)').matches ? 0 : (panel ? panel.offsetWidth : pushWidth));
   });
 
-  // Un clic en dehors du tiroir "Commentaires" le referme — et ne fait QUE ça : il ne crée pas
-  // d'annotation (ce listener est enregistré avant onMouseDown, il passe donc en premier).
-  var swallowClick = false;
-  document.addEventListener('mousedown', function (e) {
-    var panel = document.getElementById('cmPanel');
-    if (!panel || !panel.classList.contains('show')) return;
-    if (panel.contains(e.target)) return;
-    if (e.target.closest && e.target.closest('#cmPanelBtn, #cmToggleBtn, .cm-lightbox, #cmPill')) return;   // la visionneuse s'ouvre par-dessus la liste ; le bandeau (« terminer », poignée) n'est pas un dehors (lot 7, Léa É1) ; le viseur non plus : il lance le mode, liste ouverte (lot 8)
-    cmTogglePanel(false);
-    swallowClick = active && !inUi(e.target);
-  }, true);
+  // 0.4.0 : un clic hors de la liste ne la ferme plus (fiches Tiroir et Bandeau) ; sur la page, il vise un élément. Plus de
+  // bandeau du mode annotation (fiche Bandeau) : ni place, ni déplacement à gérer.
 
-  /* ---------- bandeau du mode annotation : place et déplacement (fiche Bandeau) ----------
-     Une seule ligne, partout (décision b3). Centré sur la place libre, à 12 px sous la barre de navigation (CSS).
-     Liste ouverte (au-dessus de 480 px), la place libre s'arrête à la liste : le bandeau se centre à sa gauche et
-     ne la recouvre pas, comme les deux boutons qui passent à sa gauche (relecture du lot 1). Déplacé par la
-     poignée, il garde sa position (witmit_pill_pos), ramenée dans la place libre sans l'écraser.
-     Liste ouverte sans place pour lui à côté (liste pleine largeur sous 480 px, ou page restante plus étroite que
-     le bandeau plus 2 × 24 px d’air) : il se pose en haut de la liste, de 8 px à 8 px de ses bords (fiche Mobile), et la liste
-     descend d'autant (wm-sous-bandeau) : il ne recouvre ni la tête de la liste, ni sa croix « fermer », ni ses
-     retours (lot 7 ; la fiche Bandeau renvoie ce cas à la fiche Mobile, qui le laisse ouvert). */
-  var PILL_POS_KEY = 'witmit_pill_pos';
-  var posBandeau = null;
-  try {
-    var posLue = JSON.parse(localStorage.getItem(PILL_POS_KEY) || 'null');
-    if (posLue && typeof posLue.left === 'number' && typeof posLue.top === 'number') posBandeau = posLue;
-  } catch (e) {}
-  function placeLibreBandeau() {
-    var vw = document.documentElement.clientWidth || window.innerWidth;
-    var panel = document.getElementById('cmPanel');
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    var libre = vw;
-    if (listeOuverte() && !etroit && panel) libre = vw - panel.offsetWidth - 8;
-    return libre < 360 ? vw : libre;   // trop peu de place à côté de la liste : par-dessus, comme avant
-  }
-  function placerBandeau() {
-    var pill = document.getElementById('cmPill');
-    var panel = document.getElementById('cmPanel');
-    var montre = !!(pill && pill.classList.contains('show'));
-    // page : la page visible (rétrécie, liste ouverte) ; libre : la place où le bandeau peut être déplacé (8 px avant la liste).
-    var surListe = false, vw = document.documentElement.clientWidth || window.innerWidth, page = vw, libre = vw;
-    var etroit = window.matchMedia && window.matchMedia('(max-width:480px)').matches;
-    var cadre = document.getElementById('cmFrame');
-    if (cadre) cadre.classList.toggle('wm-sous-liste', !!(listeOuverte() && etroit));
-    couperReperes();
-    if (montre) {
-      pill.classList.remove('wm-sur-liste');
-      pill.style.width = ''; pill.style.maxWidth = '';
-      pill.style.left = '0px'; pill.style.transform = 'none';
-      if (listeOuverte() && panel) {
-        if (!etroit) { page = vw - panel.offsetWidth; libre = page - 8; }
-        surListe = etroit || pill.offsetWidth + 48 > page;   // moins de 24 px d'air de chaque côté : sur la liste (Paula É4, lot 8)
-      }
-    }
-    if (panel) panel.classList.toggle('wm-sous-bandeau', surListe);
-    if (!montre) return;
-    // Posé sur la liste, il ne se déplace pas : la poignée perd son info-bulle, rendue mot pour mot ensuite (Léa É2).
-    var poignee = pill.querySelector('.wm-poignee');
-    if (poignee) { if (surListe) poignee.removeAttribute('title'); else poignee.setAttribute('title', 'glisse pour déplacer le bandeau'); }
-    if (surListe) {
-      var lw = Math.min(panel.offsetWidth, vw);
-      pill.classList.add('wm-sur-liste');
-      pill.style.left = (vw - lw + 8) + 'px';
-      pill.style.width = (lw - 16) + 'px';
-      pill.style.top = '8px';
-      return;
-    }
-    pill.style.maxWidth = (page - 16) + 'px';
-    var w = pill.offsetWidth, h = pill.offsetHeight;
-    var left, top = null;
-    if (posBandeau) {
-      left = Math.max(4, Math.min(posBandeau.left, libre - w - 4));
-      top = Math.max(4, Math.min(posBandeau.top, window.innerHeight - h - 4));
-    } else left = Math.max(8, Math.round((page - w) / 2));   // centré sur la page visible (Paula É2)
-    pill.style.left = left + 'px';
-    pill.style.top = top === null ? '' : top + 'px';
-  }
-  window.addEventListener('resize', placerBandeau);
-  // Une police du système peut finir de se charger après coup : la largeur du bandeau change.
-  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', placerBandeau);
-
-  (function initPillDrag() {
-    var pill = document.getElementById('cmPill');
-    if (!pill) return;
-    var dragOffset = null;
-    pill.addEventListener('pointerdown', function (e) {
-      if (e.target.closest && e.target.closest('button')) return;
-      if (pill.classList.contains('wm-sur-liste')) return;   // posé en haut de la liste : il reste à sa place
-      var rect = pill.getBoundingClientRect();
-      dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      pill.classList.add('cm-dragging');
-      try { pill.setPointerCapture(e.pointerId); } catch (err) {}
-      e.preventDefault();
-    });
-    pill.addEventListener('pointermove', function (e) {
-      if (!dragOffset) return;
-      var left = Math.max(4, Math.min(e.clientX - dragOffset.x, window.innerWidth - pill.offsetWidth - 4));
-      var top = Math.max(4, Math.min(e.clientY - dragOffset.y, window.innerHeight - pill.offsetHeight - 4));
-      pill.style.left = left + 'px'; pill.style.top = top + 'px'; pill.style.transform = 'none';
-    });
-    function endDrag() {
-      if (!dragOffset) return;
-      dragOffset = null;
-      pill.classList.remove('cm-dragging');
-      var r = pill.getBoundingClientRect();
-      posBandeau = { left: r.left, top: r.top };
-      try { localStorage.setItem(PILL_POS_KEY, JSON.stringify(posBandeau)); } catch (err) {}
-    }
-    pill.addEventListener('pointerup', endDrag);
-    pill.addEventListener('pointercancel', endDrag);
-  })();
-
-  /* ---------- raccourcis (K1 à K6) ----------
-     ⌥ deux fois / alt deux fois (live) montre et cache witmit (décision de François du 25/10 après-midi, à
-     la place de l'ancien raccourci avec la lettre W, voisin de ⌘+W qui ferme l'onglet) ; ⌥+A / alt+A lance et arrête le mode annotation (witmit
-     caché : rien, la touche reste au site) ; N, liste ouverte, ferme la liste et lance le mode ; Échap ferme
-     une couche à la fois. Pour ⌥+A, on lit la LETTRE produite par la touche (e.key), pas sa position : sur un
+  /* ---------- raccourcis (0.4.0 : décisions f1 et R27) ----------
+     ⌥ deux fois / alt deux fois ouvre witmit d'un coup, liste et mode annotation, et le fait apparaître s'il était
+     caché (le temps du retour : il redevient caché au repli) ; witmit ouvert, il le replie. ⌥+A / alt+A cache witmit
+     entièrement, ou le fait réapparaître (bouton au repos). Échap ferme une couche à la fois, et la dernière replie
+     witmit. Plus de touche N : le mode est déjà actif quand la liste est ouverte. Sous 480 px, aucun raccourci ne
+     répond (fiche Mobile). Pour ⌥+A, on lit la LETTRE produite par la touche (e.key), pas sa position : sur un
      clavier AZERTY, la position « KeyA » est celle du Q. Sur Mac, ⌥ change la lettre : table ci-dessous ; un
      caractère relevé en plus s'ajoute en une ligne. Repli par la position (e.code) seulement si e.key n'est
      pas une lettre (symbole hors table, touche morte). Jamais pendant la saisie dans un champ, du site ou
@@ -4385,19 +4205,27 @@
   });
   window.addEventListener('pointerdown', annulerDoubleAlt, true);
   window.addEventListener('blur', function () { altAppui = null; altPremier = 0; });
-  // Montrer ou cacher (live), comme « masquer witmit » et ?witmit=on ; en maquette, rien (Léa 44).
+  // ⌥ deux fois : ouvrir witmit d'un coup (f1), même caché ; ouvert, le replier.
   function basculerWitmit() {
-    if (!LIVE) return;
-    var cache = document.body.classList.contains('cm-concealed');
-    if (!cache && !confirmerAbandon()) return;
-    cmReveal(cache);
+    if (etroit) return;
+    if (witmitOuvert()) { cmReduire(); return; }
+    cmOuvrir(true);
+  }
+  // ⌥+A : cacher witmit entièrement, ou le faire réapparaître (R27). witmit révélé par ⌥ deux fois : ⌥+A le garde montré.
+  function cacherOuMontrer() {
+    if (reveleParAlt) { reveleParAlt = false; memoriserRevele(true); return; }
+    if (estCache()) { cmReveal(true); return; }
+    if (!confirmerAbandon()) return;
+    cmReveal(false);
   }
   document.addEventListener('keydown', function (e) {
+    if (etroit) return;                                               // sous 480 px : aucun raccourci (fiche Mobile)
     suivreDoubleAlt(e);
     if (e.key === 'Alt') return;                                      // alt seule : rien d'autre, touche laissée au navigateur
     if (e.isComposing) return;
-    // Échap, de la couche la plus proche à la plus lointaine : la fenêtre, la visionneuse, la liste, le mode.
-    // (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce champ, sans aller plus loin.)
+    // Échap, de la couche la plus proche à la plus lointaine : la visionneuse, la fenêtre, le retour ouvert dans la liste,
+    // puis witmit entier (liste et mode). (Dans un champ du tiroir — réponse, modification — Échap annule d'abord ce
+    // champ, sans aller plus loin.)
     if (e.key === 'Escape') {
       if (visionneuse) { e.preventDefault(); fermerVisionneuse(); }   // au-dessus de tout, fenêtre comprise
       else if (pendingPopup) {
@@ -4408,31 +4236,22 @@
         var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
         if (pinOuvreuse) pinOuvreuse.focus();
       }
-      else if (listeOuverte() && ouvertId && ligneDe(ouvertId)) { e.preventDefault(); refermerRetour(ouvertId); }   // c1 : le retour ouvert, puis la liste
-      else if (listeOuverte()) { e.preventDefault(); cmTogglePanel(false); }
-      else if (active) { e.preventDefault(); cmToggle(false); }
+      else if (listeOuverte() && ouvertId && ligneDe(ouvertId)) { e.preventDefault(); refermerRetour(ouvertId); }   // c1 : le retour ouvert, puis witmit
+      else if (witmitOuvert()) { e.preventDefault(); cmReduire(true); }
       return;
     }
     if (enSaisie(e)) return;
     if (listeOuverte() && !pendingPopup && !visionneuse && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && clavierDeLaListe(e)) return;   // flèches (répétées) et Entrée de c1
     if (e.repeat) return;
-    var cache = LIVE && document.body.classList.contains('cm-concealed');
-    // N : liste ouverte, sans aucune touche de modification.
-    if (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key || '').toLowerCase() === 'n') {
-      if (cache || !listeOuverte()) return;
-      e.preventDefault();
-      cmNouveauRetour();
-      return;
-    }
     if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;   // alt seule (ctrl+alt = AltGr sous Windows)
     var lettre = lettreDuRaccourci(e);
     if (lettre === 'a') {
-      if (cache) return;                                              // witmit caché : la touche reste au site (Léa 43)
       e.preventDefault();
-      cmToggle();
+      cacherOuMontrer();
     }
   });
   majBoutons();
+  appliquerEtroit();
 
   var statusTimer = null;
   var masquageTimer = null;
@@ -4738,7 +4557,10 @@
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
-    document.body.appendChild(a); a.click(); a.remove();
+    // Lien posé dans la liste (couche de witmit) : 0.4.0, la liste est ouverte avec le mode annotation, qui bloque les
+    // clics sur la page ; un lien posé dans <body> ne se téléchargerait pas.
+    a.className = 'cm-ui'; a.hidden = true;
+    (document.getElementById('cmPanel') || document.body).appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
     cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.', { type: 'fait' });
   };

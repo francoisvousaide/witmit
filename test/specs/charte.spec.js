@@ -32,10 +32,10 @@ function pageEssai(nom, { fond = '#ffffff', rootCss = '', attrs = '' } = {}) {
 const theme = (page) => page.getAttribute('body', 'data-wm-theme');
 // Fond d'une fenêtre : porté par sa couche de verre depuis le lot 2 (habiller, F2).
 const fondDe = (page, sel) => page.locator(sel).evaluate((el) => getComputedStyle(el).backgroundColor);
-// Bascule le thème du site sans clic souris : un clic à côté de la liste la refermerait.
+// Bascule le thème du site comme le fait son bouton (data-theme sur <html>, comme ThemeToggle.tsx de TellUs). 0.4.0 :
+// witmit ouvert, le mode annotation est actif et un clic sur un bouton de la page ne l'actionne pas (il le vise).
 async function basculerTheme(page) {
-  await page.locator('#themeBtn').focus();
-  await page.keyboard.press('Enter');
+  await page.evaluate(() => { const d = document.documentElement; d.dataset.theme = d.dataset.theme === 'dark' ? 'light' : 'dark'; });
 }
 
 test.describe('Thème', () => {
@@ -46,7 +46,7 @@ test.describe('Thème', () => {
     await expect.poll(() => theme(page)).toBe('client-clair');
     await page.goto(H.fileUrl('generic-dashboard.html'));
     await expect.poll(() => theme(page)).toBe('client-sombre');
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(27, 27, 27)');   // liste mate, titane sombre
   });
 
@@ -54,7 +54,7 @@ test.describe('Thème', () => {
     test(`2. bascule en direct, liste ouverte comprise (${nom})`, async ({ page }) => {
       await page.goto(H.fileUrl(nom));
       await H.clearStorage(page); await page.reload();
-      await page.locator('#cmPanelBtn').click();
+      await H.ouvrirListe(page);
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
       expect(await theme(page)).toBe('client-clair');
       expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(250, 250, 250)');   // liste mate, titane clair
@@ -79,7 +79,7 @@ test.describe('Thème', () => {
 
   test('4. isolation : les variables de la page n’entrent pas dans witmit, et les nôtres n’en sortent pas', async ({ page }) => {
     await page.goto(pageEssai('isolation', { rootCss: '--surface:red;--text:lime;--border:blue;' }));
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     expect(await fondDe(page, '#cmPanel > .wm-verre')).toBe('rgb(250, 250, 250)');   // page blanche : liste titane clair
     const couleur = await page.locator('#cmPanel .cm-panel-head-row').evaluate((el) => getComputedStyle(el).color);
     expect(couleur).toBe('rgb(20, 20, 20)');
@@ -114,22 +114,22 @@ test.describe('Thème suivi et matières (V2)', () => {
     return page.evaluate(() => {
       const verre = getComputedStyle(document.querySelector('.cm-popup > .wm-verre'));
       const ombre = document.querySelector('.cm-popup > .wm-ombre');
-      const btn = getComputedStyle(document.getElementById('cmPanelBtn'));
       return {
         theme: document.body.getAttribute('data-wm-theme'),
         fond: verre.backgroundColor, flou: verre.backdropFilter || verre.webkitBackdropFilter,
         ombreCopie: getComputedStyle(ombre).display, ombreVerre: verre.boxShadow,
         encre: getComputedStyle(document.querySelector('.cm-popup .cm-titre')).color,
-        metal: btn.color,
+        // 0.4.0 : le bouton witmit montre la face du symbole qui suit le thème du site.
+        face: document.querySelector('#cmPanelBtn svg[data-logo="symbole"]').getBoundingClientRect().width ? 'claire' : 'encre',
       };
     });
   }
 
-  test('4b. thème suivi : site clair → witmit clair, site sombre → witmit sombre, boutons ronds compris', async ({ page }) => {
+  test('4b. thème suivi : site clair → witmit clair, site sombre → witmit sombre, bouton witmit compris (face du symbole)', async ({ page }) => {
     const clair = await matieres(page, 'v2-site-clair', '#ffffff');
-    expect(clair).toMatchObject({ theme: 'client-clair', encre: 'rgb(20, 20, 20)', metal: 'rgb(20, 20, 20)' });   // métal clair, signe encre
+    expect(clair).toMatchObject({ theme: 'client-clair', encre: 'rgb(20, 20, 20)', face: 'claire' });
     const sombre = await matieres(page, 'v2-site-sombre', '#101010');
-    expect(sombre).toMatchObject({ theme: 'client-sombre', encre: 'rgb(255, 255, 255)', metal: 'rgb(244, 244, 244)' });   // métal sombre, signe clair
+    expect(sombre).toMatchObject({ theme: 'client-sombre', encre: 'rgb(255, 255, 255)', face: 'encre' });
   });
 
   // Lot 8 : l'ombre (clair) et la lueur (sombre) sont un box-shadow du verre, glissé de 22 px et flou de 56 px (même géométrie que
@@ -200,7 +200,7 @@ test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => 
     await page.locator('.cm-popup textarea').fill('Un retour');
     await page.locator('.cm-popup textarea').press('Enter');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     expect(await page.locator('.cm-panel-item .txt').evaluate((el) => getComputedStyle(el).fontSize)).toBe('14px');
     await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : le champ s'ouvre avec le retour
     const edition = page.locator('.cm-panel-item textarea.cm-inline-edit:not(.cm-inline-reply)');
@@ -216,7 +216,7 @@ test.describe('Champs et textes de la personne (V2, relecture de Paula)', () => 
 
   test('É4. encart « coller un retour » : titre en graisse 500, champ en 13 px, interligne 1,5', async ({ page }) => {
     await page.goto(pageEssai('coller-retour'));
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.locator('#cmPasteBtn').click();
     await expect(page.locator('#cmFeedbackBox textarea')).toBeVisible();
     const m = await page.evaluate(() => {
@@ -251,9 +251,9 @@ test.describe('Police système (V2)', () => {
     page.on('request', (r) => { if (estPolice(r.url())) polices.push(r.url()); });
     await page.goto(H.fileUrl('planche-charte.html'));
     await page.locator('#cmPanelBtn').hover();
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await H.activate(page);
     await H.addPin(page, '#carteClaire p', 'police');
     await page.locator('.cm-pin').click();
@@ -265,7 +265,7 @@ test.describe('Police système (V2)', () => {
     for (const fam of FAMILLES) expect(declarees, fam).not.toContain(fam);
     expect(fs.existsSync(path.join(SRC_DIR, 'witmit-polices')), 'dossier witmit-polices/ retiré').toBe(false);
     // police système partout, texte de la personne compris ; aucune famille de 0.2.0
-    const familles = await page.evaluate(() => ['.cm-popup .cm-titre', '.cm-popup textarea', '#cmPill', '#cmPanelBtn'].map((sel) => getComputedStyle(document.querySelector(sel)).fontFamily));
+    const familles = await page.evaluate(() => ['.cm-popup .cm-titre', '.cm-popup textarea', '#cmPanel .cm-panel-aide', '#cmPanelBtn'].map((sel) => getComputedStyle(document.querySelector(sel)).fontFamily));
     for (const f of familles) {
       expect(f).toMatch(/^-apple-system, /);
       for (const fam of ['Tektur', 'Martian', 'Syne', 'Doto']) expect(f).not.toContain(fam);
@@ -278,7 +278,7 @@ test.describe('Police système (V2)', () => {
     for (const [nom, v] of [['sans-polices', 'none'], ['polices-ailleurs', 'https://polices.exemple.test/witmit/']]) {
       await page.goto(pageEssai(nom, { attrs: `data-fonts="${v}"` }));
       await page.locator('#cmPanelBtn').hover();
-      await page.locator('#cmPanelBtn').click();
+      await H.ouvrirListe(page);
       await page.waitForTimeout(800);
       expect(await page.locator('#cmStyles').evaluate((el) => el.textContent.indexOf('@font-face'))).toBe(-1);
     }
@@ -294,7 +294,7 @@ test.describe('Police système (V2)', () => {
     await page.waitForTimeout(500);
     await page.evaluate(() => window.cmReveal(true));
     await page.locator('#cmPanelBtn').hover();
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.waitForTimeout(1000);
     expect(polices).toEqual([]);
   });
@@ -341,7 +341,7 @@ test.describe('Aucune requête vers un domaine tiers', () => {
     await ta.press('Enter');
     await page.waitForTimeout(1500); // la capture de l'encadré
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-item')).toHaveCount(2);
   }
 
@@ -402,23 +402,21 @@ test.describe('Halo du mode annotation', () => {
     const releves = {};
     for (const nom of ['tellus-accueil.html', 'generic-dashboard.html']) {
       await page.goto(H.fileUrl(nom));
-      await page.keyboard.press(H.ANNOTER); // ⌥+A / alt+A lance le mode
-      await expect(page.locator('body')).toHaveClass(/cm-active/);
+      await H.activate(page); // 0.4.0 : le bouton witmit ouvre liste et mode
       await expect(page.locator('#cmFrame')).toBeVisible();
       const halo = await lireHalo(page);
       releves[nom] = halo;
       const toutes = Object.values(halo).flatMap((v) => couleurs(v.ombre + ' ' + v.bord));
       expect(toutes.some((c) => c.r === 247 && c.g === 130 && c.b === 26 && c.a === 1), JSON.stringify(halo)).toBe(true);
-      expect(toutes.some((c) => c.r === 10 && c.g === 10 && c.b === 10 && Math.abs(c.a - 0.9) < 0.001), 'filet sombre').toBe(true);
+      expect(toutes.some((c) => c.r === 10 && c.g === 10 && c.b === 10), 'plus de filet sombre (R11, 29/10)').toBe(false);
       for (const c of toutes) {
         if (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > 40) {
           expect(Math.abs(teinte(c) - 28), `teinte de ${c.txt}`).toBeLessThanOrEqual(3);   // orange de macOS (28°)
         }
         expect(ANCIENNES_RGB, c.txt).not.toContain(`${c.r},${c.g},${c.b}`);
       }
-      // mode arrêté : le halo disparaît
-      await page.keyboard.press(H.ANNOTER);
-      await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+      // witmit replié : le halo disparaît
+      await H.deactivate(page);
       await expect(page.locator('#cmFrame')).toBeHidden();
       expect(await page.locator('#cmFrame').evaluate((el) => getComputedStyle(el).visibility)).toBe('hidden');
     }
@@ -450,7 +448,8 @@ test.describe('Halo du mode annotation', () => {
   test('10. le halo respire par l’opacité seule, en 4 s', async ({ page }) => {
     await page.goto(H.fileUrl('planche-charte.html'));
     await H.activate(page);
-    const anims = await page.evaluate(() => document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.id === 'cmFrame').map((a) => ({
+    // (Animations CSS seules : witmit ouvert, la couche glisse aussi avec la liste, par une transition sur right.)
+    const anims = await page.evaluate(() => document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.id === 'cmFrame' && a.animationName).map((a) => ({
       pseudo: a.effect.pseudoElement,
       duree: a.effect.getTiming().duration,
       iterations: a.effect.getTiming().iterations,
@@ -477,7 +476,7 @@ test.describe('Halo du mode annotation', () => {
       };
     });
     expect(etat.anims).toBe(0);
-    expect(etat.opaciteApres).toBe('0.5');
+    expect(etat.opaciteApres).toBe('0.6');
     expect(etat.opaciteCadre).toBe('1');
     expect(etat.bord).toContain('rgb(247, 130, 26)');
     // disparition sans fondu non plus : caché dans l'instant (Léa 48)
@@ -496,7 +495,7 @@ test.describe('Halo du mode annotation', () => {
     expect(bordure).toEqual(['3px', 'solid', '3px']);
   });
 
-  test('12b. le halo passe sous toutes les couches de witmit (liste, boutons, repères, fenêtre, bandeau)', async ({ page }) => {
+  test('12b. le halo passe sous toutes les couches de witmit (liste, bouton, repères, fenêtre)', async ({ page }) => {
     await page.goto(H.fileUrl('generic-dashboard.html'));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -510,7 +509,7 @@ test.describe('Halo du mode annotation', () => {
       if (!document.getElementById('cmLinks')) { temoin = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); temoin.id = 'cmLinks'; document.body.appendChild(temoin); }
       const liens = zi('#cmLinks');
       if (temoin) temoin.remove();
-      return { halo: zi('#cmFrame'), couches: { liste: zi('#cmPanel'), boutons: zi('.cm-fab'), epingle: zi('.cm-pin'), liens, cadre: zi('.cm-box'), fenetre: zi('.cm-popup'), bandeau: zi('#cmPill'), toast: zi('#cmStatus') } };
+      return { halo: zi('#cmFrame'), couches: { liste: zi('#cmPanel'), boutons: zi('.cm-fab'), epingle: zi('.cm-pin'), liens, cadre: zi('.cm-box'), fenetre: zi('.cm-popup'), toast: zi('#cmStatus') } };
     });
     for (const [nom, v] of Object.entries(z.couches)) {
       expect(v, nom).not.toBeNull();
@@ -519,7 +518,7 @@ test.describe('Halo du mode annotation', () => {
     expect(z.halo).toBeGreaterThan(300); // reste au-dessus d'une barre de navigation de site (TellUs : 300)
     // liste ouverte en mode actif : au bord droit de l'écran, c'est la liste qui est dessus
     await page.keyboard.press('Escape');
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('#cmPanel')).toHaveClass(/show/);
     await expect.poll(() => page.evaluate(() => Math.round(document.getElementById('cmPanel').getBoundingClientRect().right - window.innerWidth))).toBe(0); // glissement fini
     const dessus = await page.evaluate(() => {
@@ -561,7 +560,7 @@ test('13. liste : le numéro du retour sélectionné est lisible (V2 : face ink,
     await H.activate(page);
     await H.addPin(page, nom === 'tellus-accueil.html' ? '.mcard.active .mcard-title' : 'tbody tr:first-child td:nth-child(2)', 'Numéro');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.locator('.cm-panel-item .body').first().click();
     await expect(page.locator('.cm-panel-item').first()).toHaveClass(/cm-current/);
     const num = await page.locator('.cm-panel-item.cm-current .num').evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
@@ -607,9 +606,9 @@ async function ouvrirFenetres(page, nom, cible) {
 }
 const PAGES_LOT2 = [['planche-charte.html', '#carteClaire p'], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)']];
 
-test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse portent ombre, verre et contour, arrondis sans angle cassé', async ({ page }) => {
+test('15. habiller : fenêtre, liste, message passager et visionneuse portent ombre, verre et contour, arrondis sans angle cassé', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
-  const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmPill', '#cmStatus'].map((sel) => {
+  const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmStatus'].map((sel) => {
     const el = document.querySelector(sel);
     const kids = Array.from(el.children).slice(0, 3);
     const verre = el.querySelector(':scope > .wm-verre'), cs = getComputedStyle(verre);
@@ -626,7 +625,7 @@ test('15. habiller : fenêtre, liste, bandeau, message passager et visionneuse p
   for (const f of r) {
     expect(f.premiers, f.sel).toEqual(['wm-ombre', 'wm-verre', 'wm-contour']);
     expect(f.muets, f.sel).toBe(true);
-    expect(f.coins, f.sel).toBe(f.sel === '#cmStatus' ? 0 : 2);      // messages passagers : sans coins witmit
+    expect(f.coins, f.sel).toBe(f.sel === '.cm-popup' ? 2 : 0);      // messages passagers sans coins witmit ; la liste non plus (0.4.0 : elle porte le mot witmit)
     // V2 : plus d'angle cassé ; arrondi de 9 px (liste : côté page seulement ; message passager : 8 px), copie d'ombre comprise.
     const rayon = { '#cmPanel': '9px 0px 0px 9px', '#cmStatus': '8px' }[f.sel] || '9px';
     expect(f.clip, f.sel).toBe('none');
@@ -647,7 +646,7 @@ test('15b. visionneuse : la capture s’agrandit dans une fenêtre habillée', a
   const ta = page.locator('.cm-popup textarea');
   await ta.fill('Zone'); await ta.press('Enter');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('.cm-panel-item img.cm-shot')).toHaveCount(1, { timeout: 15000 });
   await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
   await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
@@ -762,15 +761,15 @@ test('19. focus clavier : anneau arrondi qui suit la touche, outline sur un cerc
   expect(a.encre).toBe(a.ink);
   expect(a.rayon).toBe('10px');                                         // 6 px de la touche + 4 px d'écart
   // forme ronde : outline de 2 px à 2 px
-  await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').focus();
+  await page.locator('#cmPanel .cm-panel-reduire').focus();
   await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
-  const o = await page.locator('#cmPanel .wm-cercle[aria-label="fermer"]').evaluate((el) => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth, getComputedStyle(el).outlineOffset]);
+  const o = await page.locator('#cmPanel .cm-panel-reduire').evaluate((el) => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineWidth, getComputedStyle(el).outlineOffset]);
   expect(o).toEqual(['solid', '2px', '2px']);
 });
 
 // ---------- Habillage V2, lot 2 : formes (README « Formes », tokens.json onglet Rayons, fiches Fenetre, Touche, Epingle) ----------
 
-test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres, liste, bandeau, message, touche, champ, ligne, épingle, cadre)', async ({ page }) => {
+test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres, liste, message, touche, champ, ligne, épingle, cadre)', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   await page.evaluate(() => document.getElementById('cmStatus').classList.add('show'));
   const r = await page.evaluate(() => {
@@ -779,14 +778,14 @@ test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres
     const rayon = (sel, ps) => { const el = document.querySelector(sel); return el ? getComputedStyle(el, ps || null).borderRadius : null; };
     return {
       jetons: ['fenetre', 'bloc', 'bouton', 'epingle', 'champ', 'message', 'coude'].map(jeton),
-      fenetre: rayon('.cm-popup > .wm-verre'), liste: rayon('#cmPanel > .wm-verre'), bandeau: rayon('#cmPill > .wm-verre'), message: rayon('#cmStatus > .wm-verre'),
+      fenetre: rayon('.cm-popup > .wm-verre'), liste: rayon('#cmPanel > .wm-verre'), message: rayon('#cmStatus > .wm-verre'),
       touche: rayon('.cm-popup .cm-save', '::before'), categorie: rayon('.cm-popup .cm-cat', '::before'), annuler: rayon('.cm-popup .cm-cancel', '::before'),
       champ: rayon('.cm-popup .wm-champ > textarea'), champColler: rayon('#cmFeedbackBox .wm-champ > textarea'), ligne: rayon('#cmPanel .cm-panel-item', '::before'),
       epingle: rayon('.cm-pin'), cadre: rayon('.cm-box'), traceCadre: rayon('.cm-box > .wm-cadre'),
     };
   });
   expect(r.jetons).toEqual(['9px', '7px', '6px', '6px', '5px', '8px', '3px']);
-  expect(r).toMatchObject({ fenetre: '9px', liste: '9px 0px 0px 9px', bandeau: '9px', message: '8px', touche: '6px', categorie: '6px', annuler: '6px',
+  expect(r).toMatchObject({ fenetre: '9px', liste: '9px 0px 0px 9px', message: '8px', touche: '6px', categorie: '6px', annuler: '6px',
     champ: '5px', champColler: '5px', ligne: '6px', epingle: '6px', cadre: '6px', traceCadre: '6px' });
 });
 
@@ -808,16 +807,16 @@ test('19c. plus aucun angle cassé : aucun clip-path sur une couche de witmit, p
   }
 });
 
-test('19d. coins witmit : haut gauche et bas droit de la fenêtre, de la liste et du bandeau, trait de 2,1 px, coude arrondi de 3 px ; aucun sur le message passager', async ({ page }) => {
+test('19d. coins witmit : haut gauche et bas droit de la fenêtre, trait de 2,1 px, coude arrondi de 3 px ; aucun sur le message passager ni sur la liste (0.4.0 : elle porte le mot witmit)', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
-  const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmPill', '#cmStatus'].map((sel) => {
+  const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmStatus'].map((sel) => {
     const el = document.querySelector(sel), W = el.offsetWidth, H = el.offsetHeight;
     const paths = Array.from(el.querySelectorAll(':scope > .wm-contour path'));
     return { sel, W, H, d: paths.map((p) => p.getAttribute('d')), trait: paths.map((p) => getComputedStyle(p).strokeWidth), joint: paths.map((p) => getComputedStyle(p).strokeLinejoin),
       encre: paths.map((p) => getComputedStyle(p).stroke), ink: getComputedStyle(el).color };
   }));
   for (const f of r) {
-    if (f.sel === '#cmStatus') { expect(f.d, f.sel).toEqual([]); continue; }
+    if (f.sel !== '.cm-popup') { expect(f.d, f.sel).toEqual([]); continue; }
     expect(f.d.length, f.sel).toBe(2);
     // haut gauche : de (8,4 ; 16,8) au coude (8,4 ; 8,4), arrondi en quart de cercle de 3 px, puis jusqu'à (16,8 ; 8,4)
     expect(f.d[0], f.sel).toBe('M8.4 16.8V11.4Q8.4 8.4 11.4 8.4H16.8');
@@ -860,45 +859,37 @@ test('20. icônes Phosphor : SVG intégrés, viewBox 256, couleur du texte, muet
   const src = fs.readFileSync(path.join(SRC_DIR, 'witmit.js'), 'utf8');
   expect(src).toContain('Copyright (c) 2023 Phosphor Icons');
   expect(src).toContain('Permission is hereby granted, free of charge');
-  for (const nom of ['CrosshairSimple', 'Info', 'CursorClick', 'BoundingBox', 'TextT', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
-    'CircleNotch', 'Trash', 'Broom', 'X', 'ArrowElbowDownLeft', 'Command', 'Option', 'DotsSixVertical', 'EyeSlash']) {
+  for (const nom of ['ArrowLineRight', 'Info', 'CursorClick', 'BoundingBox', 'TextT', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
+    'CircleNotch', 'Trash', 'Broom', 'X', 'ArrowElbowDownLeft', 'Command', 'Option', 'DotsSixVertical']) {   // 0.4.0 : CrosshairSimple et EyeSlash retirés (bouton du mode, « masquer witmit »)
     expect(src, nom).toMatch(new RegExp('\\n    ' + nom + ": '<path d=\"M"));
   }
 });
 
-// Signe du bouton witmit : le logo B1 calé à 28 px (fiche BoutonWitmit, décision de François du 25/10/2026), à la place
-// de la plume PenNib (22 px, décalée de 2 px), qui ne sert plus nulle part.
-test('20b. bouton witmit : logo B1 calé à 28 px, centré, couleur du métal ; voyant à 10 px du haut et 9 px de la droite', async ({ page }) => {
-  for (const [nom, fond, encre] of [['b1-site-clair', '#ffffff', 'rgb(20, 20, 20)'], ['b1-site-sombre', '#101010', 'rgb(244, 244, 244)']]) {   // métal du thème du site (V2)
+// 0.4.0 (fiches BoutonWitmit et Identity) : le bouton witmit porte le symbole (picto dans son cadre arrondi, 52 px), face
+// claire sur un site clair et face encre sur un site sombre ; le voyant est posé par le code, à 8 px du haut et 7 px de la
+// droite. Le logo B1 du 25/10 ne sert plus.
+test('20b. bouton witmit : le symbole à 52 px, face au thème du site, le même ouvert ou fermé ; voyant à 8 px du haut et 7 px de la droite', async ({ page }) => {
+  for (const [nom, fond, face] of [['b1-site-clair', '#ffffff', 'symbole'], ['b1-site-sombre', '#101010', 'symbole-sombre']]) {
     await page.goto(pageEssai(nom, { fond }));
     await page.goto(pageEssai(nom, { fond }) + '?witmit=on');
     const btn = page.locator('#cmPanelBtn');
     await expect(btn).toBeVisible();
-    const mesure = () => btn.evaluate((b) => {
-      const svg = b.querySelector('svg.wm-logo'), r = b.getBoundingClientRect(), s = svg.getBoundingClientRect();
-      return { nb: b.querySelectorAll('svg').length, logo: svg.dataset.logo, vb: svg.getAttribute('viewBox'), fill: svg.getAttribute('fill'),
-        net: svg.getAttribute('shape-rendering'), muet: svg.getAttribute('aria-hidden'), w: s.width, h: s.height,
-        dx: (s.left + s.width / 2) - (r.left + r.width / 2), dy: (s.top + s.height / 2) - (r.top + r.height / 2), couleur: getComputedStyle(svg).color,
-        d: svg.querySelector('path').getAttribute('d') };
+    const m = await btn.evaluate((b) => {
+      const vus = Array.from(b.querySelectorAll('svg')).filter((s) => s.getBoundingClientRect().width > 0);
+      const s = vus[0], r = b.getBoundingClientRect(), q = s.getBoundingClientRect();
+      return { nb: vus.length, logo: s.dataset.logo, vb: s.getAttribute('viewBox'), muet: s.getAttribute('aria-hidden'), w: q.width, h: q.height, dx: q.left - r.left, dy: q.top - r.top };
     });
-    for (const etat of ['fermé', 'ouvert']) {
-      const m = await mesure();
-      expect(m, nom + ' ' + etat).toMatchObject({ nb: 1, logo: 'B1', vb: '0 0 28 28', fill: 'currentColor', net: 'crispEdges', muet: 'true', w: 28, h: 28, couleur: encre });
-      expect(Math.abs(m.dx), nom + ' ' + etat + ' : centré en largeur').toBeLessThanOrEqual(1);
-      expect(Math.abs(m.dy), nom + ' ' + etat + ' : centré en hauteur').toBeLessThanOrEqual(1);
-      expect(m.d).toBe('M0,1 L9,1 L9,4 L3,4 L3,10 L0,10 Z M5,6 L9,6 L9,18 L12,18 L12,11 L16,11 L16,18 L19,18 L19,6 L20,6 L23,9 L23,22 L8,22 L5,19 Z M28,27 L19,27 L19,24 L25,24 L25,18 L28,18 Z');
-      if (etat === 'fermé') { await btn.click(); await expect(btn).toHaveAttribute('aria-expanded', 'true'); }
-    }
-    // Voyant allumé de force (rendu seul, sans retour) : 7 px, 10 px du haut et 9 px de la droite du rond.
+    expect(m, nom).toEqual({ nb: 1, logo: face, vb: '0 0 52 52', muet: 'true', w: 52, h: 52, dx: 0, dy: 0 });
     const v = await btn.evaluate((b) => {
       const c = b.querySelector('#cmCount'); c.setAttribute('data-zero', '0'); c.textContent = '1';
       const r = b.getBoundingClientRect(), k = c.getBoundingClientRect();
       return { w: k.width, h: k.height, haut: k.top - r.top, droite: r.right - k.right };
     });
-    expect(v, nom).toEqual({ w: 7, h: 7, haut: 10, droite: 9 });
+    expect(v, nom).toEqual({ w: 7, h: 7, haut: 8, droite: 7 });
   }
   const src = fs.readFileSync(path.join(SRC_DIR, 'witmit.js'), 'utf8');
   expect(src).not.toContain('PenNib');
+  expect(src).not.toContain('data-logo="B1"');
 });
 
 // Émojis et symboles dessinés par witmit (I3). Le texte courant garde ⌘ et ⌥ (glyphes de la police système).
@@ -936,7 +927,7 @@ test('21a. aucun émoji dans ce que witmit dessine (maquette : tous les statuts,
   });
   await page.reload();
   await H.activate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les détails sont dans le retour ouvert
   await page.locator('.cm-panel-item details.cm-tech summary').first().click();
   await page.locator('.cm-pin').nth(3).click();                  // fenêtre d'un complément demandé
@@ -964,14 +955,14 @@ test('21b. aucun émoji dans ce que witmit dessine (live : marques d’envoi, fi
   state.failNext = { status: 429, erreur: 'quota' };
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Ticket 2');   // refusé : « à renvoyer »
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('.cm-msg')).toHaveCount(2, { timeout: 15000 });
   await expect(page.locator('.cm-sync-chip')).not.toHaveCount(0);
   expect(await emojisDe(page)).toEqual([]);
 });
 
-test('22. voyant (F8) : disque net de 7 px, sans ombre ; cerne intérieur seulement sur fond clair', async ({ page }) => {
-  for (const [nom, cible, cerne] of [['planche-charte.html', '#carteClaire p', true], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)', false]]) {   // V2 : métal clair sur un site clair
+test('22. voyant (F8) : disque net de 7 px, sans ombre ; sur le bouton witmit, sans cerne (0.4.0, fiche BoutonWitmit)', async ({ page }) => {
+  for (const [nom, cible, cerne] of [['planche-charte.html', '#carteClaire p', false], ['generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)', false]]) {
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
     await H.activate(page);
@@ -1077,9 +1068,9 @@ test('25. épingle : voyant « nouveau » et nom accessible ; traité en pointil
   const t = await page.locator('.cm-pin').evaluate((p) => ({ trait: getComputedStyle(p).outlineStyle, ombre: getComputedStyle(p).boxShadow }));
   expect(t).toEqual({ trait: 'dashed', ombre: 'none' });
   // Passage de texte sur la moitié sombre : souligné de 2 px blanc cassé, coins witmit de 7 px au début et à la fin.
-  await page.locator('#cmPanelBtn').click();                      // ferme la liste (le voyant s'éteint : vu)
+  await H.deactivate(page);                       // replie witmit (le voyant s'éteint : vu)
+  await H.activate(page);                         // 0.4.0 : rouvert (liste et mode), l'épingle n'a plus de voyant
   await expect(page.locator('.cm-pin .wm-voyant-epingle')).toHaveCount(0);
-  await page.waitForTimeout(400);                                   // fin du retour de la page (liste en mode « pousser »)
   const p = await H.visibleBox(page, '#moitieSombre > p');
   await H.drag(page, p.x + 4, p.y + 10, p.x + 160, p.y + 10, { shift: true });
   await page.locator('.cm-popup textarea').fill('passage');
@@ -1261,28 +1252,27 @@ test('36. couleur des sélections (data-selection-color) : gris par défaut, ora
 
 // Lot 8, relecture de Paula : le message passager ne couvre jamais les deux boutons (fiche BoutonWitmit), et le texte
 // d'aide du champ tient dans le champ (fiche Fenetre, Corps).
-test('27. message passager : jamais sur les deux boutons, liste ouverte (1280, 1100, 900 px) ou fermée (600 px)', async ({ page }) => {
+test('27. message passager : witmit ouvert (1280, 1100, 900 px), centré dans la page à gauche de la liste ; replié (600 et 1 280 px), jamais sur le bouton witmit', async ({ page }) => {
   test.setTimeout(40000);
-  const seTouchent = () => page.evaluate(() => {
+  const mesure = () => page.evaluate(() => {
     const r = (id) => document.getElementById(id).getBoundingClientRect();
-    const s = r('cmStatus'), inter = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-    return { mode: inter(s, r('cmToggleBtn')), witmit: inter(s, r('cmPanelBtn')), largeur: s.width, bas: Math.round(innerHeight - s.bottom) };
+    const s = r('cmStatus'), b = r('cmPanelBtn'), inter = (a, q) => q.width > 0 && a.left < q.right && q.left < a.right && a.top < q.bottom && q.top < a.bottom;
+    return { witmit: inter(s, b), largeur: s.width, bas: Math.round(innerHeight - s.bottom) };
   });
   for (const [w, liste] of [[1280, true], [1100, true], [900, true], [600, false], [1280, false]]) {
     await page.setViewportSize({ width: w, height: 800 });
     await page.goto(H.fileUrl('generic-dashboard.html'));
     await H.clearStorage(page); await page.reload();
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.waitForTimeout(400);
     await page.evaluate(() => document.querySelector('#cmReportFoot .wm-touche:last-child').click());   // échec long : pas d'adresse d'envoi
-    if (!liste) { await page.locator('#cmPanelBtn').click(); await page.waitForTimeout(400); }
+    if (!liste) { await H.deactivate(page); await page.waitForTimeout(400); }
     await expect(page.locator('#cmStatus')).toHaveClass(/show/);
-    const t = await seTouchent();
-    expect(t.mode, `${w} px, liste ${liste}`).toBe(false);
+    const t = await mesure();
     expect(t.witmit, `${w} px, liste ${liste}`).toBe(false);
     expect(t.largeur, `${w} px`).toBeGreaterThan(300);                 // message long : plusieurs lignes, pas un mot
     if (liste) {
-      expect(t.bas, `${w} px`).toBe(84);
+      expect(t.bas, `${w} px`).toBe(20);                                // 0.4.0 : le bouton a quitté la page, le message reste en bas
       // centré dans l'espace à gauche de la liste
       const c = await page.evaluate(() => { const s = document.getElementById('cmStatus').getBoundingClientRect(), p = document.getElementById('cmPanel').getBoundingClientRect(); return { centre: s.left + s.width / 2, libre: document.documentElement.clientWidth - p.width - 8, droite: s.right, liste: p.left }; });
       expect(Math.abs(c.centre - c.libre / 2), `${w} px`).toBeLessThanOrEqual(1);
@@ -1421,13 +1411,11 @@ test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport
   expect(Math.round(zone.x + zone.width - rep[1].droite)).toBe(0);     // à droite
   await expect(page.locator('.cm-panel-item .cm-rep-annuler')).toHaveAttribute('aria-keyshortcuts', 'Escape');
   await expect(page.locator('.cm-panel-item .cm-rep-envoyer')).toHaveAttribute('aria-keyshortcuts', 'Enter');
-  // « nouveau retour » : à sa largeur, à droite, seul bouton orange de la liste, raccourci N dans le nom accessible
+  // 0.4.0 : plus de « nouveau retour » ni de bouton orange dans la liste ; « réduire » dit Échap dans son nom accessible.
   const liste = await page.evaluate((f) => ({ p: document.getElementById('cmPanel').getBoundingClientRect().toJSON(), b: eval(f)(document.getElementById('cmPanel')) }), lireBoutons.toString());
-  expect(liste.b.filter((x) => x.orange).map((x) => x.nom)).toEqual(['nouveau retour']);
-  const nouveau = liste.b.find((x) => x.nom === 'nouveau retour');
-  expect(nouveau.largeur).toBeLessThan(liste.p.width / 2);
-  expect(Math.round(liste.p.right - nouveau.droite)).toBe(24);
-  await expect(page.locator('#cmNewBtn')).toHaveAttribute('aria-keyshortcuts', 'N');
+  expect(liste.b.filter((x) => x.orange).map((x) => x.nom)).toEqual([]);
+  await expect(page.locator('#cmNewBtn')).toHaveCount(0);
+  await expect(page.locator('#cmPanel .cm-panel-reduire')).toHaveAttribute('aria-keyshortcuts', 'Escape');
 });
 
 test('32. zone cliquable de 44 px au moins pour chaque bouton dessiné en 30 px (fenêtre, liste, rapport)', async ({ page }) => {
@@ -1445,14 +1433,15 @@ test('32. zone cliquable de 44 px au moins pour chaque bouton dessiné en 30 px 
   expect(fenetre.map((x) => x.nom)).toEqual([expect.stringMatching(/auto/), 'annuler', 'enregistrer']);
   await page.locator('.cm-popup textarea').press('Enter');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.waitForTimeout(400);
-  const nouveau = await mesurer('#cmNewBtn', true);
+  const nouveau = await mesurer('#cmPanel .cm-panel-reduire', false);   // 0.4.0 : plus de « nouveau retour » ; « réduire » est un cercle (test 3 d'accessibilité)
+  expect(nouveau).toHaveLength(1);
   // Rapport : boutons à la ligne au besoin, 8 px entre deux rangées (fiche Rapport) : la zone de 44 px de chacun est mesurée sur sa boîte.
   const liste = await mesurer('#cmPanel .wm-touche', false);
-  expect(liste.length).toBeGreaterThan(3);
-  for (const x of [...fenetre, ...nouveau, ...liste]) {
+  expect(liste.length).toBeGreaterThanOrEqual(3);   // télécharger, copier, envoyer par email (0.4.0 : plus de « nouveau retour »)
+  for (const x of [...fenetre, ...liste]) {
     expect(x.zone, x.nom).toBeGreaterThanOrEqual(44);
     expect(x.face, x.nom).toBe(x.cat ? 36 : 30);
     if (x.haut !== null) expect([x.haut, x.bas], x.nom).toEqual([true, true]);
@@ -1497,7 +1486,7 @@ function pageBords(nom) {
   const f = path.join(dir, nom + '.html');
   const bloc = (id, style) => `<div id="${id}" style="position:absolute;width:160px;height:60px;padding:8px;border:1px solid #888;${style}">${id}</div>`;
   fs.writeFileSync(f, `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${nom}</title>
-<style>body{margin:0;min-height:1400px;background:#ffffff;font-family:Georgia,serif;}</style></head><body>
+<style>body{position:relative;margin:0;min-height:1400px;background:#ffffff;font-family:Georgia,serif;}</style></head><body>
 ${bloc('milieu', 'left:300px;top:300px')}${bloc('droite', 'right:6px;top:420px')}${bloc('haut', 'left:40px;top:6px')}${bloc('coin', 'right:6px;top:6px')}
 ${bloc('autre', 'left:40px;top:330px;width:200px;height:100px')}
 <script src="${WIDGET_URL}" data-project="essai-${nom}"></script></body></html>`);
@@ -1654,7 +1643,7 @@ test('41. onde : sur chacun des cadres d’un retour à plusieurs éléments, en
   await expect(page.locator('.cm-pin.cm-focus')).toHaveCount(0);
   // Depuis la liste (retour choisi) : l'onde part aussi des trois cadres ensemble, puis le repère reste actif.
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-item .body').click();
   await expect.poll(() => page.locator('.wm-onde').count()).toBe(3);
   await page.waitForTimeout(1400);

@@ -44,9 +44,8 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
 
   test('encadré partiel sur l’en-tête → libellé lisible, mots séparés', async ({ page }) => {
     const brand = await H.visibleBox(page, '.topbar .brand');
-    const pill = await page.locator('#cmPill').boundingBox(); // le bandeau du mode, posé en haut : on s'arrête avant lui
-    // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu
-    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, Math.min(brand.x + brand.width + 120, pill.x - 8), brand.y + brand.height + 4);
+    // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu (0.4.0 : plus de bandeau à éviter en haut)
+    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, brand.x + brand.width + 120, brand.y + brand.height + 4);
     await expect(page.locator('.cm-popup .cm-zone')).toHaveText('zone encadrée dans : KIOSQUE · Ventes · Stocks · Réglages');
   });
 
@@ -57,7 +56,7 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     await page.locator('.cm-popup textarea').fill('box');
     await page.locator('.cm-popup textarea').press('Enter');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-item .zone').nth(0)).toHaveText('Boulangerie Martin');
     await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('zone encadrée : Commandes, 37');
     page.once('dialog', (d) => d.dismiss());

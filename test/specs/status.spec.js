@@ -12,7 +12,7 @@ async function setup(page) {
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(4)', 'Second');
   await page.waitForTimeout(1300);
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
 }
 async function copyReport(page, accept) {
   page.once('dialog', (d) => (accept ? d.accept() : d.dismiss()));
@@ -27,7 +27,7 @@ test('marquer un seul retour : la confirmation est au singulier, « sans le marq
   await H.activate(page);
   await H.addPin(page, '.kpi-tile:nth-child(1) .kpi-value', 'Seul');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   const confirmation = new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.dismiss(); resolve(m); }));
   await page.locator('.cm-panel-foot button', { hasText: 'copier' }).click();
   expect(await confirmation).toMatch(/^marquer 1 retour comme signalé dans le rapport R-\d{4}-\d{2}-\d{2}-\d+ \? il ne sera plus modifiable\. annuler : le rapport est créé sans le marquer\.$/);
@@ -64,12 +64,12 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);                 // une seule action, « fermer » (fiche Fenetre)
     await page.keyboard.press('Escape');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(0));               // c1 (V2) : ouvert en lecture, sans champ
     await expect(page.locator('.cm-panel-item textarea')).toHaveCount(0);
     await expect(page.locator('#cmStatus')).toContainText('non modifiable');
     await page.reload();
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-item').nth(0)).toHaveClass(/cm-done/);
   });
 
@@ -95,7 +95,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-popup')).toHaveClass(/cm-locked/);
     await page.keyboard.press('Escape');
     // un second rapport « nouveautés » : plus rien à signaler
-    await H.deactivate(page); await page.locator('#cmPanelBtn').click();
+    await H.deactivate(page); await H.ouvrirListe(page);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     await expect(page.locator('#cmStatus')).toContainText('rien de nouveau à signaler.');
     // « Rapport complet » : tout, avec les statuts
@@ -193,7 +193,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await page.locator('.cm-hide-done').click();
     // L'équipe vient de les résoudre : ils restent affichés avec « nouveau » jusqu'à la fermeture de la liste (C5).
     await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(2);
-    await page.locator('#cmPanelBtn').click(); await page.locator('#cmPanelBtn').click();
+    await H.deactivate(page); await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-empty')).toHaveText('tous les retours de cette page sont terminés.');
   });
 
@@ -220,7 +220,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await page.goto(H.fileUrl('generic-dashboard.html'));
     await page.evaluate((k) => localStorage.setItem(k, JSON.stringify([{ id: 'old1', type: 'pin', page: 'generic-dashboard.html', zone: 'z', text: 'ancien', date: '2026-09-01T10:00:00.000Z', status: 'traite', doneAt: '2026-09-02T10:00:00.000Z' }, { id: 'old2', type: 'pin', page: 'generic-dashboard.html', zone: 'z', text: 'ancien 2', date: '2026-09-01T10:00:00.000Z' }])), KEY);
     await page.reload();
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-status-chip')).toHaveText('résolu par moi');
     await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-status-chip')).toHaveCount(0);
   });

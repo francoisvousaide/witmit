@@ -104,10 +104,12 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await H.deactivate(page);
     await page.locator('#tabBtnForm').click();
     await page.locator('#client').click();
-    await page.keyboard.press('Alt+KeyA');
+    await H.doubleAlt(page);                                            // 0.4.0 : ⌥ deux fois ouvre witmit… sauf dans un champ
+    await page.keyboard.press('Alt+KeyA');                              // ⌥+A cache witmit… sauf dans un champ
     await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+    await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
     await page.locator('h1').click();
-    await page.keyboard.press('Alt+KeyA');
+    await H.doubleAlt(page);
     await expect(page.locator('body')).toHaveClass(/cm-active/);
   });
 });
@@ -117,7 +119,7 @@ test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', as
   await H.clearStorage(page); await page.reload(); await H.activate(page);
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'sombre');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-item .body').click();
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola-light/);
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus-light/);
@@ -125,19 +127,19 @@ test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', as
   await H.clearStorage(page); await page.reload(); await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'clair');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-item .body').click();
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola(?!-light)/);
 });
 
-test('curseurs : main ouverte sur la poignée de la barre, flèche ailleurs, pointeur sur les boutons', async ({ page }) => {
+test('curseurs : croix sur la page, flèche dans la liste, pointeur sur les boutons (0.4.0 : plus de bandeau)', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
+  expect(await page.locator('#cmPanelBtn').evaluate((el) => getComputedStyle(el).cursor)).toBe('pointer');
   await H.activate(page);
   const cur = (sel) => page.locator(sel).evaluate((el) => getComputedStyle(el).cursor);
-  expect(await cur('#cmPill .cm-drag-handle')).toBe('grab');
-  expect(await cur('#cmPill')).toBe('default');
-  expect(await cur('#cmPill button')).toBe('pointer');
-  expect(await cur('#cmToggleBtn')).toBe('pointer');
+  expect(await cur('body')).toBe('crosshair');
+  expect(await cur('#cmPanel .cm-panel-head')).toBe('default');
+  expect(await cur('#cmPanel .cm-panel-reduire')).toBe('pointer');
 });
 
 // ---------- Lot 4 : fenêtre de saisie (fiche Fenetre ; textes de Léa 3.7 et 3.8) ----------

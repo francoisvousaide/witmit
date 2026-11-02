@@ -17,7 +17,7 @@ async function semer(page, nom, cle, retours) {
   await page.reload();
 }
 async function ouvrirListe(page) {
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmPanel')).toHaveClass(/show/);
   await page.waitForTimeout(400);
 }
@@ -36,7 +36,7 @@ for (const [nom, filet] of [['tellus-accueil.html', 'rgba(0, 0, 0, 0.12)'], ['ge
     });
     const avant = await mesure();
     expect(avant.cadreDroite).toBe(avant.vw);
-    await H.activate(page);
+    await H.activate(page);   // 0.4.0 : le bouton witmit ouvre la liste et le mode ensemble
     await ouvrirListe(page);
     const ouverte = await mesure();
     expect(ouverte.largeur).toBe(340);
@@ -56,22 +56,23 @@ for (const [nom, filet] of [['tellus-accueil.html', 'rgba(0, 0, 0, 0.12)'], ['ge
     expect(matiere.ombre).toBe('none');                                 // ni ombre ni lueur
     expect(matiere.halo).toContain('inset');
     for (const b of matiere.bords) expect(b).toBe('0px 0px 0px 0px');   // plus aucun filet dans la liste
-    await page.locator('#cmPanel .cm-panel-fermer').click();
+    await page.locator('#cmPanel .cm-panel-reduire').click();
     await page.waitForTimeout(400);
     const apres = await mesure();
     expect(apres.marge).toBe('');
     expect(Math.abs(apres.corps - avant.corps)).toBeLessThan(1);       // la page retrouve sa largeur
     expect(apres.cadreDroite).toBe(avant.vw);
-    await expect(page.locator('body')).toHaveClass(/cm-active/);        // le mode continue
+    await expect(page.locator('body')).not.toHaveClass(/cm-active/);    // 0.4.0 : « réduire » replie aussi le mode
   });
 }
 
-test('L2. retours réduits à deux lignes (texte 14 px puis élément visé 13 px), sans filets ; ni compteur ni chiffre à côté du titre', async ({ page }) => {
+test('L2. retours réduits à deux lignes (texte 14 px puis élément visé 13 px), sans filets ; ni compteur ni chiffre à côté du mot witmit', async ({ page }) => {
   await semer(page, 'tellus-accueil.html', 'witmit_tellus_v1', ['a', 'b', 'c'].map((id) => retour(id, 'tellus-accueil.html')));
   await ouvrirListe(page);
   await expect(page.locator('.cm-panel-item')).toHaveCount(3);
   await expect(page.locator('#cmPanelCount')).toHaveCount(0);
-  await expect(page.locator('#cmPanel .cm-panel-head-row')).toHaveText('En marge de cette page');
+  await expect(page.locator('#cmPanel .cm-panel-head-row')).toHaveText('');   // 0.4.0 : le mot witmit (dessin) et « réduire », sans texte
+  await expect(page.locator('#cmPanel .cm-panel-head-row .cm-panel-mot')).toHaveAccessibleName('witmit');
   const r = await ligne(page, 0).evaluate((it) => {
     const txt = it.querySelector('.txt'), zone = it.querySelector('.zone');
     const vus = Array.from(it.querySelectorAll('.body > *')).filter((e) => e.getClientRects().length).map((e) => e.className);
@@ -184,7 +185,7 @@ test('L4. c1 au clavier : flèches haut et bas, Entrée pour ouvrir ou refermer,
 });
 
 for (const [plateforme, multi] of [['MacIntel', '⌘'], ['Win32', 'ctrl']]) {
-  test(`L5. état vide de la décision b3, mot pour mot, avec « ${multi}+clic » (${plateforme}) ; puis le bouton « nouveau retour » du pied`, async ({ page }) => {
+  test(`L5. état vide de la fiche Tiroir (0.4.0), mot pour mot, avec « ${multi}+clic » (${plateforme}) ; puis l’aide du pied, sans bouton « nouveau retour »`, async ({ page }) => {
     await page.addInitScript((p) => {
       Object.defineProperty(Navigator.prototype, 'platform', { configurable: true, get: () => p });
       Object.defineProperty(Navigator.prototype, 'userAgentData', { configurable: true, get: () => ({ platform: p === 'Win32' ? 'Windows' : 'macOS' }) });
@@ -193,23 +194,24 @@ for (const [plateforme, multi] of [['MacIntel', '⌘'], ['Win32', 'ctrl']]) {
     await H.clearStorage(page); await page.reload();
     await ouvrirListe(page);
     const vide = page.locator('#cmList .cm-panel-empty');
-    await expect(vide.locator('p')).toHaveText(["aucun retour sur cette page pour l'instant.", 'pour en laisser un, appuie sur « nouveau retour », puis :']);
+    await expect(vide.locator('p')).toHaveText(["aucun retour sur cette page pour l'instant.", 'pour en laisser un, vise un élément de la page\u00a0:']);
     await expect(vide.locator('li')).toHaveText(['clic : un élément', multi + '+clic : plusieurs', 'glisser : une zone', 'maj+glisser : un passage de texte']);
     const touches = await vide.locator('.wm-repere').evaluateAll((els) => els.map((e) => [e.textContent, getComputedStyle(e).fontFamily.split(',')[0].trim(), getComputedStyle(e).borderTopLeftRadius]));
     expect(touches).toEqual([[multi, 'ui-monospace', '4px'], ['maj', 'ui-monospace', '4px']]);
     const gestes = await vide.locator('li').evaluateAll((els) => els.map((e) => [getComputedStyle(e).whiteSpace, getComputedStyle(e.querySelector('b')).fontWeight]));
     for (const g of gestes) expect(g).toEqual(['nowrap', '500']);
-    await expect(page.locator('#cmNewAide')).toHaveCount(0);            // plus d'autre aide sous le bouton
-    await expect(page.locator('#cmPanel button', { hasText: 'nouveau retour' })).toHaveCount(1);
+    await expect(page.locator('#cmPanel button', { hasText: 'nouveau retour' })).toHaveCount(0);
     const pied = await page.evaluate(() => {
-      const v = document.querySelector('#cmList .cm-panel-empty').getBoundingClientRect(), n = document.getElementById('cmNewBtn').getBoundingClientRect();
-      return n.top > v.bottom;
+      const v = document.querySelector('#cmList .cm-panel-empty').getBoundingClientRect(), a = document.getElementById('cmPanelAide'), n = a.getBoundingClientRect();
+      const cs = getComputedStyle(a), s = getComputedStyle(a.querySelector('span'));
+      return { dessous: n.top > v.bottom, centre: cs.textAlign, taille: cs.fontSize, texte: a.firstChild.textContent, seconde: a.querySelector('span').textContent,
+        encre: cs.color, encreSeconde: s.color, inkSoft: getComputedStyle(document.getElementById('cmPanel')).getPropertyValue('--wm-ink-soft').trim() };
     });
-    expect(pied).toBe(true);
+    expect(pied).toMatchObject({ dessous: true, centre: 'center', taille: '13px', texte: 'clique un élément de la page pour laisser un retour', seconde: 'glisser : une zone · échap : réduire witmit' });
   });
 }
 
-test('L6. pied à droite : « nouveau retour » orange à sa largeur, les autres boutons à droite ; zones de 44 px sans recouvrement (14 px entre deux rangées)', async ({ page }) => {
+test('L6. pied à droite : les boutons à droite, plus de « nouveau retour » (0.4.0), l’aide centrée dessous ; zones de 44 px sans recouvrement (14 px entre deux rangées)', async ({ page }) => {
   await semer(page, 'tellus-accueil.html', 'witmit_tellus_v1', [retour('a', 'tellus-accueil.html'), retour('b', 'tellus-accueil.html')]);
   await ouvrirListe(page);
   const r = await page.evaluate(() => {
@@ -227,22 +229,22 @@ test('L6. pied à droite : « nouveau retour » orange à sa largeur, les autres
     zones.forEach((a, i) => zones.slice(i + 1).forEach((b) => {
       if (a.gauche < b.droite - 0.5 && b.gauche < a.droite - 0.5 && a.haut < b.bas - 0.5 && b.haut < a.bas - 0.5) recouvre.push(a.nom + ' / ' + b.nom);
     }));
-    const n = document.getElementById('cmNewBtn'), nb = n.getBoundingClientRect(), face = getComputedStyle(n, '::before').backgroundColor;
+    const n = null, aide = document.getElementById('cmPanelAide').getBoundingClientRect(), dernier = vus[vus.length - 1].getBoundingClientRect();
     // Rangées : les boutons groupés par leur haut ; la plus à droite de chaque rangée touche le bord du pied.
     const rangees = {};
     vus.filter((e) => !e.classList.contains('cm-scope') && e !== n).forEach((e) => { const b = e.getBoundingClientRect(); const k = Math.round(b.top); rangees[k] = Math.max(rangees[k] || 0, b.right); });
     const tops = Object.keys(rangees).map(Number).sort((x, y) => x - y);
     const outils = Array.from(document.querySelectorAll('#cmPanelTools .cm-outil')).filter((e) => e.getClientRects().length).map((e) => Math.round(e.getBoundingClientRect().top));
     const rapport = Array.from(document.querySelectorAll('#cmReportFoot .wm-touche')).map((e) => Math.round(e.getBoundingClientRect().top));
-    return { recouvre, hauteurs: zones.map((z) => Math.round(z.bas - z.haut)), droiteNouveau: nb.right - bord, largeurNouveau: nb.width, face,
+    return { recouvre, hauteurs: zones.map((z) => Math.round(z.bas - z.haut)), aideDessous: Math.round(aide.top - dernier.bottom), aideGauche: Math.round(aide.left - p.left), aideDroite: Math.round(p.right - aide.right),
       droites: tops.map((t) => Math.round(rangees[t] - bord)), ecartOutils: [...new Set(outils)], ecartRapport: [...new Set(rapport)],
       scope: Math.round(document.querySelector('#cmReportFoot .cm-scope .wm-case').getBoundingClientRect().right - bord) };
   });
   expect(r.recouvre).toEqual([]);
   for (const h of r.hauteurs) expect(h).toBeGreaterThanOrEqual(44);
-  expect(Math.abs(r.droiteNouveau)).toBeLessThan(1);                     // à droite, aligné sur la marge du pied
-  expect(r.largeurNouveau).toBeLessThan(200);                            // à sa largeur, jamais sur toute la largeur
-  expect(r.face).toBe('rgb(247, 130, 26)');
+  expect(r.aideDessous).toBe(7);                                         // l'aide, 14 px sous la face de 30 px de la dernière touche (sa zone de 44 px en déborde de 7 px)
+  expect([r.aideGauche, r.aideDroite]).toEqual([24, 24]);               // marges du pied : 24 px à gauche et à droite (fiche Tiroir)
+  expect(await page.locator('#cmNewBtn').count()).toBe(0);
   for (const d of r.droites) expect(Math.abs(d)).toBeLessThanOrEqual(1);   // chaque rangée de boutons calée à droite
   // 14 px entre deux rangées repliées : faces de 32 px (outils) et de 30 px (rapport, zone de 44 px).
   if (r.ecartOutils.length > 1) expect(r.ecartOutils[1] - r.ecartOutils[0]).toBe(32 + 14);
@@ -264,7 +266,7 @@ test('L7. aide du champ de réponse du fil : au moins 4,6:1 sur la ligne choisie
     await expect(ta).toBeFocused();
     expect(await ta.evaluate((t) => getComputedStyle(t, '::placeholder').color)).toBe(encre[0] === 20 ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.6)');
     await page.mouse.move(2, 2);
-    await ta.evaluate((t) => { t.placeholder = ''; });                   // la face nue du champ, focus compris
+    await ta.evaluate((t) => { t.placeholder = ''; t.scrollIntoView({ block: 'nearest' }); });   // la face nue du champ, focus compris ; 0.4.0 : tête (mot witmit) et pied (aide) plus hauts, le champ peut finir sous le bord du bloc
     await page.waitForTimeout(200);
     const b = await ta.boundingBox();
     const png = await page.screenshot({ clip: { x: b.x + 2, y: b.y + 2, width: b.width - 4, height: b.height - 4 } });
@@ -354,7 +356,7 @@ test('L10 (É2). un seul arrêt de tabulation pour la liste : la ligne choisie, 
   expect(await arrets()).toEqual(['-1', '0', '-1']);
 });
 
-test('L11 (É3). fermer la liste quand le focus y est (Échap, Échap ; croix ; « nouveau retour ») rend le focus au bouton witmit', async ({ page }) => {
+test('L11 (É3). replier witmit quand le focus est dans la liste (Échap, Échap ; « réduire ») rend le focus au bouton witmit', async ({ page }) => {
   const nom = 'tellus-accueil.html';
   await semer(page, nom, 'witmit_tellus_v1', [retour('a', nom, { status: 'signale', signaledAt: new Date().toISOString() })]);
   await ouvrirListe(page);
@@ -362,30 +364,26 @@ test('L11 (É3). fermer la liste quand le focus y est (Échap, Échap ; croix ; 
   await page.keyboard.press('Enter');
   await expect(ligne(page, 0)).toHaveClass(/wm-ouvert/);
   await page.keyboard.press('Escape');                                   // le retour ouvert
-  await page.keyboard.press('Escape');                                   // puis la liste
+  await page.keyboard.press('Escape');                                   // puis witmit
   await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
   await expect(page.locator('#cmPanelBtn')).toBeFocused();
   await ouvrirListe(page);
-  await page.locator('#cmPanel .cm-panel-fermer').click();               // la croix
-  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
-  await expect(page.locator('#cmPanelBtn')).toBeFocused();
-  await ouvrirListe(page);
-  await page.locator('#cmNewBtn').focus();
-  await page.keyboard.press('Enter');                                    // « nouveau retour » au clavier
+  await page.locator('#cmPanel .cm-panel-reduire').focus();
+  await page.keyboard.press('Enter');                                    // « réduire » au clavier
   await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
   await expect(page.locator('#cmPanelBtn')).toBeFocused();
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
 });
 
-test('L12. état vide : « nouveau retour » et ses guillemets ne se coupent pas (espaces insécables), à 340 px', async ({ page }) => {
+test('L12. état vide : « page : » ne se coupe pas (espace insécable avant le deux-points), à 340 px', async ({ page }) => {
   await page.goto(H.fileUrl('tellus-accueil.html'));
   await H.clearStorage(page); await page.reload();
   await ouvrirListe(page);
   const p = page.locator('#cmList .cm-vide-mode');
-  expect(await p.evaluate((e) => e.textContent)).toBe('pour en laisser un, appuie sur « nouveau retour », puis :');   // guillemets collés aussi (É5, lot 7)
+  expect(await p.evaluate((e) => e.textContent)).toBe('pour en laisser un, vise un élément de la page\u00a0:');
   const coupe = await p.evaluate((e) => {
-    const t = e.firstChild, i = t.data.indexOf('«'), r = document.createRange();
-    r.setStart(t, i); r.setEnd(t, t.data.indexOf('»') + 1);
+    const t = e.firstChild, r = document.createRange();
+    r.setStart(t, t.data.indexOf('page')); r.setEnd(t, t.data.length);
     return r.getClientRects().length;
   });
   expect(coupe).toBe(1);                                                 // un seul morceau : jamais coupé

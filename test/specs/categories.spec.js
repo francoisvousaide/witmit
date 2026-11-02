@@ -142,7 +142,7 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     expect(JSON.stringify(t)).not.toContain('?'); // pas de paramètres d'URL
     // visible dans la liste, replié
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('.cm-panel-item .cm-cat-chip')).toHaveText('bug fonctionnel');
     await expect(page.locator('.cm-panel-item details.cm-tech pre')).toBeHidden();
     await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : les détails sont dans le retour ouvert
@@ -171,7 +171,7 @@ test.describe('Bulle et stockage (Kiosque)', () => {
     expect(data[1].tech.type).toBe('encadré');
     expect(data[1].tech.position.relW).toBeGreaterThan(0);
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     page.once('dialog', (d) => d.dismiss());
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     const txt = await page.evaluate(() => navigator.clipboard.readText());

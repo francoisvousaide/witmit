@@ -55,7 +55,7 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   await H.activate(page);
   await H.addPin(page, '#stepPanel1 .fcard-title', 'Depuis proposer');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmPanelSub')).toHaveText('1 à suivre — 2 retours sur 2 pages du site');
   await expect(page.locator('.cm-panel-item')).toHaveCount(1); // la liste ne montre que la page courante
   page.once('dialog', (d) => d.dismiss());
@@ -65,15 +65,15 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   expect(txt).toContain('### #1 · ');
   expect(txt).toContain('### #2 · '); // numérotation continue sur tout le site
   await page.goto(H.fileUrl('generic-dashboard.html'));
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmPanelSub')).toBeHidden();             // aucun retour sur ce site : pas de ligne de compte
 });
 
 test('Charger le script deux fois n’installe le widget qu’une fois', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await page.addScriptTag({ path: require('path').resolve(__dirname, '../../src/witmit.js') });
-  await expect(page.locator('#cmPill')).toHaveCount(1);
-  await expect(page.locator('#cmToggleBtn')).toHaveCount(1);
+  await expect(page.locator('#cmPanel')).toHaveCount(1);
+  await expect(page.locator('#cmPanelBtn')).toHaveCount(1);
 });
 
 test('Sans data-email, « Envoyer » explique quoi faire au lieu d’ouvrir un mail vide', async ({ page }) => {
@@ -82,7 +82,7 @@ test('Sans data-email, « Envoyer » explique quoi faire au lieu d’ouvrir un m
   await H.activate(page);
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'x');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-foot button', { hasText: 'envoyer par email' }).click();
   await expect(page.locator('#cmStatus')).toContainText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
 });

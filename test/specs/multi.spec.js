@@ -89,7 +89,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.cm-focus')).toHaveCount(0);
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.locator('.cm-panel-item .body').click();
     await page.locator('.cm-panel-item .body').click();              // c1 (V2) : le deuxième clic ouvre le champ
     await expect(page.locator('.cm-panel-item textarea')).toHaveValue('groupe');
@@ -131,7 +131,7 @@ test('data-multi-lines="false" : pas de lignes', async ({ page }) => {
   const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
   await page.mouse.click(b.x + 5, b.y + 5);
   await expect(page.locator('.cm-popup')).toBeVisible();
-  await shiftClick(page, '.kpi-tile:nth-child(3) .kpi-value');
+  await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');   // 0.4.0 : cette page a data-drawer="overlay" ; witmit ouvert, la liste couvre la 3e tuile
   await page.locator('.cm-popup textarea').fill('g');
   await page.locator('.cm-popup textarea').press('Enter');
   await expect(page.locator('.cm-pin')).toHaveCount(2);

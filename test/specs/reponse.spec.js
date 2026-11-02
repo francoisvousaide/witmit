@@ -20,18 +20,23 @@ test.beforeEach(async ({ page }) => {
 // Un ticket envoyé au guichet, puis la ligne que le serveur renverra à la relecture ; tiroir ouvert.
 async function ticketEnvoye(page, row, i = 0) {
   // (c1, V2 : ouvrir un retour de la liste lance le mode ; au 2e ticket, il peut déjà tourner.)
-  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await H.activate(page);
+  await H.activate(page);
   await H.addPin(page, `tbody tr:nth-child(${i + 1}) td:nth-child(2)`, 'Ticket ' + (i + 1));
   await expect.poll(async () => ((await ticket(page, i)).sync || {}).state, { timeout: 15000 }).toBe('sent');
   const t = await ticket(page, i);
   state.rows.push({ id_local: t.id, message_retour: null, mis_a_jour_le: '2026-09-28T10:00:00Z', messages: [], ...row });
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.ouvrirRetour(page, page.locator('.cm-panel-item').nth(i));   // c1 (V2) : le fil et ses touches sont dans le retour ouvert
+}
+// 0.4.0 : le bouton witmit quitte la page quand witmit s'ouvre ; ouvrir (bouton) et replier (« réduire ») remplacent ses
+// deux clics de 0.3.0. Le nom du bouton se lit alors sur aria-label, son voyant sur data-zero.
+async function basculer(page) {
+  if (await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show'))) await H.deactivate(page); else await H.activate(page);
 }
 // Fermer puis rouvrir la liste (relecture) ; la fermeture referme le retour : on rouvre le premier, comme avant (c1).
 const rouvrirTiroir = async (page) => {
-  await page.locator('#cmPanelBtn').click(); await page.locator('#cmPanelBtn').click();
+  await H.deactivate(page); await H.ouvrirListe(page);
   if (await page.locator('.cm-panel-item').count()) await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());
 };
 
@@ -138,7 +143,7 @@ test('5. refus du guichet : le message est gardé ⚠️, renvoyé au clic ; aba
 
 test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'nouveau' });                            // pas encore pris en charge
-  await page.locator('#cmPanelBtn').click();                                  // tiroir fermé avant le 2e ticket
+  await H.ouvrirListe(page);                                  // tiroir fermé avant le 2e ticket
   await ticketEnvoye(page, { statut: 'en_cours', messages: [] }, 1);          // pris en compte, sans message de l'équipe
   await expect(page.locator('.cm-panel-item')).toHaveCount(2);
   await expect(page.locator('.cm-reply-btn, .cm-reopen-btn')).toHaveCount(0);
@@ -152,7 +157,7 @@ test('6. boutons absents quand ils ne doivent pas être là', async ({ page }) =
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Local');
-  await H.deactivate(page); await page.locator('#cmPanelBtn').click();
+  await H.deactivate(page); await H.ouvrirListe(page);
   await expect(page.locator('.cm-panel-item')).toHaveCount(1);
   await expect(page.locator('.cm-thread, .cm-thread-actions')).toHaveCount(0);
 });
@@ -200,15 +205,15 @@ test('9. voyant : allumé par un message de l’équipe, éteint après lecture 
   await ticketEnvoye(page, { statut: 'nouveau' });
   await page.waitForTimeout(800);                                            // relecture des statuts faite
   await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);   // ton propre retour : rien de nouveau
-  await witmit.click();
+  await basculer(page);
   await expect(voyant).toBeHidden();
   // L'équipe écrit : la relecture suivante (ouverture de la liste) allume le voyant et le mot « nouveau ».
   state.rows[0].statut = 'en_cours'; state.rows[0].messages = [EQUIPE];
-  await witmit.click();
+  await basculer(page);
   await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveText('nouveau', { timeout: 15000 });
-  await expect(voyant).toBeVisible();
-  await expect(witmit).toHaveAccessibleName('witmit, 1 nouveau retour');
-  await witmit.click();                                                      // liste fermée après lecture : éteint
+  await expect(voyant).toHaveAttribute('data-zero', '0');
+  await expect(witmit).toHaveAttribute('aria-label', 'witmit, 1 nouveau retour');
+  await basculer(page);                                                      // liste fermée après lecture : éteint
   await expect(voyant).toBeHidden();
   await expect(witmit).toHaveAccessibleName('witmit');
   await page.reload();
@@ -219,20 +224,20 @@ test('9. voyant : allumé par un message de l’équipe, éteint après lecture 
   await page.reload();
   await expect(voyant).toBeVisible({ timeout: 15000 });
   // Ta réponse ne rallume rien : lue, puis tu réponds.
-  await witmit.click(); await witmit.click();
+  await basculer(page); await basculer(page);
   await expect(voyant).toBeHidden();
-  await witmit.click();
+  await basculer(page);
   await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());       // c1 (V2) : le fil est dans le retour ouvert
   await page.locator('.cm-reply-btn').click();
   await page.locator('.cm-inline-reply').fill('Je regarde');
   await page.locator('.cm-inline-reply').press('Enter');
   await expect.poll(() => state.replies.length, { timeout: 15000 }).toBe(1);
   state.rows[0].messages = state.rows[0].messages.concat([{ de: 'auteur', texte: 'Je regarde', rouvre: false, cree_le: '2026-09-30T10:00:00Z' }]);
-  await witmit.click(); await witmit.click();
+  await basculer(page); await basculer(page);
   await page.waitForTimeout(800);
   await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveCount(0);
   // Premier chargement de la 0.2.0 : retour écrit avec la 0.1 (ni vuLe, ni equipeLe), l'équipe a écrit entre-temps.
-  await witmit.click();
+  await basculer(page);
   await page.evaluate((k) => {
     const l = JSON.parse(localStorage.getItem(k));
     l.forEach((c) => { delete c.vuLe; delete c.equipeLe; c.sync.statut = 'nouveau'; c.thread = []; });
@@ -252,31 +257,31 @@ test('10. « masquer les terminés » coché : un retour résolu par l’équipe
   await page.waitForTimeout(800);
   await page.locator('#cmPanel .cm-hide-done').click();                     // case cochée
   await expect(page.locator('#cmPanel .cm-hide-done')).toHaveAttribute('aria-checked', 'true');
-  await witmit.click();
+  await basculer(page);
   state.rows[0].statut = 'resolu';
   state.rows[0].messages = [{ de: 'equipe', texte: 'Corrigé', rouvre: false, cree_le: '2026-09-28T10:00:00Z' }];
-  await witmit.click();                                                     // relecture : l'équipe a résolu
+  await basculer(page);                                                     // relecture : l'équipe a résolu
   await expect(page.locator('.cm-panel-item .cm-nouveau')).toHaveText('nouveau', { timeout: 15000 });
   await expect(page.locator('.cm-panel-item')).toHaveCount(1);              // affiché malgré le filtre
   await expect(page.locator('.cm-panel-item .cm-status-chip')).toHaveText('résolu');
-  await expect(voyant).toBeVisible();
-  await witmit.click();                                                     // fermée après l'avoir vu : éteint
+  await expect(voyant).toHaveAttribute('data-zero', '0');
+  await basculer(page);                                                     // fermée après l'avoir vu : éteint
   await expect(voyant).toBeHidden();
   await expect(witmit).toHaveAccessibleName('witmit');
-  await witmit.click();                                                     // à l'ouverture suivante, le filtre le cache
+  await basculer(page);                                                     // à l'ouverture suivante, le filtre le cache
   await page.waitForTimeout(800);
   await expect(page.locator('.cm-panel-item')).toHaveCount(0);
   await expect(page.locator('.cm-panel-empty')).toHaveText('tous les retours de cette page sont terminés.');
   await expect(voyant).toBeHidden();
 });
 
-// Relecture de Paula (lot 5) : à 340 px (liste sur ordinateur, V2) et à 375 px (écran étroit, liste pleine largeur),
+// Relecture de Paula (lot 5) : à 340 px (liste sur ordinateur, V2) ; 0.4.0 : sous 480 px witmit est désactivé, plus de liste pleine largeur à 375 px ;
 // chaque touche sous le fil garde ses marges intérieures (12 px à gauche, 8 px à droite du contenu) ; la rangée passe
 // sous la colonne des cercles sans rien chevaucher.
-test('11. les touches sous le fil gardent leurs marges à 340 et 375 px (« ça ne convient pas ? rouvrir »), sans chevauchement ; zones de 44 px sans recouvrement', async ({ page }) => {
+test('11. les touches sous le fil gardent leurs marges à 340 px (« ça ne convient pas ? rouvrir »), sans chevauchement ; zones de 44 px sans recouvrement', async ({ page }) => {
   await ticketEnvoye(page, { statut: 'resolu', messages: [EQUIPE] });
   await expect(page.locator('.cm-reopen-btn')).toBeVisible({ timeout: 15000 });
-  for (const [largeur, vue] of [[340, null], [375, { width: 375, height: 812 }]]) {
+  for (const [largeur, vue] of [[340, null]]) {
     if (vue) { await page.setViewportSize(vue); await page.waitForTimeout(400); }
     const tiroir = await page.locator('#cmPanel').boundingBox();
     expect(Math.round(tiroir.width), 'largeur du tiroir').toBe(largeur);
@@ -393,7 +398,7 @@ test('13. réponse en 413 ou réouverture en 409 : la raison en clair, et rien n
   await page.waitForTimeout(2500);
   expect(state.replies).toHaveLength(2);
   // un autre 413 (refus que la table ne nomme pas) : « witmit a refusé ce message », rien ne repart
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());       // c1 (V2) : le fil est dans le retour ouvert
   await expect(page.locator('.cm-reply-btn')).toBeVisible();
   state.failReply = { status: 413, erreur: 'corps trop gros' };

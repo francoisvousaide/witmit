@@ -122,7 +122,7 @@ test.describe('Mode live : la page du serveur fait foi', () => {
     await page.reload();
     const t = (await H.stored(page, KEY))[0];
     state.rows = [{ id_local: t.id, page: '/accueil', statut: 'nouveau', message_retour: null, mis_a_jour_le: '2026-09-30T08:00:00Z' }];
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect.poll(async () => (await H.stored(page, KEY))[0].page).toBe('/accueil');
     await expect(page.locator('#cmList .cm-panel-item')).toHaveCount(1);   // un retour sur cette page (V2 : plus de compteur, la liste en a une ligne)
   });
@@ -134,7 +134,7 @@ test.describe('Tiroir du site ouvert pendant que la liste witmit est ouverte', (
     await page.goto(ORIGIN + '/accueil');
     await H.clearStorage(page);
     await page.goto(ORIGIN + '/accueil');
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await expect(page.locator('#cmPanel')).toBeVisible();
     // comme TiroirLateral de TellUs-app : fixed, right:0, entrée animée par transform avec fill-mode both
     await page.evaluate(() => {
@@ -146,8 +146,8 @@ test.describe('Tiroir du site ouvert pendant que la liste witmit est ouverte', (
     });
     const panelLeft = Math.round((await page.locator('#cmPanel').boundingBox()).x);
     await expect.poll(async () => Math.round((await page.locator('#tiroirSite').boundingBox()).x + 360)).toBeLessThanOrEqual(panelLeft + 1);
-    // liste refermée : le tiroir du site revient contre le bord
-    await page.locator('#cmPanelBtn').click();
+    // witmit replié : le tiroir du site revient contre le bord
+    await H.deactivate(page);
     const vw = await page.evaluate(() => document.documentElement.clientWidth);
     await expect.poll(async () => Math.round((await page.locator('#tiroirSite').boundingBox()).x + 360)).toBe(vw);
   });

@@ -47,10 +47,10 @@ test('2. un clic enregistré part au guichet : identité, défi résolu, ticket,
   expect(p.body.id_local).toBe(t.id);
   expect(t.sync.id).toBe('srv-1');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('.cm-sync-chip')).toHaveText('envoyé');
   // l'identité est réutilisée pour un second ticket
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.activate(page);
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Deuxième');
   await waitSent(page, 1);
@@ -78,7 +78,7 @@ test('4. échec (quota) : le ticket reste en local ⚠️, renvoyé à l’ouver
   expect((await ticket(page)).sync.error).toBe('trop de tickets');
   await expect(page.locator('#cmStatus')).toHaveText("envoi impossible : trop d'envois d'un coup. ton retour est gardé ici ; réessaie dans quelques minutes.");
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();   // ouvrir le tiroir = nouvel essai
+  await H.ouvrirListe(page);   // ouvrir le tiroir = nouvel essai
   await waitSent(page);
   expect(state.posts).toHaveLength(2);
   await expect(page.locator('.cm-sync-chip')).toHaveText('envoyé');
@@ -91,17 +91,17 @@ test('5. le statut est relu depuis le serveur : résolu + message de retour', as
   const t = await ticket(page);
   state.rows = [{ id_local: t.id, statut: 'resolu', message_retour: 'Corrigé dans la version 1.2', mis_a_jour_le: '2026-09-22T10:00:00Z' }];
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('.cm-status-chip')).toContainText('résolu');
   await expect(page.locator('.cm-feedback')).toContainText('Corrigé dans la version 1.2');
   expect((await ticket(page)).status).toBe('resolu');
   // en_cours → pris en compte
-  await page.locator('#cmPanelBtn').click(); await H.activate(page);
+  await H.ouvrirListe(page); await H.activate(page);
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'En cours');
   await waitSent(page, 1);
   const t2 = await ticket(page, 1);
   state.rows.push({ id_local: t2.id, statut: 'en_cours', message_retour: null, mis_a_jour_le: '2026-09-22T11:00:00Z' });
-  await H.deactivate(page); await page.locator('#cmPanelBtn').click();
+  await H.deactivate(page); await H.ouvrirListe(page);
   await expect(page.locator('.cm-panel-item').nth(1).locator('.cm-status-chip')).toContainText('pris en compte');
 });
 
@@ -124,7 +124,7 @@ test('7. mode mock : rien ne part, aucune puce d’envoi', async ({ page }) => {
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Local');
   await page.waitForTimeout(1500);
   expect(state.signups).toBe(0); expect(state.posts).toHaveLength(0);
-  await H.deactivate(page); await page.locator('#cmPanelBtn').click();
+  await H.deactivate(page); await H.ouvrirListe(page);
   await expect(page.locator('.cm-sync-chip')).toHaveCount(0);
 });
 
@@ -132,30 +132,30 @@ test('8. mode live : rapport, « coller un retour » et « effacer (page) » cac
   const report = page.locator('#cmReportFoot');
   const paste = page.locator('#cmPasteBtn');
   const effacer = page.locator('#cmClearPageBtn');
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(report).toBeHidden();               // aucun retour : rien à sortir
   await expect(paste).toBeHidden();
   await expect(effacer).toBeHidden();              // rien de supprimable : « effacer (page) » absent
 
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.activate(page);
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Retour envoyé');
   await waitSent(page);
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(report).toBeHidden();               // tout est parti : toujours cachés
   await expect(paste).toBeHidden();
   await expect(effacer).toBeHidden();              // un retour reçu par witmit ne s'efface plus
 
   // un retour qui ne part pas (faux serveur en 429) → le filet de secours réapparaît, « effacer (page) » aussi
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await H.activate(page);
   state.failNext = { status: 429, erreur: 'trop de tickets, réessaie plus tard' };
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Retour coincé');
   await expect.poll(async () => ((await ticket(page, 1)).sync || {}).state, { timeout: 15000 }).toBe('error');
   await H.deactivate(page);
   state.failNext = { status: 429, erreur: 'trop de tickets, réessaie plus tard' };   // l'ouverture de la liste renvoie : refusé encore
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect.poll(() => state.posts.length, { timeout: 15000 }).toBe(3);
   await expect.poll(async () => ((await ticket(page, 1)).sync || {}).state, { timeout: 15000 }).toBe('error');
   await expect(report).toBeVisible();
@@ -166,7 +166,7 @@ test('8. mode live : rapport, « coller un retour » et « effacer (page) » cac
 test('9. mode mock : rapport et « Coller un retour » toujours là', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await H.clearStorage(page); await page.reload();
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await expect(page.locator('#cmReportFoot')).toBeVisible();
   await expect(page.locator('#cmPasteBtn')).toBeVisible();
 });
@@ -237,7 +237,7 @@ test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture
   await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : witmit a refusé ce retour. il ne repartira pas : efface-le et écris-en un nouveau.');
   expect(state.posts).toHaveLength(2);
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();                       // ouvrir la liste : aucun nouvel essai
+  await H.ouvrirListe(page);                       // ouvrir la liste : aucun nouvel essai
   await page.waitForTimeout(2500);
   expect(state.posts).toHaveLength(2);
   // « à renvoyer » n'est plus un bouton : son info-bulle donne la raison, sans « clique pour réessayer »
@@ -272,7 +272,7 @@ test('13. un dépôt en 500 est renvoyé (le guichet n’a rien enregistré) : �
   await expect.poll(() => etatEnvoi(page, 0), { timeout: 15000 }).toBe('error');
   await expect(page.locator('#cmStatus')).toHaveText('envoi impossible : le service witmit ne répond pas. ton retour est gardé ici et repartira tout seul.');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await waitSent(page, 0);
   expect(state.posts).toHaveLength(2);
   expect(state.posts[1].body.id_local).toBe(state.posts[0].body.id_local);   // même identifiant : pas de doublon au guichet
