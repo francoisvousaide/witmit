@@ -58,8 +58,9 @@ test('Rapport site-large : deux pages TellUs partagent le rapport, Kiosque non',
   await H.ouvrirListe(page);
   await expect(page.locator('#cmPanelSub')).toHaveText('1 à suivre — 2 retours sur 2 pages du site');
   await expect(page.locator('.cm-panel-item')).toHaveCount(1); // la liste ne montre que la page courante
-  page.once('dialog', (d) => d.dismiss());
+  H.repondreConfirmation(page, false);
   await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
+  await expect(page.locator('#cmStatus')).toContainText('copié');
   const txt = await page.evaluate(() => navigator.clipboard.readText());
   expect(txt).toContain('## Page : ');
   expect(txt).toContain('### #1 · ');

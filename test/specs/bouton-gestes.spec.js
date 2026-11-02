@@ -61,7 +61,7 @@ test.describe('bouton witmit unique', () => {
     expect(st.ombre).toContain('rgba(0, 0, 0, 0.34) 0px 22px 56px 0px');
     expect(st.ombre).toContain('rgba(0, 0, 0, 0.14) 0px 1px 3px 0px');
     expect(Math.round(st.droite)).toBe(24); expect(Math.round(st.bas)).toBe(24);
-    expect(st.titre).toBe(H.IS_MAC ? 'option deux fois : ouvrir · option A : cacher' : 'alt deux fois : ouvrir · alt A : cacher');
+    expect(st.titre.replace(/\u00a0/g, ' ')).toBe(H.IS_MAC ? 'option deux fois : ouvrir · option A : cacher' : 'alt deux fois : ouvrir · alt A : cacher');
     // Site clair : la face claire du symbole ; la face encre est cachée.
     await expect(b.locator('svg[data-logo="symbole"]')).toBeVisible();
     await expect(b.locator('svg[data-logo="symbole-sombre"]')).toBeHidden();
@@ -221,7 +221,9 @@ test.describe('raccourcis', () => {
     await expect(page.locator('#cmPanelBtn')).toBeHidden();
     await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
     await expect(page.locator('body')).not.toHaveClass(/cm-active/);
-    await expect(page.locator('#cmStatus')).toHaveText("witmit est masqué. pour le retrouver : " + RACC_CACHER + ", ou ?witmit=on dans l'adresse.");
+    // ZB-280 : ⌥ en icône (Option) dans son petit carré, lue « option ».
+    await expect(page.locator('#cmStatus')).toHaveText("witmit est masqué. pour le retrouver : " + (H.IS_MAC ? 'option+A' : 'alt+A') + ", ou ?witmit=on dans l'adresse.");
+    if (H.IS_MAC) await expect(page.locator('#cmStatus .wm-repere svg[data-icone="Option"]')).toHaveCount(1);
     expect(await lu(page, REVEAL_MAQUETTE)).toBe('0');
     await page.reload();
     await expect(page.locator('body')).toHaveClass(/cm-concealed/);
@@ -252,7 +254,7 @@ test.describe('raccourcis', () => {
     await page.locator('#cmPanelBtn').click();
     await viser(page);
     await page.locator('.cm-popup textarea').fill('le titre est trop long');
-    page.once('dialog', (d) => d.dismiss());
+    H.repondreConfirmation(page, false);
     await page.keyboard.press(H.CACHER);
     await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
     await expect(page.locator('.cm-popup textarea')).toHaveValue('le titre est trop long');

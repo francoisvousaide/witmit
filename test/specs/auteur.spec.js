@@ -114,7 +114,7 @@ test.describe('mode maquette', () => {
     await H.deactivate(page);
     await openDrawer(page);
     await expect(author(page)).toHaveText('tes retours sont signés : Camille');
-    page.once('dialog', (d) => d.dismiss());
+    H.repondreConfirmation(page, false);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     await expect(page.locator('#cmStatus')).toContainText('copié');
     const md = await page.evaluate(() => navigator.clipboard.readText());
@@ -130,7 +130,7 @@ test.describe('mode maquette', () => {
     await H.deactivate(page);
     await openDrawer(page);
     await expect(author(page)).toBeHidden();
-    page.once('dialog', (d) => d.dismiss());
+    H.repondreConfirmation(page, false);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
     await expect(page.locator('#cmStatus')).toContainText('copié');
     const md = await page.evaluate(() => navigator.clipboard.readText());

@@ -135,7 +135,7 @@ test('5. refus du guichet : le message est gardé ⚠️, renvoyé au clic ; aba
   await page.locator('.cm-inline-reply').fill('À abandonner');
   await page.locator('.cm-inline-reply').press('Enter');
   await expect(attente.locator('.cm-sync-error')).toBeVisible({ timeout: 15000 });
-  page.once('dialog', (d) => d.accept());
+  H.repondreConfirmation(page, true);
   await attente.locator('.cm-msg-drop').click();
   await expect(attente).toHaveCount(0);
   expect((await ticket(page)).replies).toHaveLength(0);
@@ -343,9 +343,12 @@ test('12. réponse en 500 « publiée mais non enregistrée », puis réouvertur
   await expect.poll(() => etatReponse(page), { timeout: 15000 }).toBe('error');
   await expect(page.locator('#cmStatus')).toHaveText("ton message est bien arrivé à l'équipe, mais witmit n'a pas pu le garder dans ce fil. il ne sera pas renvoyé : × le retire d'ici.");
   const attente = page.locator('.cm-msg-pending');
-  const marque = attente.locator('.cm-sync-error');
+  // ZB-280 (Léa) : arrivé à l'équipe, le message est marqué « envoyé », plus « à renvoyer » ; ce n'est pas un bouton.
+  const marque = attente.locator('.cm-sync-chip');
+  await expect(attente.locator('.cm-sync-error')).toHaveCount(0);
+  await expect(marque).toHaveText('envoyé');
   expect(await marque.evaluate((el) => el.tagName)).toBe('SPAN');   // plus un bouton de renvoi
-  await expect(marque).toHaveAttribute('title', "ton message est bien arrivé à l'équipe, mais witmit n'a pas pu le garder dans ce fil. il ne sera pas renvoyé : × le retire d'ici.");
+  await expect(marque).toHaveAttribute('title', /^arrivé à l'équipe, pas gardé dans ce fil$/);
   await expect(attente.locator('button')).toHaveCount(1);            // seul « × abandonner »
   await expect(attente.locator('.cm-msg-drop')).toBeVisible();
   await marque.click();                                              // un clic sur la marque ne renvoie rien
@@ -360,7 +363,7 @@ test('12. réponse en 500 « publiée mais non enregistrée », puis réouvertur
   await rouvrirTiroir(page);
   await page.waitForTimeout(2000);
   expect(state.replies).toHaveLength(2);
-  await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(1)).toHaveAttribute('title', 'witmit ne sait pas si ton message est parti.');
+  await expect(page.locator('.cm-msg-pending .cm-sync-error').nth(0)).toHaveAttribute('title', 'witmit ne sait pas si ton message est parti.');   // (le premier est « envoyé », ZB-280)
   // × : le message part de la liste, sans jamais repartir au guichet. En 500, il a pu arriver à l'équipe : la
   // confirmation dit « retirer d'ici », pas « il n'est pas parti » (Léa 3.9 complétée au lot 8).
   const confirmation = H.accepterConfirmation(page);

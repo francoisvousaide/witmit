@@ -62,7 +62,11 @@
     hostTheme: (function (v) { return v === 'light' || v === 'dark' ? v : 'auto'; })(SCRIPT_EL && SCRIPT_EL.getAttribute('data-host-theme')),
     // data-selection-color="orange" : contour des sélections actives et pointillés des sélections inactives en orange
     // (fiche Selection, décision de François du 26/10). Par défaut, et pour toute autre valeur : gris ("gray").
-    selectionColor: /^\s*orange\s*$/i.test((SCRIPT_EL && SCRIPT_EL.getAttribute('data-selection-color')) || '') ? 'orange' : 'gris'
+    selectionColor: /^\s*orange\s*$/i.test((SCRIPT_EL && SCRIPT_EL.getAttribute('data-selection-color')) || '') ? 'orange' : 'gris',
+    // data-selection-switch (0.4.0, décision e1 du 29/10, fiches Tiroir et Selection) : affiche l'interrupteur « sélections en
+    // orange » dans la ligne des filtres de la liste. Il part de data-selection-color ; le choix de la personne est mémorisé
+    // dans son navigateur. Présent (sans valeur, ou "true") : affiché ; absent, "false", "0" ou "non" : pas d'interrupteur.
+    selectionSwitch: !!(SCRIPT_EL && SCRIPT_EL.hasAttribute('data-selection-switch') && !/^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-selection-switch') || ''))
   };
   var VERSION = '0.3.0';
 
@@ -77,7 +81,6 @@
   var ICONES = {
     CursorClick: '<path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/>',
     BoundingBox: '<path d="M208,96a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96V48A16,16,0,0,0,80,32H48A16,16,0,0,0,32,48V80A16,16,0,0,0,48,96h8v64H48a16,16,0,0,0-16,16v32a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16v-8h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V176a16,16,0,0,0-16-16h-8V96ZM176,48h32V80H176ZM48,48H80V63.9a.51.51,0,0,0,0,.2V80H48ZM80,208H48V176H80v15.9a.51.51,0,0,0,0,.2V208Zm128,0H176V176h32Zm-24-48h-8a16,16,0,0,0-16,16v8H96v-8a16,16,0,0,0-16-16H72V96h8A16,16,0,0,0,96,80V72h64v8a16,16,0,0,0,16,16h8Z"/>',
-    TextT: '<path d="M208,56V88a8,8,0,0,1-16,0V64H136V192h24a8,8,0,0,1,0,16H96a8,8,0,0,1,0-16h24V64H64V88a8,8,0,0,1-16,0V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z"/>',
     SelectionPlus: '<path d="M152,40a8,8,0,0,1-8,8H112a8,8,0,0,1,0-16h32A8,8,0,0,1,152,40Zm-8,168H112a8,8,0,0,0,0,16h32a8,8,0,0,0,0-16ZM208,48V72a8,8,0,0,0,16,0V48a16,16,0,0,0-16-16H184a8,8,0,0,0,0,16Zm8,56a8,8,0,0,0-8,8v32a8,8,0,0,0,16,0V112A8,8,0,0,0,216,104ZM40,152a8,8,0,0,0,8-8V112a8,8,0,0,0-16,0v32A8,8,0,0,0,40,152Zm32,56H48V184a8,8,0,0,0-16,0v24a16,16,0,0,0,16,16H72a8,8,0,0,0,0-16ZM72,32H48A16,16,0,0,0,32,48V72a8,8,0,0,0,16,0V48H72a8,8,0,0,0,0-16ZM240,208H224V192a8,8,0,0,0-16,0v16H192a8,8,0,0,0,0,16h16v16a8,8,0,0,0,16,0V224h16a8,8,0,0,0,0-16Z"/>',
     ImageBroken: '<path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16h64a8,8,0,0,0,7.59-5.47l14.83-44.48L163,151.43a8.07,8.07,0,0,0,4.46-4.46l14.62-36.55,44.48-14.83A8,8,0,0,0,232,88V56A16,16,0,0,0,216,40ZM112.41,157.47,98.23,200H40V172l52-52,30.42,30.42L117,152.57A8,8,0,0,0,112.41,157.47ZM216,82.23,173.47,96.41a8,8,0,0,0-4.9,4.62l-14.72,36.82L138.58,144l-35.27-35.27a16,16,0,0,0-22.62,0L40,149.37V56H216Zm12.68,33a8,8,0,0,0-7.21-1.1l-23.8,7.94a8,8,0,0,0-4.9,4.61l-14.31,35.77-35.77,14.31a8,8,0,0,0-4.61,4.9l-7.94,23.8A8,8,0,0,0,137.73,216H216a16,16,0,0,0,16-16V121.73A8,8,0,0,0,228.68,115.24ZM216,200H148.83l3.25-9.75,35.51-14.2a8.07,8.07,0,0,0,4.46-4.46l14.2-35.51,9.75-3.25Z"/>',
     Bug: '<path d="M144,92a12,12,0,1,1,12,12A12,12,0,0,1,144,92ZM100,80a12,12,0,1,0,12,12A12,12,0,0,0,100,80Zm116,64A87.76,87.76,0,0,1,213,167l22.24,9.72A8,8,0,0,1,232,192a7.89,7.89,0,0,1-3.2-.67L207.38,182a88,88,0,0,1-158.76,0L27.2,191.33A7.89,7.89,0,0,1,24,192a8,8,0,0,1-3.2-15.33L43,167A87.76,87.76,0,0,1,40,144v-8H16a8,8,0,0,1,0-16H40v-8a87.76,87.76,0,0,1,3-23L20.8,79.33a8,8,0,1,1,6.4-14.66L48.62,74a88,88,0,0,1,158.76,0l21.42-9.36a8,8,0,0,1,6.4,14.66L213,89.05a87.76,87.76,0,0,1,3,23v8h24a8,8,0,0,1,0,16H216ZM56,120H200v-8a72,72,0,0,0-144,0Zm64,95.54V136H56v8A72.08,72.08,0,0,0,120,215.54ZM200,144v-8H136v79.54A72.08,72.08,0,0,0,200,144Z"/>',
@@ -102,7 +105,6 @@
     X: '<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>',
     Trash: '<path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/>',
     Check: '<path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/>',
-    DotsSixVertical: '<path d="M104,60A12,12,0,1,1,92,48,12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,116Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,116ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,184Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,184Z"/>',   // poignée de la fenêtre (retirée au lot 3)
     CaretRight: '<path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/>',
     CaretDown: '<path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>',
     CaretUp: '<path d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"/>',
@@ -117,6 +119,19 @@
     ArrowElbowDownLeft: '<path d="M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"/>',
     Command: '<path d="M180,144H160V112h20a36,36,0,1,0-36-36V96H112V76a36,36,0,1,0-36,36H96v32H76a36,36,0,1,0,36,36V160h32v20a36,36,0,1,0,36-36ZM160,76a20,20,0,1,1,20,20H160ZM56,76a20,20,0,0,1,40,0V96H76A20,20,0,0,1,56,76ZM96,180a20,20,0,1,1-20-20H96Zm16-68h32v32H112Zm68,88a20,20,0,0,1-20-20V160h20a20,20,0,0,1,0,40Z"/>',
     Option: '<path d="M232,192a8,8,0,0,1-8,8H160.94a15.92,15.92,0,0,1-14.31-8.84L95.06,88H32a8,8,0,0,1,0-16H95.06a15.92,15.92,0,0,1,14.31,8.84L160.94,184H224A8,8,0,0,1,232,192ZM152,88h72a8,8,0,0,0,0-16H152a8,8,0,0,0,0,16Z"/>',
+    // Types de l'élément visé (0.4.0, fiche Icones, table des types) ; « aller » à une autre page (liste par page).
+    TextAa: '<path d="M87.24,52.59a8,8,0,0,0-14.48,0l-64,136a8,8,0,1,0,14.48,6.81L39.9,160h80.2l16.66,35.4a8,8,0,1,0,14.48-6.81ZM47.43,144,80,74.79,112.57,144ZM200,96c-12.76,0-22.73,3.47-29.63,10.32a8,8,0,0,0,11.26,11.36c3.8-3.77,10-5.68,18.37-5.68,13.23,0,24,9,24,20v3.22A42.76,42.76,0,0,0,200,128c-22.06,0-40,16.15-40,36s17.94,36,40,36a42.73,42.73,0,0,0,24-7.25,8,8,0,0,0,16-.75V132C240,112.15,222.06,96,200,96Zm0,88c-13.23,0-24-9-24-20s10.77-20,24-20,24,9,24,20S213.23,184,200,184Z"/>',
+    Highlighter: '<path d="M253.66,106.34a8,8,0,0,0-11.32,0L192,156.69,107.31,72l50.35-50.34a8,8,0,1,0-11.32-11.32L96,60.69A16,16,0,0,0,93.18,79.5L72,100.69a16,16,0,0,0,0,22.62L76.69,128,18.34,186.34a8,8,0,0,0,3.13,13.25l72,24A7.88,7.88,0,0,0,96,224a8,8,0,0,0,5.66-2.34L136,187.31l4.69,4.69a16,16,0,0,0,22.62,0l21.19-21.18A16,16,0,0,0,203.31,168l50.35-50.34A8,8,0,0,0,253.66,106.34ZM93.84,206.85l-55-18.35L88,139.31,124.69,176ZM152,180.69,83.31,112,104,91.31,172.69,160Z"/>',
+    Rectangle: '<path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200Z"/>',
+    Image: '<path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"/>',
+    TagSimple: '<path d="M246.66,123.56,201,55.13A15.94,15.94,0,0,0,187.72,48H40A16,16,0,0,0,24,64V192a16,16,0,0,0,16,16H187.72A16,16,0,0,0,201,200.88l45.63-68.44A8,8,0,0,0,246.66,123.56ZM187.72,192H40V64H187.72l42.66,64Z"/>',
+    Textbox: '<path d="M112,40a8,8,0,0,0-8,8V64H24A16,16,0,0,0,8,80v96a16,16,0,0,0,16,16h80v16a8,8,0,0,0,16,0V48A8,8,0,0,0,112,40ZM24,176V80h80v96ZM248,80v96a16,16,0,0,1-16,16H144a8,8,0,0,1,0-16h88V80H144a8,8,0,0,1,0-16h88A16,16,0,0,1,248,80ZM88,112a8,8,0,0,1-8,8H72v24a8,8,0,0,1-16,0V120H48a8,8,0,0,1,0-16H80A8,8,0,0,1,88,112Z"/>',
+    CheckSquare: '<path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM224,48V208a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32H208A16,16,0,0,1,224,48ZM208,208V48H48V208H208Z"/>',
+    CaretUpDown: '<path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/>',
+    Link: '<path d="M240,88.23a54.43,54.43,0,0,1-16,37L189.25,160a54.27,54.27,0,0,1-38.63,16h-.05A54.63,54.63,0,0,1,96,119.84a8,8,0,0,1,16,.45A38.62,38.62,0,0,0,150.58,160h0a38.39,38.39,0,0,0,27.31-11.31l34.75-34.75a38.63,38.63,0,0,0-54.63-54.63l-11,11A8,8,0,0,1,135.7,59l11-11A54.65,54.65,0,0,1,224,48,54.86,54.86,0,0,1,240,88.23ZM109,185.66l-11,11A38.41,38.41,0,0,1,70.6,208h0a38.63,38.63,0,0,1-27.29-65.94L78,107.31A38.63,38.63,0,0,1,144,135.71a8,8,0,0,0,16,.45A54.86,54.86,0,0,0,144,96a54.65,54.65,0,0,0-77.27,0L32,130.75A54.62,54.62,0,0,0,70.56,224h0a54.28,54.28,0,0,0,38.64-16l11-11A8,8,0,0,0,109,185.66Z"/>',
+    Crosshair: '<path d="M232,120h-8.34A96.14,96.14,0,0,0,136,32.34V24a8,8,0,0,0-16,0v8.34A96.14,96.14,0,0,0,32.34,120H24a8,8,0,0,0,0,16h8.34A96.14,96.14,0,0,0,120,223.66V232a8,8,0,0,0,16,0v-8.34A96.14,96.14,0,0,0,223.66,136H232a8,8,0,0,0,0-16Zm-96,87.6V200a8,8,0,0,0-16,0v7.6A80.15,80.15,0,0,1,48.4,136H56a8,8,0,0,0,0-16H48.4A80.15,80.15,0,0,1,120,48.4V56a8,8,0,0,0,16,0V48.4A80.15,80.15,0,0,1,207.6,120H200a8,8,0,0,0,0,16h7.6A80.15,80.15,0,0,1,136,207.6ZM128,88a40,40,0,1,0,40,40A40,40,0,0,0,128,88Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,152Z"/>',
+    ArrowsDownUp: '<path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/>',
+    ArrowRight: '<path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/>',
     // « réduire » de la tête de la liste (0.4.0, fiche Tiroir) : la liste qui rentre vers le bord.
     ArrowLineRight: '<path d="M189.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L164.69,136H32a8,8,0,0,1,0-16H164.69L106.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,189.66,133.66ZM216,32a8,8,0,0,0-8,8V216a8,8,0,0,0,16,0V40A8,8,0,0,0,216,32Z"/>'
   };
@@ -191,7 +206,8 @@
     // 0.4.0 (fiche Tiroir) : plus de « nouveau retour », le mode est déjà actif quand la liste est ouverte.
     '<p class="cm-vide-mode">pour en laisser un, vise un élément de la page\u00a0:</p>' +
     '<ul class="cm-vide-gestes">' +
-      '<li><b>clic</b> : un élément</li>' +
+      '<li><b>clic</b> : un élément ou un paragraphe</li>' +   // 0.4.0 : un clic sur un paragraphe ou un titre le prend comme passage
+
       '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
       '<li><b>glisser</b> : une zone</li>' +
       '<li><b><span class="wm-repere">maj</span>+glisser</b> : un passage de texte</li>' +
@@ -411,8 +427,8 @@
   .wm-habille > .wm-verre { z-index:-1; border-radius:var(--wm-rayon); background:var(--wm-surface); box-shadow:var(--wm-verre-bord), 0 22px 56px var(--wm-ombre-copie);
     backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); -webkit-backdrop-filter:blur(var(--wm-verre-flou)) saturate(var(--wm-verre-saturation)); }
   .wm-habille > .wm-contour { z-index:1; overflow:visible; display:block; max-width:none; }
-  /* Coins witmit : trait de 2,1 px à l'encre, coude arrondi de 3 px (tracé dans tracerContour). */
-  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2.1; stroke-linecap:square; stroke-linejoin:round; }
+  /* Coins witmit (crochets G) : trait de 2 px à l'encre, coude arrondi de 3 px (tracé dans tracerContour). */
+  .wm-contour path { fill:none; stroke:var(--wm-ink); stroke-width:2; stroke-linecap:square; stroke-linejoin:round; }
   /* Toutes les icônes : taille écrite sur la balise, couleur du texte qu'elles accompagnent. */
   .cm-ui svg.wm-icone { display:inline-block; flex:none; vertical-align:-0.18em; overflow:visible; max-width:none; fill:currentColor; }
   .cm-ui svg.wm-icone.wm-devant { margin-right:6px; }
@@ -739,42 +755,39 @@
   ${CORPS}:not(.cm-active) .cm-preselection { display:none; }
   @media (prefers-reduced-motion:reduce) { .cm-preselection { transition:none; } }
 
-  /* ---------- Fenêtre de saisie (fiche Fenetre ; M1) ----------
-     340 px (V2), au plus 100vw − 16px sous 480 px de large. Matière par habiller(). La tête entière sert de
-     poignée (titre, croix, élément visé dessous), sans filet dessous ; corps : un bloc intérieur à la manière des
-     Réglages du Mac (champ arrondi, catégorie en touches dépliées, I4 ; ou lecture seule), puis les boutons
-     dessous, à droite, sans bande de pied. Les marges laissent libres les deux coins witmit. */
-  .cm-popup { position:absolute; z-index:950; width:340px; padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
-  @media (max-width:479.98px) { .cm-popup { width:min(340px, calc(100vw - 16px)); } }
-  .cm-popup .cm-tete { position:relative; padding:14px 14px 6px 22px; border-bottom:0; cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
-  .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
-  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .cm-zone { display:flex; align-items:center; gap:6px; min-width:0; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
-  .cm-popup .cm-zone .wm-icone { margin:0; }
-  .cm-popup .cm-zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin-top:4px; font-size:13px; color:var(--wm-ink-soft); white-space:nowrap; }
+  /* ---------- Fenêtre de commentaire (fiche Fenetre, « élément par élément », 0.4.0 : a2, h1, i1) ----------
+     300 px, au plus 100vw − 16px. Matière par habiller() ; crochets G à 5 px des bords (tracerContour). La tête entière
+     sert de poignée (info-bulle « glisse pour déplacer la fenêtre »), sans poignée à points : ligne 1, l'icône du type
+     (16 px) et le type (15 px semi-gras), la croix cerclée de 24 px à droite ; ligne 2, à 23 px du bord de l'icône,
+     « nom · description » en 13 px, sur une ligne, coupée par « … ». Corps : le bloc intérieur à 8 px des bords, 10 px
+     sous la tête, marge intérieure de 10 px, le champ seul (plus de libellés ni de catégorie). Actions sous le bloc, à
+     droite, un seul bouton principal ; la corbeille à gauche. Champ rempli et fermeture demandée : « abandonner ce
+     retour ? » et deux boutons gris à la place du bouton. */
+  .cm-popup { position:absolute; z-index:950; width:300px; max-width:calc(100vw - 16px); padding:0; color:var(--wm-ink); font-family:var(--wm-font-systeme); font-size:13px; line-height:1.4; text-align:left; }
+  .cm-popup .cm-tete { position:relative; padding:13px 12px 2px 22px; border-bottom:0; cursor:move; touch-action:none; -webkit-user-select:none; user-select:none; }
+  .cm-popup .cm-tete-l1 { display:flex; align-items:center; gap:7px; min-height:24px; margin:0; }
+  .cm-popup .cm-type-ico { flex:none; display:inline-flex; color:var(--wm-ink); }
+  .cm-popup .cm-type-ico .wm-icone { margin:0; }
+  .cm-popup .cm-titre { flex:1; min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
+  .cm-popup .cm-fermer { flex:none; }
+  .cm-popup .cm-zone { display:block; min-width:0; margin:1px 0 0 23px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cm-popup .cm-zone-txt { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-popup .cm-aide-multi { display:flex; align-items:center; gap:4px; margin:4px 0 0 23px; font-size:13px; color:var(--wm-ink-soft); white-space:nowrap; }
   .cm-popup .cm-aide-multi .wm-repere { margin:0; }
-  /* Corps : le bloc à 10 px des bords gauche et droit, 8 px sous la tête ; le contenu du bloc reste aligné sur le
-     titre (22 px du bord gauche, 24 px du bord droit). Bloc (fiche Fenetre, tokens.json, maquette feuille()) :
-     arrondi radius-bloc (7 px), fond bloc-fond (noir à 2,8 %, blanc à 4 % en sombre), liseré bloc-lisere à
-     l'intérieur, contour bloc-contour à peine marqué, ombre-bloc très douce. Pas de filet ni de bande de pied. */
-  .cm-popup .cm-corps { position:relative; padding:8px 10px 14px; }
-  .cm-popup .wm-bloc { position:relative; padding:12px 14px 14px 12px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
+  .cm-popup .cm-corps { position:relative; padding:10px 8px 0; }
+  .cm-popup.cm-locked .cm-corps { padding-bottom:14px; }
+  .cm-popup .wm-bloc { position:relative; padding:10px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
     box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc); }
-  .cm-popup .cm-cat-bloc { display:flex; flex-direction:column; }   /* marges des boutons (zone de 44 px) sans fusion avec celles des voisins */
-  .cm-popup .cm-libelle { display:block; margin:0 0 6px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none; color:var(--wm-ink-soft); }
-  .cm-popup .cm-libelle-cat { margin-top:12px; }
-  /* Champ (fiche Fenetre, fiche Etats) : arrondi de 5 px, trait line (line-strong au focus), police système 15 px. Sans
-     poignée de redimensionnement : le champ grandit avec le texte, puis défile.
-     Les règles de focus de la page hôte (ombre, fond, bord) ne l'atteignent pas : anneau de la charte seul. */
-  .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:74px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
+  /* Champ (fiches Fenetre et Etats) : arrondi de 5 px, trait line (line-strong au focus et quand il contient du texte),
+     15 px ; 64 px au moins, il grandit avec le texte jusqu'à 240 px, puis défile. Texte grisé 14 px ink-faint. */
+  .cm-popup .wm-champ > textarea { display:block; width:100%; min-height:64px; max-height:240px; margin:0; padding:9px 12px; resize:none; overflow-y:auto;
     border:1px solid var(--wm-line); border-radius:var(--wm-radius-champ); background:var(--wm-champ-fond); box-shadow:none; outline:none;
     font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.45; letter-spacing:normal; text-transform:none; color:var(--wm-ink); }
-  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible { border-color:var(--wm-line-strong); background:var(--wm-champ-fond); box-shadow:none; outline:none; }
+  .cm-popup .wm-champ > textarea:focus, .cm-popup .wm-champ > textarea:focus-visible, .cm-popup .wm-champ > textarea:not(:placeholder-shown) { border-color:var(--wm-line-strong); background:var(--wm-champ-fond); box-shadow:none; outline:none; }
   .cm-popup .wm-champ > textarea::placeholder { font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.5; color:var(--wm-ink-faint); opacity:1; }
-  .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:44px; }
-  .cm-popup .cm-champ-reponse { margin-top:12px; }
-  /* Champ vide + entrée : une phrase sous le champ, icône Info, encre (jamais de rouge). */
+  .cm-popup .wm-champ > textarea.cm-reply-ta { min-height:64px; }
+  .cm-popup .cm-champ-reponse { margin-top:10px; }
+  /* Champ vide + entrée : une phrase 6 px sous le champ, icône Info, encre (jamais de rouge). */
   .cm-popup .cm-refus { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
   /* Vignette de la capture d'une zone : 112 × 64 px, arrondi de 5 px, trait line-strong. */
   .cm-popup .cm-vignette-ligne { display:flex; align-items:center; gap:12px; margin-top:10px; }
@@ -784,28 +797,22 @@
   .cm-popup .cm-vignette:focus { outline:none; }
   .cm-popup .cm-vignette:focus-visible::after { content:''; position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; z-index:2; background:none; border:2px solid var(--wm-ink); border-radius:calc(var(--wm-radius-champ) + 4px); pointer-events:none; }
   .cm-popup .cm-vignette-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  /* Catégorie (I4) : sélecteur fermé en touche secondaire pleine largeur ; ouvert, les huit catégories en
-     touches de 36 px dans la fenêtre, 8 px d'écart (zones de 44 px sans chevauchement). */
-  .cm-popup .cm-cat.wm-touche { --wm-face-h:36px; display:flex; width:100%; justify-content:flex-start; gap:8px; padding:0 10px 0 12px; font-size:14px; font-weight:400; }
-  .cm-popup .cm-cat-nom { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; text-align:left; }
-  .cm-popup .cm-cat-auto { flex:none; display:inline-flex; align-items:center; height:18px; padding:0 5px; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink-soft); border:1px solid var(--wm-line); border-radius:var(--wm-radius-repere); }
-  .cm-popup .cm-cat-liste { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .cm-popup .cm-cat-choix.wm-touche { --wm-face-h:36px; max-width:100%; justify-content:flex-start; gap:6px; padding:0 8px 0 10px; font-size:13px; font-weight:400; }
-  .cm-popup .cm-cat-choix span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-  /* Lecture seule : verrou, texte de la personne entre « », catégorie en méta. Complément : zone en creux. */
-  .cm-popup .cm-lock-line, .cm-popup .cm-meta-lu { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  .cm-popup .cm-lock-line { margin:0 0 8px; }
+  /* Lecture seule : verrou, statut en graisse 500, « · non modifiable », le texte 15 px entre « ». Complément : zone en creux. */
+  .cm-popup .cm-lock-line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin:0 0 8px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-popup .cm-lock-line b, .cm-popup .cm-feedback-titre b { color:var(--wm-ink); font-weight:500; }
-  .cm-popup .cm-meta-lu { margin-top:8px; }
-  .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-meta-lu .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
+  .cm-popup .cm-lock-line .wm-icone, .cm-popup .cm-feedback-titre .wm-icone { margin:0; }
   .cm-popup .cm-texte-lu, .cm-popup .cm-feedback-msg { font-family:var(--wm-font-systeme); font-size:15px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:pre-wrap; word-break:break-word; }
   .cm-popup .cm-feedback { margin-top:10px; padding:8px 10px; background:var(--wm-surface-raised); border-radius:var(--wm-radius-champ); }
   .cm-popup .cm-feedback-titre { display:flex; align-items:center; gap:5px; margin-bottom:2px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
-  /* Actions, sous le bloc et à droite (fiche Fenetre) : 10 px sous le bloc (24 px sous son contenu), 14 px au-dessus
-     du bas ; supprimer (cercle, jamais rouge) à gauche ; « annuler » (bouton gris) et le bouton principal orange à
-     droite, 8 px d'écart, alignés sur le contenu du bloc. */
-  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; padding:0 14px 0 12px; }
+  /* Actions, sous le bloc (fiche Fenetre) : marges 12 px en haut, 20 px à droite, 18 px en bas (le corps a déjà 8 px de
+     côté) ; le bouton principal à droite, la corbeille (cercle de 30 px, jamais rouge) à gauche. */
+  .cm-popup .cm-popup-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 12px 18px; }
   .cm-popup .cm-delete { margin-right:auto; }
+  /* « abandonner ce retour ? » (h1) : la question sur sa ligne, 13 px ink, puis « abandonner » et « garder », gris, à droite. */
+  .cm-popup .cm-abandon { padding:12px 12px 18px; }
+  .cm-popup .cm-abandon[hidden], .cm-popup .cm-popup-actions[hidden] { display:none; }
+  .cm-popup .cm-abandon-question { margin:0 0 8px 12px; font-size:13px; line-height:1.4; color:var(--wm-ink); }
+  .cm-popup .cm-abandon-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 
   /* ---------- Liste des retours (fiches Tiroir, FilDeMessages, Rapport ; C7, M1) ----------
      V2, à la manière du panneau de Claude in Chrome : 340 px sur toute la hauteur, collée à droite ; la page rétrécit
@@ -848,13 +855,47 @@
   .cm-ui .wm-case { position:relative; flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid var(--wm-line-strong); border-radius:var(--wm-radius-repere); color:var(--wm-ink); background:transparent; }
   .cm-ui .wm-case .wm-icone { display:none; }
   .cm-ui [aria-checked="true"] > .wm-case .wm-icone, .cm-ui input:checked + .wm-case .wm-icone { display:inline-block; }
-  /* Le bloc des retours, à la manière des Réglages du Mac (même matière que le bloc de la fenêtre) : à 10 px des bords
-     de la liste et 10 px au-dessus du pied, arrondi de 7 px, marge intérieure de 4 px ; seul ce bloc défile.
-     Une ligne = numéro, corps, actions (10 px d'écart), 2 px entre deux lignes, sans filet. */
-  .cm-panel-list { flex:1; min-height:0; overflow-y:auto; margin:0 10px 10px; padding:4px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
-    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc);
-    scroll-padding:4px; }   /* la ligne choisie au clavier garde 4 px d'air au bord du bloc, en haut comme en bas */
-  @media (max-width:479.98px) { .cm-panel-list { padding-bottom:76px; scroll-padding-bottom:76px; } }   /* M1 : la fin de la liste défile au-dessus des deux boutons (52 + 24 px) ; la ligne choisie aussi */
+  /* Interrupteur « sélections en orange » (e1, fiches Tiroir et Selection) : libellé 13 px ink-soft puis un interrupteur de
+     28 × 16 px, pastille blanche de 12 px ; fond noir à 16 % éteint, accent allumé. Seulement si la balise l'active. */
+  .cm-ui .cm-interrupteur { gap:7px; }
+  .cm-ui .wm-switch { position:relative; flex:none; display:inline-block; width:28px; height:16px; border-radius:8px; background:rgba(0,0,0,.16); transition:background-color 120ms ease; }
+  ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .wm-switch { background:rgba(255,255,255,.22); }
+  .cm-ui .wm-switch > i { position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left 120ms ease; }
+  .cm-ui .cm-interrupteur[aria-checked="true"] .wm-switch, ${CORPS}[data-wm-theme="client-sombre"] .cm-ui .cm-interrupteur[aria-checked="true"] .wm-switch { background:var(--wm-accent); }
+  .cm-ui .cm-interrupteur[aria-checked="true"] .wm-switch > i { left:14px; }
+  @media (prefers-reduced-motion:reduce) { .cm-ui .wm-switch, .cm-ui .wm-switch > i { transition:none; } }
+  @media (forced-colors:active) { .cm-ui .wm-switch { border:1px solid ButtonText; } }
+  /* Les pages et leurs blocs (g2 version 2, fiche Tiroir) : sous la tête, une zone qui défile seule, jusqu'au pied ; tous
+     les retours du site, page par page. Titre de page hors du bloc (13 px semi-gras, chemin dessous, marges 24 / 14 px),
+     « aller » à droite pour une autre page ; le bloc 6 px dessous, à 10 px des bords de la liste, arrondi de 7 px, marge
+     intérieure de 4 px ; 20 px entre un bloc et le titre suivant, 10 px au-dessus du premier titre. */
+  .cm-panel-list { flex:1; min-height:0; overflow-y:auto; margin:0; padding:0 0 12px; scroll-padding:10px 0; }
+  .cm-page { margin:20px 0 0; }
+  .cm-page:first-child { margin-top:10px; }
+  .cm-page-titre { display:flex; align-items:flex-end; gap:8px; padding:0 14px 0 24px; }
+  .cm-page-noms { flex:1; min-width:0; }
+  .cm-page-nom { margin:0; font-size:13px; line-height:18px; font-weight:600; color:var(--wm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cm-page-nom .cm-page-ici { font-weight:400; color:var(--wm-ink-soft); }
+  .cm-page-chemin { font-size:13px; line-height:18px; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cm-ui .cm-page-aller { position:relative; flex:none; display:inline-flex; align-items:center; gap:5px; height:26px; margin:0; padding:0 9px; border:0; border-radius:var(--wm-radius-bouton);
+    background:var(--wm-face-touche); box-shadow:inset 0 0 0 .5px var(--wm-touche-lisere); font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1; color:var(--wm-ink); cursor:pointer; white-space:nowrap; }
+  .cm-ui .cm-page-aller::before { content:''; position:absolute; left:0; right:0; top:-9px; bottom:-9px; }
+  .cm-ui .cm-page-aller:hover { background:var(--wm-face-touche-survol); }
+  .cm-ui .cm-page-aller .wm-icone { margin:0; }
+  .cm-ui .cm-page-aller:focus { outline:none; }
+  .cm-ui .cm-page-aller:focus-visible { outline:2px solid var(--wm-ink); outline-offset:2px; }
+  .cm-page-bloc { margin:6px 10px 0; padding:4px; border-radius:var(--wm-radius-bloc); background:var(--wm-bloc-fond);
+    box-shadow:inset 0 0 0 1px var(--wm-bloc-lisere), 0 0 0 1px var(--wm-bloc-contour), var(--wm-ombre-bloc); }
+  /* Une autre page, repliée : une ligne de compte, 13 px ink-soft, et « afficher » + CaretDown à droite (« masquer » +
+     CaretUp une fois dépliée). */
+  .cm-ui .cm-page-plier { position:relative; display:flex; align-items:center; gap:8px; width:100%; min-height:40px; margin:0; padding:10px; border:0; border-radius:var(--wm-radius-bouton);
+    background:transparent; box-shadow:none; font-family:var(--wm-font-systeme); font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); text-align:left; cursor:pointer; }
+  .cm-ui .cm-page-plier:hover { background:rgba(127,127,127,.06); }
+  .cm-ui .cm-page-plier:focus { outline:none; }
+  .cm-ui .cm-page-plier:focus-visible { outline:2px solid var(--wm-ink); outline-offset:-2px; }
+  .cm-page-compte { flex:1; min-width:0; }
+  .cm-page-afficher { flex:none; display:inline-flex; align-items:center; gap:4px; }
+  .cm-page-afficher .wm-icone { margin:0; }
   .cm-panel-list:focus { outline:none; }
   .cm-panel-item { position:relative; isolation:isolate; display:flex; align-items:center; gap:10px; margin:0 0 2px; padding:9px 10px; }
   .cm-panel-item:last-child { margin-bottom:0; }
@@ -877,12 +918,24 @@
   .cm-panel-item .zone { display:flex; align-items:center; gap:6px; min-width:0; font-size:13px; font-weight:400; line-height:1.4; color:var(--wm-ink-soft); white-space:nowrap; overflow:hidden; }
   .cm-panel-item .zone .wm-icone { margin:0; }
   .cm-panel-item .zone-txt { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  /* ZB-303 (décision : montrer les deux) : sur la deuxième ligne d'un retour réduit, le voyant orange « nouveau » devant la
+     ligne, puis la marque « à renvoyer » (icône rouge et mot), puis l'élément visé ; le retour tient toujours sur deux
+     lignes. Ouvert, ces marques sont dans sa méta : elles quittent la deuxième ligne. */
+  .cm-panel-item .zone > .wm-voyant { display:inline-block; flex:none; }
+  .cm-panel-item .zone > .cm-sync-chip { flex:none; }
+  .cm-panel-item.wm-ouvert .zone > .cm-zone-marque { display:none; }
+  /* Confirmation dessinée dans la couche concernée (fiche Etats, « Confirmations ») : phrase 13 px ink, « annuler » en
+     bouton gris, puis le bouton gris de l'action ; jamais de rouge. Plus aucune fenêtre native du navigateur. */
+  .cm-confirme { margin:8px 0 0; }
+  .cm-confirme-question { margin:0 0 8px; font-size:13px; line-height:1.4; color:var(--wm-ink); text-align:left; }
+  .cm-confirme-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:14px 8px; }
+  .cm-ui .cm-confirme-actions .wm-touche { font-size:13px; }
   /* Texte de la personne : police système 14 px, entre « » (posés par le style : le texte du retour reste intact).
      Réduit : une ligne, coupée par « … » ; ouvert : en entier. */
   .cm-panel-item .txt { margin:0; font-family:var(--wm-font-systeme); font-size:14px; font-weight:400; line-height:1.4; color:var(--wm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cm-panel-item.wm-ouvert .txt { margin-bottom:4px; white-space:pre-wrap; overflow:visible; word-wrap:break-word; overflow-wrap:anywhere; }
-  .cm-panel-item .txt::before, .cm-voix::before { content:'« '; }
-  .cm-panel-item .txt::after, .cm-voix::after { content:' »'; }
+  .cm-panel-item .txt::before, .cm-voix::before { content:'«\\00a0'; }   /* espaces insécables dans « » (ZB-280) */
+  .cm-panel-item .txt::after, .cm-voix::after { content:'\\00a0»'; }
   /* Méta : ligne 1 = verrou, statut (ou marque d'envoi) en gras, voyant, prénom, date ; ligne 2 = catégorie. */
   .cm-panel-item .cm-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin-top:6px; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); }
   .cm-panel-item .cm-meta2 { gap:2px 14px; margin-top:0; }
@@ -1022,7 +1075,9 @@
   .cm-lightbox .cm-lb-tete { position:relative; flex:none; padding:14px 14px 10px 22px; border-bottom:1px solid var(--wm-line); }
   .cm-lightbox .cm-lb-l1 { display:flex; align-items:center; gap:8px; margin:0 0 4px; }
   .cm-lightbox .cm-lb-titre { flex:1; min-width:0; font-family:var(--wm-font-systeme); font-size:15px; font-weight:600; line-height:1.3; color:var(--wm-ink); }
-  .cm-lightbox .cm-lb-meta { font-size:13px; line-height:1.4; color:var(--wm-ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-lightbox .cm-lb-meta { display:flex; min-width:0; font-size:13px; line-height:1.4; color:var(--wm-ink-soft); white-space:pre; }
+  .cm-lightbox .cm-lb-cible { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cm-lightbox .cm-lb-date { flex:none; }
   .cm-lightbox .cm-lb-corps { position:relative; display:flex; flex-direction:column; min-height:0; padding:14px 24px 20px 20px; }
   .cm-lightbox .cm-lb-image { position:relative; isolation:isolate; display:flex; justify-content:center; min-height:0; }
   .cm-lightbox .cm-lb-face { position:relative; display:block; overflow:hidden; border-radius:var(--wm-radius-champ); border:1px solid var(--wm-line-strong); background:var(--wm-surface-raised); }
@@ -1042,7 +1097,8 @@
   .cm-status.show > * { opacity:1; }
   .cm-status > .wm-contenu { position:relative; display:flex; align-items:flex-start; gap:8px; }
   .cm-status > .wm-contenu > svg.wm-icone { margin-top:1px; }
-  .cm-status .wm-insecable { white-space:nowrap; }   /* « ?witmit=on » jamais coupé (lot 10 bis, N1) */
+  .cm-status .wm-insecable { white-space:nowrap; }
+  .cm-status .wm-repere-icone { display:inline-flex; vertical-align:-3px; margin:0 1px; padding:0 3px; }   /* « ?witmit=on » jamais coupé (lot 10 bis, N1) */
   @media (max-width:479.98px) { .cm-status { bottom:84px; } }   /* au-dessus du bouton witmit sur écran étroit (fiche Etats) */
   /* De 480 à 680 px (480 compris : fiche Etats, 84 px du bas sur un écran de 680 px et moins), liste fermée, un message
      centré atteindrait le bouton du coin : il monte aussi à 84 px. Liste ouverte : placerStatus(). */
@@ -1052,7 +1108,7 @@
   var HTML = `
 <div class="cm-frame cm-ui" id="cmFrame"></div>
 
-<div class="cm-panel cm-ui" id="cmPanel" role="region" aria-label="witmit : tes retours sur cette page">
+<div class="cm-panel cm-ui" id="cmPanel" role="region" aria-label="witmit : tes retours sur ce site">
   <div class="cm-panel-head">
     <div class="cm-panel-head-row">
       <span class="cm-panel-mot" role="img" aria-label="witmit">${MOT_WITMIT}</span>
@@ -1063,9 +1119,10 @@
     <div class="cm-panel-ligne cm-panel-ailleurs" id="cmPanelAilleurs" hidden></div>
     <div class="cm-panel-filtres">
       <button type="button" class="cm-filtre cm-hide-done" role="checkbox" aria-checked="false" onclick="cmToggleHideDone()"><span class="wm-case" aria-hidden="true">${icone('Check', 12)}</span>masquer les terminés</button>
+      <button type="button" class="cm-filtre cm-interrupteur" role="switch" aria-checked="false" onclick="cmBasculerOrange()" hidden>sélections en orange<span class="wm-switch" aria-hidden="true"><i></i></span></button>
     </div>
   </div>
-  <div class="cm-panel-list" id="cmList" aria-label="tes retours sur cette page"></div>
+  <div class="cm-panel-list" id="cmList" role="region" aria-label="tes retours sur ce site, page par page"></div>
   <div class="cm-feedback-box" id="cmFeedbackBox" hidden>
     <div class="cm-feedback-title">${icone('ClipboardText', 14)}coller un retour</div>
     <span class="wm-champ"><textarea aria-label="coller un retour" placeholder="witmit-retour R-…&#10;&lt;id&gt; pris_en_compte&#10;&lt;id&gt; resolu | ce qui a été fait&#10;&lt;id&gt; complement | question"></textarea></span>
@@ -1119,8 +1176,10 @@
     // fenêtre est porté par le verre (border-radius et box-shadow) : plus de contour tracé ici.
     var coins = svg.querySelectorAll('path');
     if (coins.length === 2) {
-      coins[0].setAttribute('d', coinWitmit(8.4, 16.8, 8.4, 16.8));
-      coins[1].setAttribute('d', coinWitmit(W - 8.4, H - 16.8, H - 8.4, W - 16.8));
+      // 0.4.0 (fiche Fenetre) : crochets G (bras 12 px, trait 2 px, coude 3 px) à 5 px des bords : axe du trait à 6 px,
+      // bout du bras à 16 px (le bout carré du trait ajoute 1 px : 12 px du bord extérieur au bout).
+      coins[0].setAttribute('d', coinWitmit(6, 16, 6, 16));
+      coins[1].setAttribute('d', coinWitmit(W - 6, H - 16, H - 6, W - 16));
     }
   }
   // Un coin witmit de (x, y1) à (x2, y2) par un coude en (x, y2), arrondi de 3 px. Coordonnées arrondies au
@@ -1230,6 +1289,52 @@
     poser(REPERES);
   }
 
+  /* ---------- typographie de l'interface (ZB-280) : espaces insécables ----------
+     Avant « : ; ? ! » et à l'intérieur de « », dans tout ce que witmit écrit et affiche (textes, info-bulles, textes grisés ;
+     pas les noms accessibles, qui ne s'affichent pas). Une espace ordinaire devient insécable seulement quand le signe est suivi d'une espace, de la fin du texte ou
+     d'une ponctuation (« ?witmit=on » reste d'un seul tenant, sans rien d'invisible). Le texte écrit par une personne (le
+     sien, celui de l'équipe, les détails techniques) n'est jamais touché. Un observateur sur la racine de witmit applique
+     la règle à chaque nouveau contenu ; une seconde passe ne change plus rien. */
+  var BRUT = '.txt, .cm-texte-lu, .cm-msg-texte, .cm-feedback-msg, .cm-voix, pre, textarea, .wm-brut';
+  function insecables(t) {
+    return t.replace(/« /g, '« ').replace(/ »/g, ' »').replace(/ ([:;?!])(?=\s|$|[.,)»])/g, ' $1');
+  }
+  function typographier(racineTexte) {
+    if (!racineTexte) return;
+    var el = racineTexte.nodeType === 1 ? racineTexte : racineTexte.parentElement;
+    if (!el || (el.closest && el.closest(BRUT))) return;
+    if (racineTexte.nodeType === 3) {
+      var v = racineTexte.nodeValue, w = insecables(v);
+      if (w !== v) racineTexte.nodeValue = w;
+      return;
+    }
+    var noeuds = [el].concat(Array.prototype.slice.call(el.querySelectorAll('*')));
+    noeuds.forEach(function (n) {
+      if (n.closest(BRUT) && n.tagName !== 'TEXTAREA') return;
+      ['title', 'placeholder'].forEach(function (a) {   // ce qui s'affiche (info-bulles, textes grisés) ; pas les noms accessibles
+        var v = n.getAttribute(a);
+        if (v && n.classList && !n.classList.contains('cm-pin')) { var w = insecables(v); if (w !== v) n.setAttribute(a, w); }
+      });
+      if (n.closest(BRUT)) return;
+      for (var k = 0; k < n.childNodes.length; k++) {
+        var t = n.childNodes[k];
+        if (t.nodeType === 3) { var x = t.nodeValue, y = insecables(x); if (y !== x) t.nodeValue = y; }
+      }
+    });
+  }
+  function suivreTypographie() {
+    if (!window.MutationObserver) return;
+    var mo = new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        if (m.type === 'characterData') typographier(m.target);
+        else if (m.type === 'attributes') { if (/^(title|placeholder)$/.test(m.attributeName) && m.target.nodeType === 1) typographier(m.target.parentElement && !m.target.closest(BRUT) ? m.target : null); }
+        else for (var i = 0; i < m.addedNodes.length; i++) typographier(m.addedNodes[i]);
+      });
+    });
+    mo.observe(racine(), { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'placeholder'] });
+    typographier(racine());
+  }
+
   /* ---------- catégories : règles par mots-clés, 100 % locales (aucune IA, rien ne sort) ----------
      La catégorie est proposée d'après le texte du commentaire et reste modifiable dans la bulle. */
   var CATEGORIES = [
@@ -1299,6 +1404,7 @@
   // ne s'affiche un instant, et aucune police n'est téléchargée avant la révélation.
   if (CONFIG.mode === 'live') etatCorps('cm-concealed', true);
   injectUI();
+  suivreTypographie();   // espaces insécables de l'interface (ZB-280)
   /* Modalité du focus (fiche Etats, « seulement au clavier ») : drapeau data-wm-clavier sur <body>, posé par une
      touche de déplacement (Tab ; flèches, début, fin, pages hors d'un champ de saisie, où elles déplacent le
      curseur) et retiré au premier appui du pointeur. Il ne sert qu'à l'anneau de focus des champs de witmit. */
@@ -1312,7 +1418,28 @@
   })();
   renderAuthor();
   initTheme();
-  etatCorps('data-wm-selection', CONFIG.selectionColor);   // couleur des cadres (fiche Selection)
+  /* Couleur des cadres (fiche Selection) : celle du site (data-selection-color) ; si le site affiche l'interrupteur
+     (data-selection-switch), le choix de la personne, mémorisé dans son navigateur, l'emporte. Effet immédiat. */
+  var ORANGE_KEY = 'witmit_' + CONFIG.project + '_selection';
+  function couleurSelection() {
+    if (CONFIG.selectionSwitch) { try { var v = localStorage.getItem(ORANGE_KEY); if (v === 'orange' || v === 'gris') return v; } catch (e) {} }
+    return CONFIG.selectionColor;
+  }
+  function majInterrupteur() {
+    var b = document.querySelector('#cmPanel .cm-interrupteur');
+    if (!b) return;
+    b.hidden = !CONFIG.selectionSwitch;
+    b.setAttribute('aria-checked', couleurSelection() === 'orange' ? 'true' : 'false');
+  }
+  window.cmBasculerOrange = function () {
+    if (!CONFIG.selectionSwitch) return;
+    var v = couleurSelection() === 'orange' ? 'gris' : 'orange';
+    try { localStorage.setItem(ORANGE_KEY, v); } catch (e) {}
+    etatCorps('data-wm-selection', v);
+    majInterrupteur();
+  };
+  etatCorps('data-wm-selection', couleurSelection());
+  majInterrupteur();
 
   /* ---------- thème : witmit prend le thème du site (V2) ----------
      On lit le premier fond opaque de <body>, puis de <html> ; luminance sous 128 = site sombre → titane
@@ -1666,10 +1793,19 @@
     // Message en erreur 500 (réponse ou réouverture) : il a pu arriver à l'équipe et ne sera jamais renvoyé ; « × » le
     // retire seulement d'ici (Léa 3.9 complétée au lot 8). Les autres gardent « il n'est pas parti ».
     var en500 = r && r.sync && r.sync.state === 'error' && r.sync.status === 500;
-    if (!r || (r.sync && r.sync.state === 'pending') || !confirm(en500 ? "retirer ce message d'ici ? il ne sera pas renvoyé." : "abandonner ce message ? il n'est pas parti et sera effacé.")) return;
-    c.replies = c.replies.filter(function (x) { return x !== r; });
-    persist(); renderList();
-    cmStatus('message abandonné.', { type: 'fait' });
+    if (!r || (r.sync && r.sync.state === 'pending')) return;
+    // La question se pose sous le message, dans la liste (fiche Etats ; plus de confirm() natif).
+    var bouton = document.querySelector('.cm-panel-item[data-id="' + id + '"] .cm-msg-drop[data-reply="' + rid + '"]');
+    var msg = bouton && bouton.closest('.cm-msg');
+    var faire = function () {
+      var live = findComment(id);
+      if (!live) return;
+      live.replies = (live.replies || []).filter(function (x) { return x.id !== rid; });
+      persist(); renderList();
+      cmStatus(en500 ? 'message retiré.' : 'message abandonné.', { type: 'fait' });
+    };
+    if (!msg) { faire(); return; }
+    demanderDans(msg.parentNode, msg.nextSibling, en500 ? "retirer ce message d'ici ? il ne sera pas renvoyé." : "abandonner ce message ? il n'est pas parti et sera effacé.", en500 ? 'retirer' : 'abandonner', faire, { retour: bouton });
   };
   // Renvoie tout ce qui n'est pas parti (hors ligne, quota, erreur) — à l'ouverture du tiroir, au chargement et au
   // retour de la connexion ; jamais ce qu'un refus définitif retient (E1 : 409, 413, réponse en 500).
@@ -2132,7 +2268,8 @@
       if (c.type === 'pin' && anchorEl) {
         // Cadre persistant autour de chaque objet visé (règle simple ou étau, fiche Selection) : l'épingle seule "flotterait".
         (multi || [anchorEl]).forEach(function (el, k) {
-          var ar = rectPage(el), regle = regleCadre(el);
+          // R18 : une barre de défilement visée a son cadre fin le long de la barre.
+          var ar = c.barre && !multi ? rectBarre(el, c.barre) : rectPage(el), regle = c.barre && !multi ? REGLE_BARRE : regleCadre(el);
           if (!k) regle0 = regle;
           drawSavedBox(ar.x, ar.y, ar.w, ar.h, 'cm-box-outline', c.id, fondSombreAutour(el), regle);
         });
@@ -2159,10 +2296,10 @@
         e.stopPropagation();
         var outlineTarget = (c.type !== 'box' && c.anchor && c.anchor.path) ? resolveStablePath(c.anchor.path) : null;
         var editPt = computeAbsolutePoint(c.anchor, c.fallback);
-        var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget };
+        var editMeta = { type: c.type, existing: c, outlineEl: outlineTarget, cible: cibleDe(c), barre: c.barre };
         if (multi) {
           editMeta.targets = [];
-          c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (el) editMeta.targets.push({ el: el, label: t.label }); });
+          c.targets.forEach(function (t) { var el = resolveStablePath(t.path); if (el) editMeta.targets.push({ el: el, label: t.label, cible: { genre: 'élément', nom: t.label, brut: true, ancien: true } }); });
           editMeta.outlineEl = editMeta.targets.map(function (t) { return t.el; });
           editPt = cornerAnchorPoint(multi[0], editPt.x, editPt.y);
         }
@@ -2204,7 +2341,7 @@
 
       var place, ep = { taille: 24, dehors: 0 };
       if (multi || (c.type === 'pin' && anchorEl)) {
-        var ra = rectCadre(rectPage(anchorEl), regle0);
+        var ra = rectCadre(c.barre && !multi ? rectBarre(anchorEl, c.barre) : rectPage(anchorEl), regle0);
         ep = epinglePour(regle0);
         place = function (w, h) { return placeEpingle(ra, w, h, ep.dehors, ep.taille); };      // coin du cadre de l'élément
       } else if (boxGeom) {
@@ -2277,7 +2414,7 @@
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { renderMarkers(); positionEditOutline(); }, 150);
+    resizeTimer = setTimeout(function () { renderMarkers(); positionEditOutline(); if (pendingPopup) replacerFenetre(pendingPopup); }, 150);
   });
 
   /* ---------- défilement : les repères suivent le contenu ----------
@@ -2294,7 +2431,7 @@
     if (scrollRaf) return;
     scrollRaf = requestAnimationFrame(function () {
       scrollRaf = null;
-      renderMarkers(); positionEditOutline();
+      renderMarkers(); positionEditOutline(); if (pendingPopup) replacerFenetre(pendingPopup);
     });
   }
   document.addEventListener('scroll', onAnyScroll, true);
@@ -2366,7 +2503,7 @@
       onRouteMaybeChanged();
       // Un tiroir / une barre fixée ouverte par le site APRÈS la liste witmit doit aussi lui faire de la place.
       if (pushWidth) pushPage(pushWidth);
-      renderMarkers(); positionEditOutline();
+      renderMarkers(); positionEditOutline(); if (pendingPopup) replacerFenetre(pendingPopup);
     }, 120);
   });
   domObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true, subtree: true });
@@ -2524,12 +2661,15 @@
     });
     (c.replies || []).forEach(function (r) {
       var err = r.sync && r.sync.state === 'error';
+      // ZB-280 (Léa) : un message arrivé à l'équipe mais pas gardé dans le fil (500 « publié ») est marqué « envoyé », pas
+      // « à renvoyer » ; « × » le retire seulement d'ici.
+      var arrive = err && raisonEchec({ status: r.sync.status, message: r.sync.error }, true).arrive;
       // Refus définitif ou réponse en 500 (E1) : plus de bouton de renvoi, seul « × abandonner » reste.
       var marque = err
-        ? (renvoiPermis(r.sync)
+        ? (arrive ? '<span class="cm-sync-chip cm-sync-sent" title="arrivé à l\'équipe, pas gardé dans ce fil">' + icone('CloudCheck', 14) + '<b>envoyé</b></span>' : renvoiPermis(r.sync)
             ? '<button type="button" class="cm-sync-chip cm-sync-error" onclick="cmRetryReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b></button>'
             : '<span class="cm-sync-chip cm-sync-error wm-sans-renvoi" title="' + cmEsc(titreARenvoyer(r.sync, true)) + '">' + icone('WarningCircle', 14, 'wm-signal') + '<b>à renvoyer</b>' + raisonLue(r.sync, true) + '</span>') +
-          '<button type="button" class="cm-msg-drop wm-cercle wm-cercle-24" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="abandonner ce message" aria-label="abandonner ce message">' + icone('X', 12) + '</button>'
+          '<button type="button" class="cm-msg-drop wm-cercle wm-cercle-24" data-reply="' + r.id + '" onclick="cmDropReply(\'' + c.id + '\', \'' + r.id + '\')" title="' + (arrive ? "retirer ce message d'ici" : 'abandonner ce message') + '" aria-label="' + (arrive ? "retirer ce message d'ici" : 'abandonner ce message') + '">' + icone('X', 12) + '</button>'
         : '<span class="cm-sync-chip" title="envoi en cours">' + icone('CircleNotch', 14, 'wm-tourne') + 'envoi en cours…</span>';
       var qui = r.rouvrir ? icone('ArrowCounterClockwise', 14) + '<b>tu rouvres ce retour</b>' : icone('ArrowBendDownRight', 14) + '<b>toi</b>';
       msgs.push(messageHtml('cm-msg-auteur cm-msg-pending', qui + ' · ' + cmEsc(frDate(r.date)) + ' ' + marque, r.text));
@@ -2569,8 +2709,8 @@
   function captureEnCoursHtml() {
     return '<div class="cm-capture-en-cours"><span class="cm-capture-boite">' + icone('CircleNotch', 16, 'wm-tourne') + '</span><span>capture…</span></div>';
   }
-  function ligneHtml(c, i) {
-    var cat = categoryOf(c.category), modifiable = isEditable(c);
+  function ligneHtml(c, i, autre) {
+    var cat = categoryOf(c.category), modifiable = isEditable(c), cible = cibleDe(c);
     var etat = '';
     if (SYNC && c.status === 'nouveau') etat = syncChip(c);               // la marque d'envoi tient lieu de statut
     else if (c.status && c.status !== 'nouveau') {
@@ -2588,15 +2728,20 @@
       ? '<button type="button" class="cm-vignette" title="agrandir la capture" aria-label="agrandir la capture" onclick="event.stopPropagation(); cmShowShot(\'' + c.id + '\', this)">' +
           '<span class="cm-vignette-face"><img class="cm-shot" alt="capture de la zone" src="' + c.shot.dataUrl + '"></span><span class="cm-loupe" aria-hidden="true">' + icone('MagnifyingGlassPlus', 14) + '</span></button>'
       : capturesEnCours[c.id] ? captureEnCoursHtml() : '';
-    var multi = c.targets && c.targets.length > 1;
+    // ZB-303 : sur la deuxième ligne, réduite, le voyant « nouveau » devant, puis « à renvoyer », puis l'élément visé.
+    var marques = (aDuNouveau(c) ? '<span class="wm-voyant cm-zone-marque" aria-hidden="true"></span><span class="wm-lu cm-zone-marque">nouveau, </span>' : '') +
+      (SYNC && c.status === 'nouveau' && c.sync && c.sync.state === 'error' ? syncChip(c).replace('class="cm-sync-chip', 'class="cm-zone-marque cm-sync-chip') : '');
+    var libelle = ligneListe(cible);
     // Décision c1 (26/10) : un clic choisit la ligne, un deuxième l'ouvre, un troisième la referme (cmFocusDown, sur
     // toute la ligne). Réduite, deux lignes : le texte, puis l'élément visé ; le reste attend l'ouverture (CSS).
-    var choisie = c.id === focusedId;
-    return '<div class="cm-panel-item' + (choisie ? ' cm-current' : '') + (choisie && c.id === ouvertId ? ' wm-ouvert' : '') + (isDone(c) ? ' cm-done' : '') + (aDuNouveau(c) ? ' cm-a-du-nouveau' : '') + '" data-id="' + c.id + '" tabindex="-1" onmousedown="cmFocusDown(event, \'' + c.id + '\')">' +
+    // Une ligne d'une autre page (liste par page) : un clic mène à sa page et y ouvre le retour.
+    var choisie = !autre && c.id === focusedId;
+    var jeter = autre ? null : corbeille(c);
+    return '<div class="cm-panel-item' + (choisie ? ' cm-current' : '') + (choisie && c.id === ouvertId ? ' wm-ouvert' : '') + (isDone(c) ? ' cm-done' : '') + (aDuNouveau(c) ? ' cm-a-du-nouveau' : '') + '" data-id="' + c.id + '"' + (autre ? ' data-autre-page="1"' : '') + ' tabindex="-1" onmousedown="cmFocusDown(event, \'' + c.id + '\')">' +
       '<div class="num">' + (i + 1) + '</div>' +
-      '<div class="body" title="' + (modifiable ? 'voir sur la page et modifier' : 'voir sur la page') + '">' +
+      '<div class="body" title="' + (autre ? 'aller à cette page et ouvrir ce retour' : modifiable ? 'voir sur la page et modifier' : 'voir sur la page') + '">' +
         '<div class="txt">' + cmEsc(c.text) + '</div>' +
-        '<div class="zone" title="' + cmEsc(c.zone) + '">' + icone(multi ? 'SelectionPlus' : c.type === 'box' ? 'BoundingBox' : c.type === 'text' ? 'TextT' : 'CursorClick', 14) + '<span class="zone-txt">' + cmEsc(c.zone) + '</span></div>' +
+        '<div class="zone" title="' + cmEsc(libelle) + '">' + marques + iconeGenre(cible, 14) + '<span class="zone-txt">' + cmEsc(libelle) + '</span></div>' +
         vignette +
         '<div class="cm-meta">' + meta.join('') + '</div>' +
         '<div class="cm-meta cm-meta2"><span class="cm-cat-chip" title="catégorie">' + icone(cat.icon, 14) + cmEsc(nomCategorie(c.category)) + '</span>' +
@@ -2609,8 +2754,42 @@
           ? '<button type="button" class="st wm-cercle" onclick="cmResolve(\'' + c.id + '\')" title="' + cmEsc('marquer résolu par moi : rangé dans tes terminés, non modifiable' + (LIVE ? " · l'équipe n'est pas prévenue" : '')) + '" aria-label="marquer résolu par moi">' + icone('Check', 15) + '</button>'
           : '<span class="st cm-st-locked wm-cercle wm-inactif" title="terminé, non modifiable">' + icone('CheckCircle', 15) + '</span>') +
         (c.status === 'signale' ? '<button type="button" class="reopen wm-cercle" onclick="cmReopen(\'' + c.id + '\')" title="rouvrir pour corriger : il repartira dans le prochain rapport" aria-label="rouvrir pour corriger">' + icone('ArrowCounterClockwise', 15) + '</button>' : '') +
-        (supprimable(c) ? '<button type="button" class="del wm-cercle" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="supprimer ce retour" title="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
+        (jeter === 'retirer' ? '<button type="button" class="del wm-cercle" onclick="cmRetirer(\'' + c.id + '\')" aria-label="retirer ce retour" title="retirer ce retour : l\'équipe ne le verra plus">' + icone('Trash', 15) + '</button>'
+          : jeter === 'effacer' ? '<button type="button" class="del wm-cercle" onclick="cmDeleteById(\'' + c.id + '\')" aria-label="supprimer ce retour" title="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
       '</div></div>';
+  }
+
+  /* ---------- la liste par page (g2 version 2, décision de François du 02/11 ; fiche Tiroir, « Les pages et leurs blocs ») ----------
+     Tous les retours du site, rangés par page : la page en cours d'abord, dépliée (« · cette page ») ; puis les autres, de
+     la plus récemment commentée à la plus ancienne, repliées en une ligne de compte et « afficher ». Titre de page hors du
+     bloc, chemin dessous ; « aller » ouvre la page, witmit reste ouvert ; un clic sur un retour d'une autre page y mène et
+     l'ouvre. Numéros de 1 à n dans chaque page (ceux des épingles). « masquer les terminés » vaut pour toutes les pages ;
+     une autre page dont tous les retours sont masqués disparaît. */
+  var pagesDepliees = {};   // autres pages dépliées par « afficher » (le temps de la page)
+  function cheminAffiche(c) { return IS_FILE ? c.page : (c.path || c.page); }
+  function autresPages(pc) {
+    var ici = {}, pages = {}, ordre = [];
+    pc.forEach(function (c) { ici[c.id] = true; });
+    allComments.forEach(function (c) {
+      if (ici[c.id]) return;
+      var p = pages[c.page];
+      if (!p) { p = pages[c.page] = { page: c.page, titre: '', chemin: cheminAffiche(c), path: c.path, items: [], recent: '' }; ordre.push(p); }
+      p.items.push(c);
+      if (!p.recent || c.date > p.recent) { p.recent = c.date; p.titre = c.pageTitle || p.titre; if (c.path) p.path = c.path; p.chemin = cheminAffiche(c); }
+      if (!p.titre) p.titre = c.pageTitle || c.page;
+    });
+    return ordre.sort(function (a, b) { return a.recent < b.recent ? 1 : a.recent > b.recent ? -1 : 0; });
+  }
+  function compteDePage(items) {
+    var n = items.length, ouverts = items.filter(function (c) { return !isDone(c); }).length;
+    return n + (n > 1 ? ' retours' : ' retour') + ' · ' + (ouverts ? ouverts + ' à suivre' : 'terminés');
+  }
+  function titrePageHtml(titre, chemin, ici, cle) {
+    return '<div class="cm-page-titre"><div class="cm-page-noms">' +
+      '<p class="cm-page-nom" title="' + cmEsc(titre) + '">' + cmEsc(titre) + (ici ? '<span class="cm-page-ici"> · cette page</span>' : '') + '</p>' +
+      '<div class="cm-page-chemin" title="' + cmEsc(chemin) + '">' + cmEsc(chemin) + '</div></div>' +
+      (ici ? '' : '<button type="button" class="cm-page-aller" onclick="cmAllerPage(\'' + cmEsc(cle) + '\')" title="ouvrir cette page ; witmit reste ouvert">aller' + icone('ArrowRight', 13) + '</button>') +
+      '</div>';
   }
 
   function renderList() {
@@ -2652,47 +2831,101 @@
       ailleursEl.hidden = !titres.length;
     }
     var caseEl = document.querySelector('#cmPanel .cm-hide-done');
-    if (caseEl) { caseEl.hidden = !pc.length; caseEl.setAttribute('aria-checked', hideDone() ? 'true' : 'false'); }
-    if (!pc.length) {
-      list.innerHTML = ETAT_VIDE_HTML;
-      list.removeAttribute('role');
-      list.removeAttribute('aria-label');   // sans rôle, le nom ne sert à rien (relecture de Léa, lot 4)
-      majPiedsTiroir();
-      return;
-    }
-    var html = '';
-    pc.forEach(function (c, i) {
-      // « masquer les terminés » cache un retour terminé, sauf s'il a du nouveau : il reste affiché avec « nouveau »
-      // jusqu'à la fermeture de la liste, où il compte comme vu ; le filtre le cache à l'ouverture suivante (C5).
-      if (hideDone() && isDone(c) && !aDuNouveau(c)) return;
-      html += ligneHtml(c, i);
+    if (caseEl) { caseEl.hidden = !allComments.length; caseEl.setAttribute('aria-checked', hideDone() ? 'true' : 'false'); }
+    majInterrupteur();
+    // « masquer les terminés » cache un retour terminé, sauf s'il a du nouveau : il reste affiché avec « nouveau »
+    // jusqu'à la fermeture de la liste, où il compte comme vu ; le filtre le cache à l'ouverture suivante (C5).
+    var visible = function (c) { return !(hideDone() && isDone(c) && !aDuNouveau(c)); };
+    // La page en cours, d'abord, dépliée.
+    var lignesIci = '';
+    pc.forEach(function (c, i) { if (visible(c)) lignesIci += ligneHtml(c, i, false); });
+    var corpsIci = !pc.length ? ETAT_VIDE_HTML
+      : lignesIci ? '<div class="cm-page-lignes" role="list" aria-label="tes retours sur cette page">' + lignesIci + '</div>'
+      : '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';
+    var html = '<section class="cm-page cm-page-ici" data-page="' + cmEsc(PAGE_FILE) + '">' +
+      titrePageHtml(document.title || PAGE_TITLE, IS_FILE ? PAGE_FILE : location.pathname, true, PAGE_FILE) +
+      '<div class="cm-page-bloc">' + corpsIci + '</div></section>';
+    // Les autres pages : repliées, sauf celles qu'on a dépliées.
+    autresPages(pc).forEach(function (p) {
+      var lignes = '';
+      p.items.forEach(function (c, i) { if (visible(c)) lignes += ligneHtml(c, i, true); });
+      if (!lignes) return;                                          // tous ses retours sont masqués : la page disparaît
+      var ouverte = !!pagesDepliees[p.page];
+      html += '<section class="cm-page" data-page="' + cmEsc(p.page) + '">' + titrePageHtml(p.titre, p.chemin, false, p.page) +
+        '<div class="cm-page-bloc"><button type="button" class="cm-page-plier" aria-expanded="' + (ouverte ? 'true' : 'false') + '" onclick="cmPlierPage(\'' + cmEsc(p.page) + '\')">' +
+          '<span class="cm-page-compte">' + cmEsc(compteDePage(p.items)) + '</span>' +
+          '<span class="cm-page-afficher">' + (ouverte ? 'masquer' + icone('CaretUp', 13) : 'afficher' + icone('CaretDown', 13)) + '</span></button>' +
+          (ouverte ? '<div class="cm-page-lignes" role="list" aria-label="' + cmEsc('tes retours sur « ' + p.titre + ' »') + '">' + lignes + '</div>' : '') +
+        '</div></section>';
     });
-    if (!html) html = '<div class="cm-panel-empty">tous les retours de cette page sont terminés.</div>';
     list.innerHTML = html;
     majEtatsLignes();
     majPiedsTiroir();
   }
-  /* Lecteurs d'écran et clavier (relecture de Léa, lot 4) : la liste est une liste nommée, chaque retour un élément de
-     liste avec sa position ; le retour choisi porte aria-current et un seul arrêt de tabulation (tabindex 0 sur la ligne
-     choisie, sinon la première ; -1 sur les autres) ; son état se lit en fin de ligne (« choisi, ouvert » ou « réduit »). */
+  window.cmPlierPage = function (cle) {
+    pagesDepliees[cle] = !pagesDepliees[cle];
+    renderList();
+    var b = document.querySelector('#cmList .cm-page[data-page="' + cle.replace(/"/g, '\\"') + '"] .cm-page-plier');
+    if (b) b.focus();
+  };
+  /* Aller à une autre page (« aller », ou un clic sur un de ses retours) : la page s'ouvre et witmit reste ouvert (et
+     ouvre le retour visé). Ce qui doit suivre est gardé le temps de l'onglet (sessionStorage), lu au chargement. */
+  var SUITE_KEY = 'witmit_' + CONFIG.project + '_suite';
+  function adresseDePage(cle) {
+    var c = allComments.filter(function (x) { return x.page === cle && x.path; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+    var chemin = c ? c.path : cle;
+    try { return new URL(chemin, location.href).href; } catch (e) { return null; }
+  }
+  function allerA(cle, idRetour) {
+    if (!confirmerAbandon()) return;
+    var url = adresseDePage(cle);
+    if (!url) return;
+    try { sessionStorage.setItem(SUITE_KEY, JSON.stringify({ ouvert: true, parAlt: reveleParAlt, retour: idRetour || null })); } catch (e) {}
+    location.href = url;
+  }
+  window.cmAllerPage = function (cle) { allerA(cle, null); };
+  window.cmAllerRetour = function (id) { var c = findComment(id); if (c) allerA(c.page, id); };
+  // Au chargement : witmit rouvert après « aller » ; le retour visé choisi, son repère montré et sa fenêtre ouverte.
+  function reprendreSuite() {
+    var suite = null;
+    try { suite = JSON.parse(sessionStorage.getItem(SUITE_KEY) || 'null'); sessionStorage.removeItem(SUITE_KEY); } catch (e) {}
+    if (!suite || !suite.ouvert || etroit) return;
+    window.cmOuvrir(!!suite.parAlt);
+    if (!suite.retour || !findComment(suite.retour)) return;
+    setTimeout(function () {
+      if (!ligneDe(suite.retour)) return;
+      window.cmFocus(suite.retour);
+      setTimeout(function () {
+        var pin = document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + suite.retour + '"]');
+        if (pin) pin.click();
+      }, 450);
+    }, 350);
+  }
+  /* Lecteurs d'écran et clavier (relecture de Léa, lot 4) : chaque page a sa liste nommée, chaque retour un élément de
+     liste avec sa position dans sa page ; le retour choisi porte aria-current et un seul arrêt de tabulation (tabindex 0
+     sur la ligne choisie, sinon la première de la page en cours ; -1 sur les autres) ; son état se lit en fin de ligne
+     (« choisi, ouvert » ou « réduit »). */
   function majEtatsLignes() {
     var list = document.getElementById('cmList');
     if (!list) return;
-    var items = Array.prototype.slice.call(list.querySelectorAll('.cm-panel-item'));
-    // Le rôle et le nom vont ensemble : posés quand la liste a des retours, retirés sinon.
-    if (items.length) { list.setAttribute('role', 'list'); list.setAttribute('aria-label', 'tes retours sur cette page'); }
-    else { list.removeAttribute('role'); list.removeAttribute('aria-label'); }
-    var arret = items.filter(function (it) { return it.dataset.id === focusedId; })[0] || items[0];
-    items.forEach(function (it, k) {
-      var choisie = it.dataset.id === focusedId, ouverte = choisie && it.dataset.id === ouvertId;
-      it.setAttribute('role', 'listitem');
-      it.setAttribute('aria-posinset', k + 1);
-      it.setAttribute('aria-setsize', items.length);
+    var tous = Array.prototype.slice.call(list.querySelectorAll('.cm-panel-item'));
+    var ici = Array.prototype.slice.call(list.querySelectorAll('.cm-page-ici .cm-panel-item'));
+    var arret = ici.filter(function (it) { return it.dataset.id === focusedId; })[0] || ici[0] || tous[0];
+    Array.prototype.forEach.call(list.querySelectorAll('.cm-page-lignes'), function (bloc) {
+      var items = Array.prototype.slice.call(bloc.querySelectorAll(':scope > .cm-panel-item'));
+      items.forEach(function (it, k) {
+        it.setAttribute('role', 'listitem');
+        it.setAttribute('aria-posinset', k + 1);
+        it.setAttribute('aria-setsize', items.length);
+      });
+    });
+    tous.forEach(function (it) {
+      var choisie = it.dataset.id === focusedId && !it.dataset.autrePage, ouverte = choisie && it.dataset.id === ouvertId;
       it.setAttribute('tabindex', it === arret ? '0' : '-1');
       if (choisie) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
       var lu = it.querySelector(':scope > .cm-etat-lu');
       if (!lu) { lu = document.createElement('span'); lu.className = 'wm-lu cm-etat-lu'; it.appendChild(lu); }
-      lu.textContent = (choisie ? ', choisi' : '') + (ouverte ? ', ouvert' : ', réduit');
+      lu.textContent = it.dataset.autrePage ? ', sur une autre page' : (choisie ? ', choisi' : '') + (ouverte ? ', ouvert' : ', réduit');
     });
   }
 
@@ -2715,6 +2948,8 @@
     // Les boutons, liens, champs, vignettes, détails techniques et le fil de la ligne gardent leur propre clic.
     if (t && t.closest && t.closest('button, a, input, textarea, select, summary, details, label, .cm-reponse-bloc, .cm-edit-bloc, .cm-thread')) return;
     e.preventDefault(); // pas de sélection de texte ni de focus volé ; le focus va à la ligne (ou au champ ouvert)
+    var ligne = t && t.closest && t.closest('.cm-panel-item');
+    if (ligne && ligne.dataset.autrePage) { window.cmAllerRetour(id); return; }   // retour d'une autre page : y aller et l'ouvrir
     if (focusedId !== id) cmFocus(id);
     else if (ouvertId !== id) ouvrirRetour(id);
     else refermerRetour(id);
@@ -2793,7 +3028,7 @@
       !!(ae.closest && ae.closest('#cmPanelBtn'));
     if (!dansListe) return false;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      var items = Array.prototype.slice.call(document.querySelectorAll('#cmList .cm-panel-item'));
+      var items = Array.prototype.slice.call(document.querySelectorAll('#cmList .cm-page-ici .cm-panel-item'));   // les retours de cette page
       if (!items.length) return false;
       var i = -1;
       items.forEach(function (it, k) { if (it.dataset.id === focusedId) i = k; });
@@ -2806,6 +3041,7 @@
       // Un bouton, une case ou un résumé de la liste garde son Entrée.
       if (ae && ae !== document.body && ae !== document.documentElement && !(ae.classList && (ae.classList.contains('cm-panel-item') || ae === panel || ae.id === 'cmList'))) return false;
       // Une ligne qui a le focus (atteinte par Tab) sans être choisie : Entrée la choisit et l'ouvre en une fois (c1, É4 du lot 4).
+      if (ae && ae.classList && ae.classList.contains('cm-panel-item') && ae.dataset.autrePage) { e.preventDefault(); window.cmAllerRetour(ae.dataset.id); return true; }
       if (ae && ae.classList && ae.classList.contains('cm-panel-item') && ae.dataset.id && ae.dataset.id !== focusedId) {
         var idLigne = ae.dataset.id;
         e.preventDefault();
@@ -3010,6 +3246,47 @@
     return false;
   }
 
+  /* Confirmation dessinée dans la couche concernée (fiche Etats, « Confirmations », après le 1/11 ; critère 16 : plus aucun
+     confirm() natif dans witmit). La phrase en 13 px ink, puis « annuler » (bouton gris, il a le focus) et le bouton gris
+     de l'action ; jamais de rouge. Échap ou « annuler » : rien ne se passe (opts.non : ce qui se passe alors, opts.libelleNon
+     son libellé). Une seule à la fois. dans : l'élément où elle se pose ; avant : l'enfant devant lequel elle se pose. */
+  function demanderDans(dans, avant, question, libelleOui, oui, opts) {
+    opts = opts || {};
+    Array.prototype.forEach.call(document.querySelectorAll('.cm-confirme'), function (x) { x.remove(); });
+    var q = document.createElement('div');
+    q.className = 'cm-confirme';
+    q.setAttribute('role', 'group');
+    q.innerHTML = '<p class="cm-confirme-question"></p><div class="cm-confirme-actions">' +
+      '<button type="button" class="wm-touche cm-confirme-non"></button><button type="button" class="wm-touche cm-confirme-oui"></button></div>';
+    q.querySelector('.cm-confirme-question').textContent = question;
+    q.setAttribute('aria-label', question);
+    q.querySelector('.cm-confirme-non').textContent = opts.libelleNon || 'annuler';
+    q.querySelector('.cm-confirme-oui').textContent = libelleOui;
+    function fin(action) {
+      q.remove();
+      if (opts.retour && opts.retour.isConnected) { try { opts.retour.focus({ preventScroll: true }); } catch (e) {} }
+      if (action) action();
+    }
+    q.querySelector('.cm-confirme-non').onclick = function (e) { e.stopPropagation(); fin(opts.non); };
+    q.querySelector('.cm-confirme-oui').onclick = function (e) { e.stopPropagation(); fin(oui); };
+    q.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fin(opts.non); } });
+    q.addEventListener('mousedown', function (e) { e.stopPropagation(); });   // un clic dans la question ne choisit pas la ligne
+    dans.insertBefore(q, avant || null);
+    var non = q.querySelector('.cm-confirme-non');
+    try { non.focus({ preventScroll: true }); } catch (e) { non.focus(); }
+    if (q.scrollIntoView) q.scrollIntoView({ block: 'nearest' });
+    return q;
+  }
+  // Les questions du pied de la liste (effacer, vider, rapport) : en haut du pied, au-dessus des outils.
+  function demanderAuPied(question, libelleOui, oui, opts) {
+    var pied = document.getElementById('cmPanelPied');
+    if (!pied) return;
+    if (!listeOuverte()) window.cmOuvrir();   // appelée liste repliée (par le code d'une page) : la question doit se voir
+    opts = opts || {};
+    opts.retour = opts.retour || document.activeElement;
+    demanderDans(pied, pied.firstChild, question, libelleOui, oui, opts);
+  }
+
   /* Suppressions (Léa 3.9 et 3.10 ; C9). En live, seuls les retours jamais reçus par witmit s'effacent :
      cmDeleteById, cmClearAll et cmClearSite refusent eux-mêmes un retour reçu, même appelés directement. */
   function effacerRetours(ids) {
@@ -3030,10 +3307,11 @@
     var question = SYNC
       ? 'effacer ' + (pc.length > 1 ? 'les ' + nRetours(pc.length, true) : 'le retour pas encore parti') + " de cette page ? c'est définitif. tes retours envoyés restent."
       : 'effacer ' + (pc.length > 1 ? 'les ' + nRetours(pc.length) : 'le retour') + " de cette page ? c'est définitif.";
-    if (!window.confirm(question)) return;
-    var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
-    effacerRetours(ids);
-    cmStatus(SYNC ? 'retours pas encore partis effacés.' : 'retours de cette page effacés.', { type: 'fait' });
+    demanderAuPied(question, 'effacer', function () {
+      var ids = {}; pc.forEach(function (c) { ids[c.id] = true; });
+      effacerRetours(ids);
+      cmStatus(SYNC ? 'retours pas encore partis effacés.' : 'retours de cette page effacés.', { type: 'fait' });
+    });
   };
   /* Vide le stockage PARTAGÉ (toutes les pages/fichiers du site, pas seulement celle-ci) —
      utile pour repartir propre quand d'anciens fichiers de test (noms différents) ont laissé
@@ -3048,10 +3326,11 @@
     var question = SYNC
       ? 'effacer ' + (cibles.length > 1 ? 'les ' + nRetours(cibles.length, true) : 'le retour pas encore parti') + pages + " ? c'est définitif. tes retours envoyés restent."
       : 'effacer ' + (cibles.length > 1 ? 'les ' + nRetours(cibles.length) : 'le retour') + pages + " ? c'est définitif.";
-    if (!window.confirm(question)) return;
-    var ids = {}; cibles.forEach(function (c) { ids[c.id] = true; });
-    effacerRetours(ids);
-    cmStatus(SYNC ? 'retours pas encore partis du site effacés.' : 'tous les retours du site sont effacés.', { type: 'fait' });
+    demanderAuPied(question, 'effacer', function () {
+      var ids = {}; cibles.forEach(function (c) { ids[c.id] = true; });
+      effacerRetours(ids);
+      cmStatus(SYNC ? 'retours pas encore partis du site effacés.' : 'tous les retours du site sont effacés.', { type: 'fait' });
+    });
   };
 
   /* ---------- détection de zone : générique, valable sur n'importe quelle page ----------
@@ -3190,10 +3469,10 @@
       listed.push(c);
       if (names.length < 3) names.push(textExcerpt(c, 30)); else extra++;
     }
-    var label = names.length
-      ? 'zone encadrée : ' + names.join(', ') + (extra ? ' (+' + extra + ')' : '')
-      : 'zone encadrée ' + (container ? 'dans : ' + detectZone(container).label : 'dans la page');
-    return { label: label, el: container };
+    // 0.4.0 : la zone a sa cible (type « zone », textes contenus, bloc qui la contient) ; son libellé en découle (ZB-280 :
+    // plus de « zone · zone encadrée » qui répète le mot).
+    var cible = decrireZone(names, extra, container, bw, bh);
+    return { label: zoneDe(cible), el: container, cible: cible };
   }
 
   /* Libellé d'une sélection de plusieurs éléments : « 3 éléments : A, B, C (+n) » (Léa 3.8) */
@@ -3203,11 +3482,165 @@
     return targets.length + ' éléments : ' + names.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : '');
   }
 
-  /* Icône par type de cible, dans la fenêtre et la liste (fiche Icones) : élément, zone, passage de texte,
-     plusieurs éléments. */
-  function typeIcon(type, multi) {
-    return icone(multi ? 'SelectionPlus' : type === 'box' ? 'BoundingBox' : type === 'text' ? 'TextT' : 'CursorClick', 14, 'wm-devant');
+  /* ---------- l'élément visé : son type, son nom, sa description (0.4.0 : fiche Icones, table des types ; spec, sujet 7) ----------
+     cible = { genre, nom, desc, brut, choix } : le type en mots (titre de la fenêtre, avec son icône), le nom de l'élément
+     (son libellé, son texte ou son titre), sa description (état, texte grisé, conteneur). brut : le nom n'est pas un texte
+     de la page (« sur la page », une liste d'éléments) et ne se met pas entre « ». choix : les choix d'une liste déroulante
+     (R21). Tout cela part au serveur dans le champ zone du ticket (300 caractères, voir zoneDe) : rien à changer côté
+     serveur. Le contenu d'un champ rempli n'est jamais recopié (il peut s'agir de données personnelles) : « rempli ». */
+  var ICONE_GENRE = { 'mot': 'TextAa', 'texte': 'Highlighter', 'bloc': 'Rectangle', 'bouton': 'CursorClick', 'lien': 'Link', 'icône ou image': 'Image',
+    'étiquette': 'TagSimple', 'champ': 'Textbox', 'case à cocher': 'CheckSquare', 'liste déroulante': 'CaretUpDown', 'option': 'CaretUpDown',
+    'barre de défilement': 'ArrowsDownUp', 'zone': 'BoundingBox', 'point': 'Crosshair', 'plusieurs éléments': 'SelectionPlus', 'élément': 'Rectangle' };
+  function court(t, max) { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > max ? t.slice(0, max) + '…' : t; }
+  // Nom d'un contrôle de formulaire : aria-label, aria-labelledby, son étiquette (<label>), title, texte grisé, name.
+  function libelleDe(el) {
+    var v = el.getAttribute('aria-label');
+    if (v && v.trim()) return court(v, 60);
+    var ids = (el.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+    if (ids.length) { v = ids.map(function (id) { var x = document.getElementById(id); return x ? x.textContent : ''; }).join(' '); if (v.trim()) return court(v, 60); }
+    var lab = (el.labels && el.labels[0]) || (el.closest && el.closest('label'));
+    if (lab) {
+      var copie = lab.cloneNode(true);
+      Array.prototype.forEach.call(copie.querySelectorAll('input, select, textarea, option'), function (x) { x.remove(); });
+      v = copie.textContent;
+      if (v && v.trim()) return court(v, 60);
+    }
+    return court(el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || '', 60);
   }
+  // « dans « titre du bloc » » : le bloc (carte, section) qui contient l'élément, s'il en a un et s'il ne porte pas déjà ce nom.
+  function dansQuoi(el, nom) {
+    var n = el && el.parentElement;
+    while (n && n !== document.body && n !== document.documentElement) {
+      if (!inUi(n) && isContainer(n)) {
+        var l = court(titreDuBloc(n), 50);
+        return l && l !== nom ? 'dans « ' + l + ' »' : '';
+      }
+      n = n.parentElement;
+    }
+    return '';
+  }
+  // Le titre d'un bloc : son élément de titre (h1 à h6, classe « title », « titre », « label »…), sinon son premier morceau
+  // de texte ; et le texte qui vient après (la description d'une carte : « Outil multi-utilisateur… »).
+  function titreDuBloc(el) {
+    var t = el.querySelector && el.querySelector(TITLE_SELECTOR + ', h5, h6, [class*="titre"]');
+    if (t && t !== el && !inUi(t)) { var x = textExcerpt(t, 200); if (x) return x; }
+    return textExcerpt(el, 400).split(' · ')[0] || '';
+  }
+  function resteDuTexte(el, titre) {
+    var tout = textExcerpt(el, 400);
+    if (titre && tout.indexOf(titre) === 0) tout = tout.slice(titre.length).replace(/^[\s·]+/, '');
+    return court(tout, 120);
+  }
+  function decrireElement(el) {
+    if (!el || el === document.body || el === document.documentElement) return { genre: 'point', nom: 'sur la page', brut: true };
+    var tag = el.tagName.toLowerCase();
+    // Une étiquette de formulaire décrit le contrôle qu'elle nomme (case, champ, liste) ; le cadre reste sur elle.
+    var c = tag === 'label' ? (el.control || el.querySelector('input, select, textarea') || el) : (tag === 'option' && el.closest('select')) || el;
+    var t = (c.getAttribute('type') || '').toLowerCase();
+    if (c.matches('input[type="checkbox"], [role="checkbox"], [role="switch"]')) {
+      var coche = c.type === 'checkbox' ? c.checked : c.getAttribute('aria-checked') === 'true';
+      return { genre: 'case à cocher', nom: libelleDe(c) || 'sans nom', desc: coche ? 'cochée' : 'non cochée' };   // R19
+    }
+    if (c.matches('input[type="radio"], [role="radio"]')) {
+      var pris = c.type === 'radio' ? c.checked : c.getAttribute('aria-checked') === 'true';
+      return { genre: 'option', nom: libelleDe(c) || 'sans nom', desc: pris ? 'choisie' : 'pas choisie' };
+    }
+    if (tag === 'select' || c.tagName === 'SELECT') {
+      // R21 : on vise la liste fermée ; ses choix et celui qui est choisi partent avec le ticket (champ zone).
+      var opts = Array.prototype.map.call(c.options || [], function (o) { return court(o.textContent, 40); }).filter(Boolean);
+      var choisi = c.selectedOptions && c.selectedOptions[0] ? court(c.selectedOptions[0].textContent, 40) : '';
+      return { genre: 'liste déroulante', nom: libelleDe(c) || 'sans nom', desc: (choisi ? '« ' + choisi + ' » choisi, ' : 'rien de choisi, ') + opts.length + ' choix', choix: opts };
+    }
+    if (c.matches('textarea, input:not([type]), input[type="text"], input[type="email"], input[type="search"], input[type="tel"], input[type="url"], input[type="number"], input[type="password"], input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"], [contenteditable=""], [contenteditable="true"], [role="textbox"], [role="searchbox"]')) {
+      var val = c.isContentEditable || /^(textbox|searchbox)$/.test(c.getAttribute('role') || '') && !('value' in c) ? c.textContent : c.value;
+      var grise = c.getAttribute('placeholder') || '';
+      // R20 : champ vide, son texte grisé en description. Rempli : « rempli », jamais son contenu.
+      return { genre: 'champ', nom: libelleDe(c) || 'sans nom', desc: String(val || '').trim() ? 'rempli' : (grise ? 'vide, texte grisé « ' + court(grise, 60) + ' »' : 'vide') };
+    }
+    var nomTexte = court((el.getAttribute('aria-label') || el.getAttribute('title') || textExcerpt(el, 60) || el.value || ''), 60);
+    if (el.matches('button, input[type="button"], input[type="submit"], input[type="reset"], input[type="image"], [role="button"], summary'))
+      return { genre: 'bouton', nom: nomTexte || 'sans nom', desc: dansQuoi(el, nomTexte) };
+    if (el.matches('a[href], [role="link"]')) return { genre: 'lien', nom: nomTexte || 'sans nom', desc: dansQuoi(el, nomTexte) };
+    if (el.matches('img, svg, picture, canvas, video, [role="img"], [class*="icon"]')) {
+      var nomImage = court(el.getAttribute('alt') || el.getAttribute('aria-label') || el.getAttribute('title') || '', 60);
+      return { genre: 'icône ou image', nom: nomImage || 'sans nom', desc: dansQuoi(el, nomImage) };
+    }
+    if (el.matches('[class*="badge"], [class*="chip"], [class*="tag"], [class*="pill"], label')) return { genre: 'étiquette', nom: nomTexte || 'sans nom', desc: dansQuoi(el, nomTexte) };
+    if (isTextLeaf(el) && !isContainer(el)) { var tx = court(textExcerpt(el, 80), 80); return { genre: 'texte', nom: tx, desc: dansQuoi(el, tx) }; }
+    var titreEntier = titreDuBloc(el);
+    return { genre: 'bloc', nom: court(titreEntier, 60) || 'sans titre', desc: resteDuTexte(el, titreEntier) };
+  }
+  // Un passage de texte : « mot » s'il n'a pas d'espace, « texte » sinon ; dans le bloc qui le contient.
+  function decrirePassage(quote, el) {
+    var q = court(quote, 90);
+    return { genre: /\s/.test(String(quote || '').trim()) ? 'texte' : 'mot', nom: q, desc: dansQuoi(el, q) };
+  }
+  // Plusieurs éléments (⌘+clic) : leurs noms.
+  function decrirePlusieurs(targets) {
+    var noms = targets.slice(0, 3).map(function (t) { return (t.cible && t.cible.nom) || t.label; });
+    return { genre: 'plusieurs éléments', nom: noms.join(', ') + (targets.length > 3 ? ' (+' + (targets.length - 3) + ')' : ''), desc: targets.length + ' éléments', brut: true };
+  }
+  // Une zone tracée : les textes qu'elle contient entièrement, sinon sa taille ; le bloc qui la contient.
+  function decrireZone(names, extra, container, w, h) {
+    var nom = names.length ? names.join(', ') + (extra ? ' (+' + extra + ')' : '') : Math.round(w) + ' × ' + Math.round(h) + ' px';
+    var dans = container ? court(detectZone(container).label, 50) : '';
+    return { genre: 'zone', nom: nom, desc: dans ? 'dans « ' + dans + ' »' : 'dans la page', brut: !names.length };
+  }
+  /* R18 : un clic sur la bande d'une barre de défilement. Le navigateur envoie le clic au bloc qui défile lui-même ; la
+     barre est la bande au bord droit (verticale) ou bas (horizontale), entre le contenu et la bordure. Barres superposées
+     (macOS : elles ne prennent pas de place) : les 12 derniers pixels du bloc, quand c'est le bloc lui-même qui reçoit le
+     clic. Rend { el, sens } ou null. */
+  var BANDE_SUPERPOSEE = 12;
+  function barreSous(target, clientX, clientY) {
+    var el = target && target.nodeType === 1 ? target : null;
+    if (!el || el === document.body || el === document.documentElement || inUi(el)) return null;
+    var cs = getComputedStyle(el), r = el.getBoundingClientRect();
+    var bd = parseFloat(cs.borderRightWidth) || 0, bb = parseFloat(cs.borderBottomWidth) || 0;
+    if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+      var lv = el.offsetWidth - el.clientWidth - el.clientLeft - bd;
+      if (clientX >= r.right - bd - (lv > 0 ? lv : BANDE_SUPERPOSEE) && clientX <= r.right - bd) return { el: el, sens: 'verticale' };
+    }
+    if (/(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1) {
+      var lh = el.offsetHeight - el.clientHeight - el.clientTop - bb;
+      if (clientY >= r.bottom - bb - (lh > 0 ? lh : BANDE_SUPERPOSEE) && clientY <= r.bottom - bb) return { el: el, sens: 'horizontale' };
+    }
+    return null;
+  }
+  // La bande de la barre (page), pour son cadre fin : toute la longueur du bloc, l'épaisseur de la barre (8 px si superposée).
+  var REGLE_BARRE = { etau: true, petit: true, tresPetit: true, crochet: 'M', marge: 0 };
+  function rectBarre(el, sens) {
+    var r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    var bl = parseFloat(cs.borderLeftWidth) || 0, bt = parseFloat(cs.borderTopWidth) || 0, bd = parseFloat(cs.borderRightWidth) || 0, bb = parseFloat(cs.borderBottomWidth) || 0;
+    var x = r.left + window.scrollX, y = r.top + window.scrollY;
+    if (sens === 'horizontale') { var eh = el.offsetHeight - el.clientHeight - el.clientTop - bb; eh = eh > 0 ? eh : 8; return { x: x + bl, y: y + r.height - bb - eh, w: r.width - bl - bd, h: eh }; }
+    var ev = el.offsetWidth - el.clientWidth - el.clientLeft - bd; ev = ev > 0 ? ev : 8;
+    return { x: x + r.width - bd - ev, y: y + bt, w: ev, h: r.height - bt - bb };
+  }
+  function decrireBarre(b) {
+    return { genre: 'barre de défilement', nom: court(titreDuBloc(b.el), 60) || 'sans titre', desc: b.sens };
+  }
+  // Ce qu'on lit de la cible : dans la fenêtre (ligne 2), dans la liste (ligne 2), et dans le champ zone du ticket.
+  function ligneFenetre(cible) {
+    var nom = cible.brut || !/^(mot|texte)$/.test(cible.genre) ? cible.nom : '« ' + cible.nom + ' »';
+    return nom + (cible.desc ? ' · ' + cible.desc : '');
+  }
+  function ligneListe(cible) {
+    if (cible.ancien) return cible.nom;
+    if (cible.genre === 'plusieurs éléments') return cible.desc + ' : ' + cible.nom;
+    return cible.genre + ' ' + (cible.brut ? cible.nom : '« ' + cible.nom + ' »');
+  }
+  function zoneDe(cible) {
+    var z = ligneListe(cible) + (cible.desc && cible.genre !== 'plusieurs éléments' ? ' · ' + cible.desc : '');
+    if (cible.choix && cible.choix.length) z += ' · choix : ' + cible.choix.join(', ');
+    return z.slice(0, 300);
+  }
+  // Les retours d'avant 0.4.0 n'ont pas de cible : leur type se déduit de c.type, leur nom est c.zone.
+  function cibleDe(c) {
+    if (c && c.cible) return c.cible;
+    var multi = c && c.targets && c.targets.length > 1;
+    return { genre: multi ? 'plusieurs éléments' : c && c.type === 'box' ? 'zone' : c && c.type === 'text' ? 'texte' : 'élément', nom: (c && c.zone) || '', brut: true, ancien: true };
+  }
+  function iconeGenre(cible, px, cls) { return icone(ICONE_GENRE[cible.genre] || 'Rectangle', px, cls); }
   // Type de cible dans le rapport Markdown (C3, Léa 3.12) : « élément », « zone » ou « texte », sans émoji.
   function typeRapport(type) {
     return type === 'box' ? 'zone' : type === 'text' ? 'texte' : 'élément';
@@ -3220,16 +3653,19 @@
 
   function positionEditOutline() {
     editOutlines.forEach(function (o) {
-      var r = o.pt ? rectPoint(o.pt) : rectPage(o.el);
-      appliquerRegle(o.box, o.pt ? REGLE_POINT : regleCadre(o.el));
+      var r = o.pt ? rectPoint(o.pt) : o.sens ? rectBarre(o.el, o.sens) : rectPage(o.el);
+      appliquerRegle(o.box, o.pt ? REGLE_POINT : o.sens ? REGLE_BARRE : regleCadre(o.el));
       dimensionnerCadre(o.box, r.x, r.y, r.w, r.h);
     });
   }
-  // els : un élément, une liste d'éléments, ou { point: { x, y } } (point visé, page) pour l'étau d'un point.
+  // els : un élément, une liste d'éléments, { point: { x, y } } (point visé, page) pour l'étau d'un point, ou
+  // { barre: { el, sens } } pour le cadre fin d'une barre de défilement (R18).
   function showEditOutline(els) {
     hideEditOutline();
     (Array.isArray(els) ? els : [els]).forEach(function (el) {
       if (!el) return;
+      var sens = null;
+      if (el.barre) { sens = el.barre.sens; el = el.barre.el; }
       var pt = el.point || null;
       if (!pt) {
         var r = el.getBoundingClientRect();
@@ -3241,7 +3677,7 @@
       box.className = 'cm-box cm-ui cm-box-editing' + (pt ? ' cm-box-point' : '') + (sombre ? ' wm-sur-sombre cm-focus-light' : '');
       assurerCadre(box);
       poserRepere(box);
-      editOutlines.push(pt ? { pt: pt, box: box } : { el: el, box: box });
+      editOutlines.push(pt ? { pt: pt, box: box } : { el: el, box: box, sens: sens });
     });
     positionEditOutline();
   }
@@ -3399,7 +3835,7 @@
   function describeBox(b) {
     var centerEl = pageElementAt(b.x + b.w / 2 - window.scrollX, b.y + b.h / 2 - window.scrollY);
     var z = boxZone(b.x, b.y, b.w, b.h, centerEl);
-    return { label: z.label, anchor: anchorForBox(b.x, b.y, b.w, b.h, z.el) };
+    return { label: z.label, cible: z.cible, anchor: anchorForBox(b.x, b.y, b.w, b.h, z.el) };
   }
 
   /* ---------- bulle de saisie ---------- */
@@ -3445,10 +3881,11 @@
     if (meta.type === 'box' && meta.box) return meta.box;
     if (meta.marks && meta.marks.length) return unionRect(meta.marks);
     // Élément visé : son cadre tel qu'il est dessiné (règle simple ou étau, fiche Selection) ; la fenêtre ne doit
-    // recouvrir ni le cadre ni l'épingle. Point : l'étau autour du point.
+    // recouvrir ni le cadre ni l'épingle. Point : l'étau autour du point. Barre de défilement : son cadre fin.
     if (meta.point) return rectCadre(rectPoint(meta.point), REGLE_POINT);
     var els = meta.targets && meta.targets.length > 1 ? meta.targets.map(function (t) { return t.el; })
       : meta.outlineEl ? (Array.isArray(meta.outlineEl) ? meta.outlineEl : [meta.outlineEl]) : [];
+    if (meta.barre && els[0]) return rectCadre(rectBarre(els[0], meta.barre), REGLE_BARRE);
     var R = null;
     els.forEach(function (el) {
       if (!el) return;
@@ -3470,6 +3907,7 @@
     var ep = { taille: 24, dehors: 0 }, pt = null;
     if (meta && meta.type === 'text') { ep.taille = 18; pt = placeEpingleTexte(meta.marks, 18, 18); }
     else if (meta && meta.point) ep = epinglePour(REGLE_POINT);
+    else if (meta && meta.barre) ep = epinglePour(REGLE_BARRE);
     else if (meta && meta.type !== 'box') {
       var premier = meta.targets && meta.targets.length ? meta.targets[0].el : (Array.isArray(meta.outlineEl) ? meta.outlineEl[0] : meta.outlineEl);
       if (premier) {
@@ -3481,97 +3919,60 @@
     var t = ep.taille;
     return { x: pt.x - t / 2, y: pt.y - t / 2, w: t, h: t };
   }
-  // Repères des AUTRES retours (cadres tels que dessinés, épingles) : la fenêtre évite de les recouvrir quand elle peut.
-  function autresReperes(meta) {
-    var id = meta && meta.existing && meta.existing.id, out = [];
-    var els = document.querySelectorAll('.cm-box-saved, .cm-pin');
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i];
-      if ((id && el.dataset.id === id) || (meta && el === meta.boxEl) || el.classList.contains('cm-box-editable')) continue;
-      var dessin = el.querySelector(':scope > .wm-cadre') || el;
-      if (!dessin.getClientRects().length) continue;
-      var r = rectOf(dessin);
-      r.epingle = el.classList.contains('cm-pin');
-      out.push(r);
-    }
-    return out;
-  }
-  var POIDS_EPINGLE = 1e7;
-  function recouvre(a, b) {
-    var w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-    return w > 0 && h > 0 ? w * h : 0;
-  }
+  /* Place de la fenêtre (fiche Fenetre, décision a2 du 28/10) : centrée sous la sélection, 8 px dessous ; au-dessus,
+     toujours centrée, quand la place manque dessous ; jamais hors de l'écran ni sous la liste. La sélection compte son
+     épingle : la fenêtre ne la recouvre pas. Cible plus haute que l'écran : du côté qui a le plus de place, dans l'écran. */
+  var ECART_FENETRE = 8;
   function placePopup(pop, R, fallbackX, fallbackY, meta) {
     var vx = window.scrollX, vy = window.scrollY;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    // 0.4.0 : la liste est toujours ouverte pendant le mode ; la fenêtre reste dans la page visible, à gauche de la liste.
     var panneau = document.getElementById('cmPanel');
     if (listeOuverte() && panneau && panneau.offsetWidth < vw - 200) vw -= panneau.offsetWidth;
-    // Règle de largeur (M1) : 340 px (V2), jamais plus que l'écran moins 8 px de chaque côté (barre de défilement
-    // comprise, que 100vw ne retire pas).
+    pop.style.width = '';
     if (pop.offsetWidth > vw - 16) pop.style.width = Math.max(0, vw - 16) + 'px';
-    var W = pop.offsetWidth, Hh = pop.offsetHeight, gap = 10;
+    var W = pop.offsetWidth, H = pop.offsetHeight;
     function clampX(x) { return Math.max(vx + 8, Math.min(x, vx + vw - W - 8)); }
-    function apply(x, y) { pop.style.left = x + 'px'; pop.style.top = y + 'px'; }
-    if (!R) { apply(clampX(fallbackX), Math.max(vy + 8, Math.min(fallbackY + 10, vy + vh - Hh - 8))); return; }
-    // Ce que la fenêtre ne recouvre jamais : le cadre et son épingle, à cheval sur un coin (V2) ; la place gardée
-    // pour l'épingle est donc la sienne, pas les 48 px de l'épingle posée au-dessus du cadre en 0.2.0.
+    function clampY(y) { return Math.max(vy + 8, Math.min(y, vy + vh - H - 8)); }
+    function apply(x, y) { pop.style.left = Math.round(x) + 'px'; pop.style.top = Math.round(y) + 'px'; }
+    if (!R) { apply(clampX(fallbackX - W / 2), clampY(fallbackY + ECART_FENETRE)); return; }
     var P = rectEpingleDe(meta, R);
     var T = { x: Math.min(R.x, P.x), y: Math.min(R.y, P.y) };
     T.w = Math.max(R.x + R.w, P.x + P.w) - T.x; T.h = Math.max(R.y + R.h, P.y + P.h) - T.y;
-    var cands = [
-      { x: R.x, y: T.y + T.h + gap },                 // dessous
-      { x: R.x, y: T.y - Hh - gap },                  // au-dessus
-      { x: T.x + T.w + gap, y: R.y },                 // à droite
-      { x: T.x - W - gap, y: R.y },                   // à gauche
-      { x: T.x + T.w + gap, y: R.y + R.h - Hh },      // à droite, calée sur le bas de la cible
-      { x: T.x - W - gap, y: R.y + R.h - Hh }         // à gauche, calée sur le bas de la cible
-    ];
-    // Première place qui tient dans l'écran sans recouvrir la cible ni son épingle ; parmi elles, la première qui
-    // ne recouvre pas non plus le repère d'un autre retour, sinon celle qui en recouvre le moins.
-    // Lot 8 (Paula, lot 6) : une épingle recouverte pèse bien plus lourd qu'un bord de cadre recouvert. Chaque épingle
-    // touchée compte POIDS_EPINGLE, plus que la plus grande surface de cadre qu'une fenêtre puisse couvrir.
-    var autres = autresReperes(meta), choix = null, moindre = Infinity;
-    for (var i = 0; i < cands.length; i++) {
-      var x = clampX(cands[i].x), y = cands[i].y;
-      if (y < vy + 8 || y + Hh > vy + vh - 8) continue;
-      var f = { x: x, y: y, w: W, h: Hh };
-      if (recouvre(f, T)) continue;
-      var gene = 0;
-      for (var k = 0; k < autres.length; k++) {
-        var aire = recouvre(f, autres[k]);
-        gene += aire && autres[k].epingle ? POIDS_EPINGLE + aire : aire;
-      }
-      if (gene < moindre) { moindre = gene; choix = f; }
-      if (!gene) break;
-    }
-    if (choix) { apply(choix.x, choix.y); return; }
-    apply(clampX(R.x), T.y + T.h + gap); // cible trop grande pour l'écran : dessous, et on fait défiler
-    pop.scrollIntoView({ block: 'nearest' });
+    var x = clampX(R.x + R.w / 2 - W / 2);
+    var dessous = T.y + T.h + ECART_FENETRE, dessus = T.y - ECART_FENETRE - H;
+    var y;
+    if (dessous + H <= vy + vh - 8) y = dessous;
+    else if (dessus >= vy + 8) y = dessus;
+    else y = (vy + vh - (T.y + T.h)) >= (T.y - vy) ? clampY(dessous) : clampY(dessus);
+    apply(x, y);
   }
-  /* La fenêtre a grandi (catégories dépliées, texte long) : elle remonte pour ne pas sortir par le bas. */
-  function recalerFenetre(pop) {
+  /* ZB-280 : la fenêtre se replace sur sa cible quand elle change de taille (le champ grandit), quand la page change
+     de largeur (la liste qui s'ouvre, la fenêtre du navigateur) ou qu'une zone intérieure défile. Déplacée à la main par
+     sa tête, elle reste où on l'a mise (elle remonte seulement si elle sortait de l'écran par le bas). */
+  function replacerFenetre(pop) {
+    if (!pop || !pop.isConnected) return;
+    if (!pop._deplacee) { placePopup(pop, targetRectOf(pop._meta), pop._x, pop._y, pop._meta); return; }
     var vy = window.scrollY, vh = window.innerHeight, top = pop.offsetTop, H = pop.offsetHeight;
     if (top + H > vy + vh - 8) pop.style.top = Math.max(vy + 8, vy + vh - 8 - H) + 'px';
   }
 
-  /* La fenêtre se déplace en la prenant par sa tête entière (titre et élément visé), sauf la croix. */
+  /* La fenêtre se déplace en la prenant par sa tête entière (type et élément visé), sauf la croix. */
   function makePopupDraggable(pop, handle) {
     handle.addEventListener('pointerdown', function (e) {
       if (e.target.closest && e.target.closest('button')) return;
       e.stopPropagation(); e.preventDefault();
       var offX = e.pageX - pop.offsetLeft, offY = e.pageY - pop.offsetTop;
       try { handle.setPointerCapture(e.pointerId); } catch (err) {}
-      function onMove(ev) { pop.style.left = (ev.pageX - offX) + 'px'; pop.style.top = (ev.pageY - offY) + 'px'; }
+      function onMove(ev) { pop._deplacee = true; pop.style.left = (ev.pageX - offX) + 'px'; pop.style.top = (ev.pageY - offY) + 'px'; }
       function onUp() { handle.removeEventListener('pointermove', onMove); handle.removeEventListener('pointerup', onUp); }
       handle.addEventListener('pointermove', onMove);
       handle.addEventListener('pointerup', onUp);
     });
   }
 
-  /* ---------- fenêtre de saisie : textes et morceaux (fiche Fenetre ; Léa 3.7 et 3.8) ---------- */
+  /* ---------- fenêtre de commentaire : textes et morceaux (fiche Fenetre ; Léa 3.7 et 3.8) ---------- */
   function nomCategorie(key) { return categoryOf(key).label.toLowerCase(); }
-  // Nom du statut dans la ligne de verrou (Léa 2.1 et 2.2) : en minuscules, sans date. (supprimable(c) : C9, plus haut.)
+  // Nom du statut dans la ligne de verrou (Léa 2.1 et 2.2) : en minuscules, sans date.
   function nomStatut(c) { return statusLabel(c); }
   // Nombre d'éléments visés par une fenêtre « plusieurs éléments » (0 sinon).
   function nbCibles(meta) {
@@ -3580,38 +3981,139 @@
     var ex = meta.existing;
     return ex && ex.targets && ex.targets.length > 1 && !(meta.targets && meta.targets.length) ? ex.targets.length : 0;
   }
-  // Titre de la fenêtre selon la cible (Léa 3.7) : bouton, lien, champ, texte, zone, N éléments, élément.
-  function titreFenetre(meta) {
-    var n = nbCibles(meta);
-    if (n > 1) return 'Ton retour sur ces ' + n + ' éléments';
-    if (meta && meta.type === 'box') return 'Ton retour sur cette zone';
-    if (meta && meta.type === 'text') return 'Ton retour sur ce texte';
-    var el = meta && meta.targets && meta.targets.length ? meta.targets[0].el : meta && meta.outlineEl;
-    if (Array.isArray(el)) el = el[0];
-    if (el && el.nodeType === 1) {
-      if (el.matches('input[type="button"], input[type="submit"], input[type="reset"], input[type="image"]') || el.closest('button, [role="button"], summary')) return 'Ton retour sur ce bouton';
-      if (el.closest('a[href], [role="link"]')) return 'Ton retour sur ce lien';
-      if (el.matches('input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]')) return 'Ton retour sur ce champ';
-    }
-    return 'Ton retour sur cet élément';
+  // La cible d'une fenêtre : celle que l'appelant a décrite, sinon celle du retour (retours d'avant 0.4.0 compris).
+  function cibleFenetre(meta, zone) {
+    if (meta && meta.cible) return meta.cible;
+    if (meta && meta.existing) return cibleDe(meta.existing);
+    return { genre: 'élément', nom: zone || '', brut: true, ancien: true };
   }
-  // Tête : titre, élément visé (poignée, icône du type, libellé sur une ligne, complet en info-bulle) et,
-  // pour plusieurs éléments, la ligne d'aide « ⌘+clic : ajouter ou retirer un élément ».
+  // Tête (a2) : ligne 1, l'icône du type et le type ; ligne 2, « nom · description », complète en info-bulle ; pour
+  // plusieurs éléments, l'aide « ⌘+clic : ajouter ou retirer un élément ».
   function majTete(pop, meta, zone) {
-    var n = nbCibles(meta);
-    pop.querySelector('.cm-titre').textContent = titreFenetre(meta);
-    pop.querySelector('.cm-zone').innerHTML =
-      '<span class="cm-poignee" aria-hidden="true">' + icone('DotsSixVertical', 14) + '</span>' +
-      icone(n > 1 ? 'SelectionPlus' : meta && meta.type === 'box' ? 'BoundingBox' : meta && meta.type === 'text' ? 'TextT' : 'CursorClick', 14, 'cm-type') +
-      '<span class="cm-zone-txt"></span>';
-    var txt = pop.querySelector('.cm-zone-txt');
-    txt.textContent = zone || '';
-    txt.title = zone || '';
-    var aide = pop.querySelector('.cm-aide-multi');
-    aide.hidden = !(n > 1 && !pop.classList.contains('cm-locked'));
+    var cible = cibleFenetre(meta, zone), n = nbCibles(meta);
+    pop.querySelector('.cm-type-ico').innerHTML = iconeGenre(cible, 16);
+    pop.querySelector('.cm-titre').textContent = cible.genre;
+    var txt = pop.querySelector('.cm-zone-txt'), ligne = ligneFenetre(cible);
+    txt.textContent = ligne;
+    txt.title = ligne;
+    pop.querySelector('.cm-zone').hidden = !ligne;
+    pop.querySelector('.cm-aide-multi').hidden = !(n > 1 && !pop.classList.contains('cm-locked'));
   }
   var AIDE_MULTI = '<span class="wm-repere">' + (IS_MAC ? icone('Command', 12) + '<span class="wm-lu">cmd</span>' : 'ctrl') + '</span>' +
     '<span>+clic : ajouter ou retirer un élément</span>';
+
+  /* Corbeille (décision d1 du 29/10, fiche Fenetre) : sur un retour existant, tant qu'il n'est pas « pris en compte ».
+     'effacer' : pas encore parti (ou maquette, ou live sans guichet) : il s'efface ici, comme avant. 'retirer' : déjà
+     reçu par witmit : la route « retirer » du guichet le passe au statut « retiré » et ferme son issue ; il quitte la
+     liste. null : pas de corbeille (pris en compte et après, envoi en cours, retour reçu sans identifiant du serveur). */
+  function corbeille(c) {
+    if (!c) return null;
+    if (!SYNC) return 'effacer';
+    if (c.sync && c.sync.state === 'pending') return null;
+    if (!c.recuLe) return 'effacer';
+    return isEditable(c) && c.sync && c.sync.id ? 'retirer' : null;
+  }
+  // La route « retirer » du guichet (sa partie serveur arrive au lot 4) : POST …/submit-annotation/retirer, { ticket_id },
+  // avec le jeton anonyme ; 200 { statut: "retire" } ; 409 si le retour n'est plus « nouveau ».
+  function posterRetrait(c) {
+    return getSession().then(function (sess) {
+      return fetch(FN_URL + '/retirer', { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify({ ticket_id: c.sync.id }) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        if (!r.ok) { var err = new Error(data.erreur || ('erreur ' + r.status)); err.status = r.status; throw err; }
+        return data;
+      });
+    });
+  }
+  var retraitsEnCours = {};
+  window.cmRetirer = function (id) {
+    var c = findComment(id);
+    if (!c || corbeille(c) !== 'retirer' || retraitsEnCours[id]) return;
+    retraitsEnCours[id] = true;
+    cmStatus('retrait en cours…', { type: 'encours' });
+    posterRetrait(c).then(function () {
+      delete retraitsEnCours[id];
+      if (pendingPopup && pendingPopup._meta && pendingPopup._meta.existing && pendingPopup._meta.existing.id === id) closePopup(true);
+      var ids = {}; ids[id] = true;
+      effacerRetours(ids);                                         // un retour retiré quitte la liste de son auteur
+      cmStatus("retour retiré : l'équipe ne le verra plus.", { type: 'fait' });
+    }).catch(function (err) {
+      delete retraitsEnCours[id];
+      var live = findComment(id);
+      if (err && err.status === 409) {
+        // Plus « nouveau » : l'équipe l'a pris en compte entre-temps ; la corbeille disparaît, les statuts sont relus.
+        if (live) { live.status = 'pris_en_compte'; live.ackAt = live.ackAt || new Date().toISOString(); if (live.sync) live.sync.statut = 'en_cours'; persist(); }
+        cmStatus("retrait impossible : l'équipe a déjà pris ce retour en compte.", { type: 'echec' });
+        refreshStatuses();
+      } else cmStatus('retrait impossible : ' + raisonEchec(err, false).raison + '. réessaie plus tard.', { type: 'echec' });
+      renderList(); renderMarkers();
+    });
+  };
+  function jeterRetour(id) {
+    var c = findComment(id), action = corbeille(c);
+    if (action === 'retirer') window.cmRetirer(id);
+    else if (action === 'effacer') window.cmDeleteById(id);
+  }
+
+  /* « abandonner ce retour ? » (décision h1 du 02/11, fiche Fenetre) : un geste qui fermerait une fenêtre au texte non
+     parti (croix, Échap, clic dehors, « réduire », ⌥+A, ⌥ deux fois) ne la ferme pas : la question remplace le bouton,
+     sous le champ ; « garder » a le focus (Entrée), Échap garde aussi ; « abandonner » ferme. Plus de confirm() natif. */
+  function montrerAbandon(pop) {
+    var q = pop && pop.querySelector('.cm-abandon');
+    if (!q) return;
+    q.hidden = false;
+    var act = pop.querySelector('.cm-popup-actions');
+    if (act) act.hidden = true;
+    pop._abandon = true;
+    replacerFenetre(pop);
+    var g = q.querySelector('.cm-garder');
+    try { g.focus({ preventScroll: true }); } catch (e) { g.focus(); }
+  }
+  function cacherAbandon(pop) {
+    var q = pop && pop.querySelector('.cm-abandon');
+    if (!q) return;
+    q.hidden = true;
+    var act = pop.querySelector('.cm-popup-actions');
+    if (act) act.hidden = false;
+    pop._abandon = false;
+    var ta = pop.querySelector('textarea');
+    if (ta) { ta.focus(); var l = ta.value.length; try { ta.setSelectionRange(l, l); } catch (e) {} }
+  }
+  // Fermer la fenêtre par la croix ou Échap : la question si le texte n'est pas parti, sinon fermée.
+  function demanderFermeture() {
+    if (!pendingPopup) return;
+    if (pendingPopup._abandon) { cacherAbandon(pendingPopup); return; }
+    if (fenetreModifiee()) { montrerAbandon(pendingPopup); return; }
+    var ouvreuse = epingleOuvreuse;
+    closePopup(true);
+    // Comme la visionneuse : le focus revient à l'épingle qui avait ouvert la fenêtre.
+    var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
+    if (pinOuvreuse) pinOuvreuse.focus();
+  }
+
+  /* Clic hors de la fenêtre (h1) : il ferme seulement la fenêtre et ne vise rien (le second clic vise) ; texte non parti :
+     la question, rien d'autre. Exceptions : ⌘/ctrl+clic sur la page, qui ajoute un élément à la fenêtre en cours ; les
+     poignées d'une zone en édition ; la visionneuse et les messages passagers. Le clic qui suit l'appui est avalé. */
+  var avalerClic = null;
+  function avalerLeClic() {
+    if (avalerClic) window.removeEventListener('click', avalerClic, true);
+    avalerClic = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener('click', avalerClic, true); avalerClic = null; };
+    window.addEventListener('click', avalerClic, true);
+    setTimeout(function () { if (avalerClic) { window.removeEventListener('click', avalerClic, true); avalerClic = null; } }, 1000);
+  }
+  window.addEventListener('mousedown', function (e) {
+    if (!pendingPopup || e.button !== 0 || visionneuse) return;
+    if (e.detail > 1) return;   // suite d'un double ou d'un triple clic (mot, paragraphe) : le geste continue
+    var t = e.target;
+    if (pendingPopup.contains(t)) return;
+    if (t && t.closest && t.closest('.cm-box-editable, .cm-status, .cm-lightbox')) return;
+    var meta = pendingPopup._meta || {};
+    if ((e.metaKey || e.ctrlKey) && meta.type === 'pin' && !inUi(t)) return;
+    e.preventDefault(); e.stopPropagation();
+    avalerLeClic();
+    if (fenetreModifiee()) montrerAbandon(pendingPopup);
+    else closePopup(true);
+  }, true);
 
   function openPopup(x, y, zone, meta) {
     closePopup(true); // (efface aussi la couleur "actif" de la bulle précédente)
@@ -3622,7 +4124,8 @@
     var ex = isEdit ? meta.existing : null;
     setFocused(isEdit ? ex.id : null);
     masquerPreselection();   // la présélection laisse place à la sélection (critère 14)
-    if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
+    if (meta && meta.barre && meta.outlineEl) showEditOutline({ barre: { el: meta.outlineEl, sens: meta.barre } });
+    else if (meta && meta.outlineEl) showEditOutline(meta.outlineEl);
     else if (meta && meta.point) showEditOutline({ point: meta.point });
     if (isEdit && meta.type === 'box') meta.boxEl = document.querySelector('.cm-box-saved[data-id="' + ex.id + '"]'); // (re)trouvé après un éventuel re-rendu
     if (!locked && meta && meta.type === 'box' && meta.boxEl && meta.box) makeBoxEditable(meta.boxEl, meta);
@@ -3636,45 +4139,40 @@
     if (askReply) {
       // Complément demandé (mode maquette) : le retour, la question de l'équipe en creux, le champ de réponse.
       corps = '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' +
-        '<div class="cm-feedback cm-feedback-q"><div class="cm-feedback-titre">' + icone('Question', 14) + '<b>complément demandé :</b></div>' +
+        '<div class="cm-feedback cm-feedback-q"><div class="cm-feedback-titre">' + icone('Question', 14) + '<b>complément demandé</b></div>' +
         '<div class="cm-feedback-msg">« ' + cmEsc(ex.complementMessage || 'Peux-tu préciser ?') + ' »</div></div>' +
-        '<span class="wm-champ cm-champ-reponse"><textarea class="cm-reply-ta" placeholder="ta réponse… (entrée : enregistrer)"></textarea></span>';
+        '<span class="wm-champ cm-champ-reponse"><textarea class="cm-reply-ta" aria-label="ta réponse" placeholder="ta réponse…" title="maj+entrée : aller à la ligne"></textarea></span>';
     } else if (locked) {
-      // Lecture seule : verrou, texte entre « », catégorie en méta ; une seule action, « fermer ».
+      // Lecture seule : verrou, statut, « · non modifiable », le texte entre « », la vignette ; ni bouton ni corbeille.
       corps = '<div class="cm-lock-line">' + icone('LockSimple', 14) + '<b>' + cmEsc(nomStatut(ex)) + '</b> <span>· non modifiable</span></div>' +
-        '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' + vignette +
-        '<div class="cm-meta-lu" title="catégorie">' + icone(categoryOf(ex.category).icon, 14) + '<span>' + cmEsc(nomCategorie(ex.category)) + '</span></div>';
+        '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' + vignette;
     } else {
-      corps = '<span class="cm-libelle" id="cmLibChamp">ce que tu as remarqué</span>' +
-        '<span class="wm-champ"><textarea aria-labelledby="cmLibChamp" placeholder="ta remarque, ta question ou ta critique… (maj+entrée : nouvelle ligne)">' + (isEdit ? cmEsc(ex.text) : '') + '</textarea></span>' +
+      // Plus de libellés ni de catégorie (i1) : le champ seul, qui garde son nom accessible.
+      corps = '<span class="wm-champ"><textarea aria-label="ton retour" placeholder="ta remarque, ta question ou ta critique…" title="maj+entrée : aller à la ligne">' + (isEdit ? cmEsc(ex.text) : '') + '</textarea></span>' +
         '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span>' + (LIVE ? "écris ton retour avant d'envoyer." : "écris ton retour avant d'enregistrer.") + '</span></div>' +
-        vignette +
-        '<span class="cm-libelle cm-libelle-cat" id="cmCatLibelle">catégorie</span>' +
-        '<div class="cm-cat-bloc"><button type="button" class="cm-cat wm-touche" aria-expanded="false" aria-controls="cmCatListe" title="catégorie : proposée d\'après ton texte, à changer si besoin">' +
-          '<span class="cm-cat-ico" aria-hidden="true"></span><span class="cm-cat-nom"></span><span class="cm-cat-auto" title="proposée automatiquement">auto</span><span class="cm-cat-caret" aria-hidden="true"></span></button>' +
-        '<div class="cm-cat-liste" id="cmCatListe" role="group" aria-labelledby="cmCatLibelle" hidden>' +
-          CATEGORIES.map(function (cat) {
-            return '<button type="button" class="cm-cat-choix wm-touche" data-cat="' + cat.key + '" aria-pressed="false">' + icone(cat.icon, 14) + '<span>' + cmEsc(cat.label.toLowerCase()) + '</span></button>';
-          }).join('') + '</div></div>';
+        vignette;
     }
-    var avecCorbeille = isEdit && !locked && supprimable(ex);
+    var jeter = isEdit && !locked ? corbeille(ex) : null;
     var pop = document.createElement('div');
-    pop.className = 'cm-popup cm-ui' + (locked ? ' cm-locked' : '');
+    pop.className = 'cm-popup cm-ui' + (locked && !askReply ? ' cm-locked' : '');
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-labelledby', 'cmTitreFenetre');
     pop.innerHTML =
       '<div class="cm-tete" title="glisse pour déplacer la fenêtre">' +
-        '<div class="cm-tete-l1"><span class="cm-titre" id="cmTitreFenetre"></span>' +
-        '<button type="button" class="cm-fermer wm-cercle" aria-label="annuler" title="annuler">' + icone('X', 14) + '</button></div>' +
-        '<div class="cm-zone"></div><div class="cm-aide-multi" hidden>' + AIDE_MULTI + '</div>' +
+        '<div class="cm-tete-l1"><span class="cm-type-ico" aria-hidden="true"></span><span class="cm-titre" id="cmTitreFenetre"></span>' +
+        '<button type="button" class="cm-fermer wm-cercle wm-cercle-24" aria-label="fermer" title="fermer" aria-keyshortcuts="Escape">' + icone('X', 12) + '</button></div>' +
+        '<div class="cm-zone"><span class="cm-zone-txt"></span></div><div class="cm-aide-multi" hidden>' + AIDE_MULTI + '</div>' +
       '</div>' +
       '<div class="cm-corps"><div class="wm-bloc">' + corps + '</div>' +
-        '<div class="cm-popup-actions">' +
-        (avecCorbeille ? '<button type="button" class="cm-delete wm-cercle" title="supprimer ce retour" aria-label="supprimer ce retour">' + icone('Trash', 15) + '</button>' : '') +
-        '<button type="button" class="cm-cancel wm-touche" aria-keyshortcuts="Escape">' + (locked && !askReply ? 'fermer' : 'annuler') + '</button>' +
-        (locked && !askReply ? '' : '<button type="button" class="cm-save wm-touche wm-principale" aria-keyshortcuts="Enter" disabled>' + libelleTouche + '</button>') +
-        '</div>' +
+        (locked && !askReply ? '' :
+          '<div class="cm-popup-actions">' +
+            (jeter ? '<button type="button" class="cm-delete wm-cercle" title="' + (jeter === 'retirer' ? 'retirer ce retour' : 'supprimer ce retour') + '" aria-label="' + (jeter === 'retirer' ? 'retirer ce retour' : 'supprimer ce retour') + '">' + icone('Trash', 15) + '</button>' : '') +
+            '<button type="button" class="cm-save wm-touche wm-principale" aria-keyshortcuts="Enter" disabled>' + libelleTouche + '</button>' +
+          '</div>' +
+          '<div class="cm-abandon" role="group" aria-labelledby="cmAbandonQuestion" hidden><p class="cm-abandon-question" id="cmAbandonQuestion">abandonner ce retour ?</p>' +
+            '<div class="cm-abandon-actions"><button type="button" class="cm-abandonner wm-touche">abandonner</button><button type="button" class="cm-garder wm-touche">garder</button></div></div>') +
       '</div>';
+    pop._meta = meta;
     majTete(pop, meta, zone);
     if (shot && pop.querySelector('.cm-vignette')) {               // (pas de vignette dans la fenêtre d'un complément)
       pop.querySelector('.cm-vignette img').src = shot.dataUrl;
@@ -3683,28 +4181,30 @@
     habiller(pop);
     poser(pop);
     tracerContour(pop);                                             // tout de suite, sans attendre l'observateur
+    pop._x = x; pop._y = y;
     placePopup(pop, targetRectOf(meta), x, y, meta);
-    pop._meta = meta;
     makePopupDraggable(pop, pop.querySelector('.cm-tete'));
-    var fermer = function (e) { e.stopPropagation(); closePopup(true); };
-    pop.querySelector('.cm-fermer').onclick = fermer;
-    pop.querySelector('.cm-cancel').onclick = fermer;
-    var ta = locked ? null : pop.querySelector('textarea');
+    pop.querySelector('.cm-fermer').onclick = function (e) { e.stopPropagation(); demanderFermeture(); };
+    if (pop.querySelector('.cm-abandon')) {
+      pop.querySelector('.cm-abandonner').onclick = function (e) { e.stopPropagation(); closePopup(true); };
+      pop.querySelector('.cm-garder').onclick = function (e) { e.stopPropagation(); cacherAbandon(pop); };
+    }
     var save = pop.querySelector('.cm-save');
-    // Le champ grandit avec le texte (sans poignée), jusqu'à 240 px, puis défile.
-    function ajuster(t) { t.style.height = 'auto'; t.style.height = Math.min(240, Math.max(64, t.scrollHeight + 2)) + 'px'; }
+    // Le champ grandit avec le texte (sans poignée), de 64 à 240 px, puis défile ; la fenêtre se replace sur sa cible.
+    function ajuster(t) { var avant = t.style.height; t.style.height = 'auto'; t.style.height = Math.min(240, Math.max(64, t.scrollHeight + 2)) + 'px'; if (t.style.height !== avant) replacerFenetre(pop); }
     if (askReply) {
       var rta = pop.querySelector('.cm-reply-ta');
       rta.focus();
       var majReponse = function () { save.disabled = !rta.value.trim(); };
-      rta.addEventListener('input', majReponse);
+      rta.addEventListener('input', function () { majReponse(); ajuster(rta); });
       rta.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (addReply(ex, rta.value.trim())) closePopup(true); }
       });
       save.onclick = function (e) { e.stopPropagation(); if (addReply(ex, rta.value.trim())) closePopup(true); };
     }
-    if (locked) { pendingPopup = pop; return; }
+    if (locked) { pendingPopup = pop; if (!askReply) { var f = pop.querySelector('.cm-fermer'); try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } } return; }
 
+    var ta = pop.querySelector('textarea');
     ta.focus();
     if (isEdit) { var vlen = ta.value.length; ta.setSelectionRange(vlen, vlen); ajuster(ta); }
     var refus = pop.querySelector('.cm-refus');
@@ -3713,67 +4213,19 @@
       if (ta.value.trim()) refus.hidden = true;                    // la phrase disparaît dès la première lettre
     }
     majTouche();
-
-    // Catégorie (I4) : proposée pendant la frappe tant que la personne ne l'a pas choisie elle-même.
-    var catBtn = pop.querySelector('.cm-cat'), catListe = pop.querySelector('.cm-cat-liste');
-    var choix = Array.prototype.slice.call(pop.querySelectorAll('.cm-cat-choix'));
-    var catTouched = !!(isEdit && ex.categoryManual);
-    var catVal = isEdit && ex.category ? ex.category : categorize(ta.value);
-    function majCategorie() {
-      var cat = categoryOf(catVal), nom = nomCategorie(catVal);
-      catBtn.dataset.cat = cat.key;
-      catBtn.querySelector('.cm-cat-ico').innerHTML = icone(cat.icon, 16);
-      catBtn.querySelector('.cm-cat-nom').textContent = nom;
-      catBtn.querySelector('.cm-cat-auto').hidden = catTouched;
-      catBtn.setAttribute('aria-label', 'catégorie : ' + nom + (catTouched ? '' : ', proposée automatiquement'));
-      choix.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-cat') === cat.key ? 'true' : 'false'); });
-    }
-    function deplier(ouvert, focusChoix) {
-      catListe.hidden = !ouvert;
-      catBtn.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
-      catBtn.querySelector('.cm-cat-caret').innerHTML = icone(ouvert ? 'CaretUp' : 'CaretDown', 14);
-      if (ouvert) {
-        recalerFenetre(pop);
-        if (focusChoix) (pop.querySelector('.cm-cat-choix[aria-pressed="true"]') || choix[0]).focus();
-      }
-    }
-    majCategorie(); deplier(false);
-    catBtn.onclick = function (e) { e.stopPropagation(); deplier(catListe.hidden, false); };
-    catBtn.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); deplier(true, true); }
-    });
-    choix.forEach(function (b, i) {
-      b.onclick = function (e) {
-        e.stopPropagation();
-        catVal = b.getAttribute('data-cat'); catTouched = true;
-        majCategorie(); deplier(false); catBtn.focus();
-      };
-      b.addEventListener('keydown', function (e) {
-        var k = e.key, j = null;
-        if (k === 'ArrowRight' || k === 'ArrowDown') j = (i + 1) % choix.length;
-        else if (k === 'ArrowLeft' || k === 'ArrowUp') j = (i - 1 + choix.length) % choix.length;
-        else if (k === 'Home') j = 0;
-        else if (k === 'End') j = choix.length - 1;
-        else if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); deplier(false); catBtn.focus(); return; } // referme les catégories, pas la fenêtre
-        if (j !== null) { e.preventDefault(); choix[j].focus(); }
-      });
-    });
-
-    ta.addEventListener('input', function () {
-      if (!catTouched) { catVal = categorize(ta.value); majCategorie(); }
-      majTouche(); ajuster(ta); recalerFenetre(pop);
-    });
+    ta.addEventListener('input', function () { majTouche(); ajuster(ta); });
     ta.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (save.disabled) { refus.hidden = false; return; }     // rien ne part, la fenêtre reste ouverte (Léa 3.7)
+        if (save.disabled) { refus.hidden = false; replacerFenetre(pop); return; }     // rien ne part, la fenêtre reste ouverte (Léa 3.7)
         save.click();
       }
     });
 
-    if (avecCorbeille) {
+    if (jeter) {
       pop.querySelector('.cm-delete').onclick = function (e) {
         e.stopPropagation();
+        if (jeter === 'retirer') { window.cmRetirer(ex.id); return; }   // la fenêtre se ferme quand le guichet a répondu
         endBoxEdit(meta);
         setFocused(null);
         window.cmDeleteById(ex.id);
@@ -3789,30 +4241,34 @@
       endBoxEdit(meta);
       var savedId = null;
       var desc = (meta.type === 'box' && meta.boxChanged) ? describeBox(meta.box) : null;
+      // Catégorie (i1) : posée par witmit seul d'après le texte, envoyée avec le ticket ; un choix manuel d'avant 0.4.0 reste.
+      var catVal = isEdit && ex.categoryManual ? ex.category : categorize(text);
+      var cible = cibleFenetre(meta, zone);
       // Sélection multiple (ou modifiée) : libellé, ancrage de la pastille et liste des cibles recalculés
       var multi = null;
       if (meta.type === 'pin' && meta.targets && meta.targets.length && (meta.targets.length > 1 || meta.targetsChanged)) {
         var first = meta.targets[0].el, cptM = cornerAnchorPoint(first, meta.pinX, meta.pinY);
         multi = {
-          zone: multiLabel(meta.targets),
+          cible: meta.targets.length > 1 ? decrirePlusieurs(meta.targets) : (meta.targets[0].cible || decrireElement(first)),
           anchor: anchorForPoint(cptM.x, cptM.y, first), fallback: { x: cptM.x, y: cptM.y },
           targets: meta.targets.length > 1 ? meta.targets.map(function (t) { return { path: getStablePath(t.el), label: t.label }; }) : undefined
         };
+        multi.zone = zoneDe(multi.cible);
       }
       if (isEdit) {
         savedId = ex.id;
         ex.text = text;
         ex.category = catVal;
-        ex.categoryManual = catTouched;
-        if (desc) { ex.zone = desc.label; ex.anchor = desc.anchor; ex.fallback = meta.box; (function (c2, bx) { setTimeout(function () { captureFor(c2, bx, function () { c2.sync = null; scheduleSync(c2); }); }, 60); })(ex, meta.box); }
-        if (multi) { ex.zone = multi.zone; ex.anchor = multi.anchor; ex.fallback = multi.fallback; ex.targets = multi.targets; }
+        if (desc) { ex.cible = desc.cible; ex.zone = desc.label; ex.anchor = desc.anchor; ex.fallback = meta.box; (function (c2, bx) { setTimeout(function () { captureFor(c2, bx, function () { c2.sync = null; scheduleSync(c2); }); }, 60); })(ex, meta.box); }
+        if (multi) { ex.cible = multi.cible; ex.zone = multi.zone; ex.anchor = multi.anchor; ex.fallback = multi.fallback; ex.targets = multi.targets; }
         if (desc || multi) { var prev = ex.tech || {}; ex.tech = captureTech(ex); ex.tech.date = prev.date || ex.tech.date; ex.tech.consoleErrors = prev.consoleErrors || []; }
         cmStatus(SYNC ? 'retour modifié, envoi en cours.' : 'retour modifié.', { type: SYNC ? 'encours' : 'fait' });
         if (!desc) { ex.sync = null; scheduleSync(ex); } // encadré ajusté : renvoyé après la nouvelle capture
       } else {
         var id = uid();
         savedId = id;
-        var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, zone: desc ? desc.label : zone, text: text, date: new Date().toISOString() };
+        var c = { id: id, type: meta.type, status: 'nouveau', page: PAGE_FILE, path: location.pathname, pageTitle: document.title || PAGE_TITLE, cible: desc ? desc.cible : cible, zone: desc ? desc.label : (cible.ancien ? zone : zoneDe(cible)), text: text, date: new Date().toISOString() };
+        if (meta.barre) c.barre = meta.barre;
         c.vuLe = c.date;   // un retour tout juste écrit n'a rien de nouveau (C5)
         if (meta.type === 'box') {
           c.anchor = desc ? desc.anchor : meta.boxAnchor;
@@ -3821,11 +4277,11 @@
         } else {
           c.anchor = meta.pointAnchor;
           c.fallback = { x: meta.pinX, y: meta.pinY };
-          if (multi) { c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
+          if (multi) { c.cible = multi.cible; c.zone = multi.zone; c.anchor = multi.anchor; c.fallback = multi.fallback; if (multi.targets) c.targets = multi.targets; }
           if (meta.type === 'text' && meta.marks) { sessionMarks[id] = meta.marks; c.quote = meta.quote || ''; }
         }
         c.category = catVal;
-        c.categoryManual = catTouched;
+        c.categoryManual = false;
         c.tech = captureTech(c);
         if (AUTHOR) c.author = AUTHOR;   // l'auteur du moment, gravé sur le ticket
         allComments.push(c);
@@ -3872,15 +4328,8 @@
 
   function onMouseDown(e) {
     if (!active || etroit || inUi(e.target)) return;
-    // Clic sur un autre élément pendant la saisie : il remplacerait la fenêtre ouverte. Confirmation si son
-    // texte n'est pas parti (décision d'Enzo du 25/10) ; refusée, le clic ne fait rien. ⌘/ctrl+clic ajoute
-    // un élément à la fenêtre en cours sans la fermer : pas de question.
-    var ajoutMulti = (e.metaKey || e.ctrlKey) && pendingPopup && pendingPopup._meta && pendingPopup._meta.type === 'pin';
-    if (!ajoutMulti && fenetreModifiee()) {
-      e.preventDefault(); dragging = false;
-      if (!confirmerAbandon()) return;
-      closePopup(true);
-    }
+    // 0.4.0 (h1) : un clic hors d'une fenêtre ouverte est pris plus haut (gardien du clic dehors) : il la ferme sans
+    // viser, ou demande « abandonner ce retour ? ». Seul ⌘/ctrl+clic arrive ici fenêtre ouverte (ajout d'un élément).
     e.preventDefault(); // on gère nous-mêmes le glisser — aucune sélection/drag natif ne doit démarrer
     var s = window.getSelection();
     if (s) s.removeAllRanges();
@@ -3977,7 +4426,7 @@
       var centerEl = pageElementAt(bx + bw / 2 - window.scrollX, by + bh / 2 - window.scrollY);
       var zoneB = boxZone(bx, by, bw, bh, centerEl);
       openPopup(bx, by + bh, zoneB.label, {
-        type: 'box', box: { x: bx, y: by, w: bw, h: bh }, boxEl: dragBoxEl,
+        type: 'box', box: { x: bx, y: by, w: bw, h: bh }, boxEl: dragBoxEl, cible: zoneB.cible,
         boxAnchor: anchorForBox(bx, by, bw, bh, zoneB.el)
       });
       dragBoxEl = null;
@@ -4011,12 +4460,17 @@
       if (rt.toString().trim()) { openTextPopup(rt, { clientX: pageX - window.scrollX, clientY: pageY - window.scrollY, target: target }); return; }
     }
     var zone = cible.zone;
+    // R18 : un clic sur la bande d'une barre de défilement vise la barre du bloc qui défile.
+    var barre = elementSeul ? null : barreSous(target, pageX - window.scrollX, pageY - window.scrollY);
+    if (barre) zone = { el: barre.el, label: '' };
+    var decrite = barre ? decrireBarre(barre) : decrireElement(zone.el);
+    zone.label = zoneDe(decrite);
     var cpt = cornerAnchorPoint(zone.el, pageX, pageY);
     openPopup(cpt.x, cpt.y, zone.label, {
-      type: 'pin', pinX: cpt.x, pinY: cpt.y,
+      type: 'pin', pinX: cpt.x, pinY: cpt.y, cible: decrite, barre: barre ? barre.sens : undefined,
       pointAnchor: anchorForPoint(cpt.x, cpt.y, zone.el), outlineEl: zone.el,
       point: zone.el ? null : { x: pageX, y: pageY },
-      targets: zone.el ? [{ el: zone.el, label: zone.label }] : []
+      targets: zone.el ? [{ el: zone.el, label: decrite.nom, cible: decrite }] : []
     });
   }
 
@@ -4031,12 +4485,16 @@
     var idx = -1;
     meta.targets.forEach(function (t, i) { if (t.el === zone.el) idx = i; });
     if (idx >= 0) { if (meta.targets.length === 1) return; meta.targets.splice(idx, 1); }
-    else meta.targets.push({ el: zone.el, label: zone.label });
+    else { var d = decrireElement(zone.el); meta.targets.push({ el: zone.el, label: d.nom, cible: d }); }
     meta.targetsChanged = true;
+    meta.barre = undefined;
+    meta.cible = meta.targets.length > 1 ? decrirePlusieurs(meta.targets) : (meta.targets[0].cible || decrireElement(meta.targets[0].el));
     showEditOutline(meta.targets.map(function (t) { return t.el; }));
-    majTete(pendingPopup, meta, multiLabel(meta.targets));
+    majTete(pendingPopup, meta, zoneDe(meta.cible));
     tracerContour(pendingPopup);
-    cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés · ' + (MULTI_KEY === '⌘' ? '⌘' : 'ctrl') + '+clic pour en ajouter ou en retirer' : '1 élément sélectionné');
+    replacerFenetre(pendingPopup);
+    // ZB-280 : l'aide « ⌘+clic : ajouter ou retirer un élément » est déjà dans la fenêtre ; le message ne la répète plus.
+    cmStatus(meta.targets.length > 1 ? meta.targets.length + ' éléments sélectionnés' : '1 élément sélectionné');
   }
 
   function openTextPopup(range, e) {
@@ -4045,8 +4503,9 @@
     var anchorRect = marks.length ? marks[0].getBoundingClientRect() : { left: e.clientX, top: e.clientY };
     var px = anchorRect.left + window.scrollX, py = anchorRect.top + window.scrollY;
     var containerForText = marks.length ? detectZone(marks[0]).el : detectZone(e.target).el;
-    openPopup(px, py, '« ' + quoted.slice(0, 90) + (quoted.length > 90 ? '…' : '') + ' »',
-      { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, pointAnchor: anchorForPoint(px, py, containerForText) });
+    var passage = decrirePassage(quoted, marks.length ? marks[0] : e.target);
+    openPopup(px, py, zoneDe(passage),
+      { type: 'text', marks: marks, quote: quoted, pinX: px, pinY: py, cible: passage, pointAnchor: anchorForPoint(px, py, containerForText) });
     // Passage en création, fenêtre ouverte : état actif (fiche Reperes, « Passage de texte », Actif ; fiche Selection,
     // « Les états ») : orange à 42 % (52 % sur site sombre), crochets P pleins au début et à la fin. renderMarkers
     // recalcule ces états une fois le retour enregistré ; abandonné, le passage est retiré.
@@ -4175,11 +4634,12 @@
     var texte = ta && !ta.readOnly ? ta.value.trim() : '';
     return !!(texte && texte !== avant) || !!(rep && rep.value.trim());
   }
-  /* Confirmation de Léa (3.9, décision 34) quand un geste qui vise autre chose ferme une fenêtre au texte
-     non parti : « réduire », ⌥+A, ⌥ deux fois, clic sur un autre élément pendant la saisie (décision d'Enzo du 25/10).
-     Jamais pour échap ni « annuler ». */
+  /* Un geste qui fermerait une fenêtre au texte non parti (« réduire », ⌥+A, ⌥ deux fois) : la fenêtre reste ouverte et
+     pose la question « abandonner ce retour ? » (h1, fiche Fenetre) ; le geste n'a pas lieu. Plus de confirm() natif. */
   function confirmerAbandon() {
-    return !fenetreModifiee() || window.confirm("fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.");
+    if (!fenetreModifiee()) return true;
+    montrerAbandon(pendingPopup);
+    return false;
   }
   function listeOuverte() {
     var panel = document.getElementById('cmPanel');
@@ -4280,12 +4740,14 @@
     if (fab) { fab.style.right = ''; fab.style.bottom = ''; }
   }
   /* Message passager, witmit ouvert : il se centre dans la page visible, à gauche de la liste. Replié : la règle CSS. */
+  // ZB-280 : liste ouverte, le message se centre TOUJOURS dans la page rétrécie (fiche Etats), même étroite : entre 481
+  // et 747 px, centré sur tout l'écran, il passait sur la liste et cachait « envoyer par email ».
   function placeLibre() {
     var vw = document.documentElement.clientWidth || window.innerWidth;
     var panel = document.getElementById('cmPanel');
     var libre = vw;
-    if (listeOuverte() && panel) libre = vw - panel.offsetWidth - 8;
-    return libre < 360 ? vw : libre;
+    if (listeOuverte() && panel && panel.offsetWidth < vw) libre = vw - panel.offsetWidth;
+    return libre;
   }
   function placerStatus() {
     var el = document.getElementById('cmStatus');
@@ -4293,7 +4755,7 @@
     if (!listeOuverte()) { el.style.bottom = ''; el.style.left = ''; el.style.maxWidth = ''; return; }
     var libre = placeLibre();
     el.style.left = Math.round(libre / 2) + 'px';
-    el.style.maxWidth = 'min(420px, ' + Math.max(200, libre - 16) + 'px)';
+    el.style.maxWidth = 'min(420px, ' + Math.max(120, libre - 16) + 'px)';
   }
   window.addEventListener('resize', placerStatus);
 
@@ -4339,7 +4801,7 @@
     var vw = root.clientWidth; // largeur de la fenêtre (la marge de <html> ne la change pas)
     if (!root.style.transition) {
       root.style.transition = 'margin-right 240ms ease';
-      root.addEventListener('transitionend', function (e) { if (e.propertyName === 'margin-right') renderMarkers(); });
+      root.addEventListener('transitionend', function (e) { if (e.propertyName === 'margin-right') { renderMarkers(); positionEditOutline(); if (pendingPopup) replacerFenetre(pendingPopup); } });
     }
     root.style.marginRight = width ? width + 'px' : '';
     // Le contour orange et le halo du mode annotation suivent la page : ils s'arrêtent au bord de la liste (fiche Tiroir).
@@ -4465,14 +4927,7 @@
     // champ, sans aller plus loin.)
     if (e.key === 'Escape') {
       if (visionneuse) { e.preventDefault(); fermerVisionneuse(); }   // au-dessus de tout, fenêtre comprise
-      else if (pendingPopup) {
-        e.preventDefault();
-        var ouvreuse = epingleOuvreuse;
-        closePopup(true);
-        // Comme la visionneuse : le focus revient à l'épingle qui avait ouvert la fenêtre.
-        var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
-        if (pinOuvreuse) pinOuvreuse.focus();
-      }
+      else if (pendingPopup) { e.preventDefault(); demanderFermeture(); }   // texte non parti : la question ; elle posée : « garder »
       else if (listeOuverte() && ouvertId && ligneDe(ouvertId)) { e.preventDefault(); refermerRetour(ouvertId); }   // c1 : le retour ouvert, puis witmit
       else if (witmitOuvert()) { e.preventDefault(); cmReduire(true); }
       return;
@@ -4528,6 +4983,7 @@
       ins.textContent = opts.insecable;
       txt.lastChild.append(msg.slice(0, i), ins, msg.slice(i + opts.insecable.length));
     }
+    touchesEnIcones(txt);   // ⌥ et ⌘ : icônes Option et Command dans le petit carré (fiche Icones ; ZB-280)
     clearTimeout(masquageTimer);
     el.classList.toggle('wm-toast-masquage', !!opts.masquage);
     el.classList.toggle('wm-toast-echec', echec);
@@ -4537,6 +4993,25 @@
       el.classList.remove('show');
       if (opts.masquage) masquageTimer = setTimeout(function () { el.classList.remove('wm-toast-masquage'); }, 250);
     }, duree);
+  }
+  /* ⌥ et ⌘ ne sont pas dans les polices : dans un message passager, chacun devient son icône (Option, Command, 12 px) dans
+     le petit carré radius-repere, lue « option » ou « cmd » par un lecteur d'écran (fiche Icones, « Touches du clavier »). */
+  var TOUCHES_ICONES = { '⌥': ['Option', 'option'], '⌘': ['Command', 'cmd'] };
+  function touchesEnIcones(el) {
+    var marcheur = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), noeuds = [], n;
+    while ((n = marcheur.nextNode())) if (/[⌥⌘]/.test(n.nodeValue)) noeuds.push(n);
+    noeuds.forEach(function (t) {
+      var frag = document.createDocumentFragment();
+      t.nodeValue.split(/([⌥⌘])/).forEach(function (morceau) {
+        var k = TOUCHES_ICONES[morceau];
+        if (!k) { if (morceau) frag.appendChild(document.createTextNode(morceau)); return; }
+        var sp = document.createElement('span');
+        sp.className = 'wm-repere wm-repere-icone';
+        sp.innerHTML = icone(k[0], 12) + '<span class="wm-lu">' + k[1] + '</span>';
+        frag.appendChild(sp);
+      });
+      t.parentNode.replaceChild(frag, t);
+    });
   }
   /* Le message de masquage, s'il est encore affiché, part dès que witmit est révélé (Paula, lot 10 bis, N2 ; défaut de
      0.2.0 : il restait jusqu'à 6 s à côté des boutons revenus). Un autre message en cours n'est pas touché. */
@@ -4635,7 +5110,6 @@
     if (!c || !c.shot || !c.shot.dataUrl) return;
     fermerVisionneuse();
     var n = pageComments().indexOf(c) + 1;
-    var type = c.type === 'box' ? 'zone' : c.type === 'text' ? 'texte' : 'élément';
     var ov = document.createElement('div');
     ov.className = 'cm-lightbox cm-ui';
     ov.innerHTML = '<div class="cm-lightbox-fenetre" role="dialog" aria-labelledby="cmLbTitre">' +
@@ -4645,9 +5119,14 @@
       '<div class="cm-lb-corps"><div class="cm-lb-image"><span class="cm-lb-face"><img alt="capture de la zone commentée"></span></div>' +
       '<div class="cm-lightbox-hint"><span class="wm-repere" aria-hidden="true">échap</span><span>ou clic à côté : fermer</span></div></div></div>';
     var fen = ov.firstChild;
-    var meta = (n > 0 ? 'retour ' + n + ' · ' : '') + type + ' · ' + (c.zone || '') + ' · ' + dateCourte(c.date);
-    fen.querySelector('.cm-lb-meta').textContent = meta;
-    fen.querySelector('.cm-lb-meta').title = meta;
+    // ZB-280 : la date ne se cache plus derrière un libellé long (seul le libellé se coupe par « … ») ; la cible se lit par
+    // son type et son nom (« zone « … » »), sans « zone · zone encadrée » qui répétait le mot.
+    var libelle = (n > 0 ? 'retour ' + n + ' · ' : '') + ligneListe(cibleDe(c)), quand = dateCourte(c.date);
+    var lbMeta = fen.querySelector('.cm-lb-meta');
+    lbMeta.innerHTML = '<span class="cm-lb-cible"></span>' + (quand ? '<span class="cm-lb-date"></span>' : '');
+    lbMeta.querySelector('.cm-lb-cible').textContent = libelle;
+    if (quand) lbMeta.querySelector('.cm-lb-date').textContent = ' · ' + quand;
+    lbMeta.title = libelle + (quand ? ' · ' + quand : '');
     var img = fen.querySelector('img');
     img.src = c.shot.dataUrl;
     // Largeur : celle de l'image + 44 px, au moins 360 px, au plus 92vw (et l'écran moins 16 px).
@@ -4721,7 +5200,7 @@
       grp.items.forEach(function (c) {
         n++;
         var st = c.status === 'nouveau' ? 'nouveau' : statusLabel(c);
-        L.push('### #' + n + ' · ' + typeRapport(c.type) + ' : ' + c.zone + ' — ' + nomCategorie(c.category) + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
+        L.push('### #' + n + ' · ' + (c.cible ? c.zone : typeRapport(c.type) + ' : ' + c.zone) + ' — ' + nomCategorie(c.category) + ' · ' + st + (c.supersedes ? ' · remplace la version du ' + frDate(c.supersedes) : ''));
         L.push('');
         if (c.author) { L.push('_Signalé par ' + c.author + '_'); L.push(''); }
         L.push(c.text);
@@ -4744,9 +5223,9 @@
     L.push('');
     L.push('```');
     L.push('witmit-retour ' + reportId);
-    L.push('<id du ticket> pris_en_compte');
-    L.push('<id du ticket> resolu | ce qui a été fait (facultatif)');
-    L.push('<id du ticket> complement | la question à poser pour clarifier');
+    L.push('<id du retour> pris_en_compte');
+    L.push('<id du retour> resolu | ce qui a été fait (facultatif)');
+    L.push('<id du retour> complement | la question à poser pour clarifier');
     L.push('```');
     L.push('');
     L.push('Identifiants de ce rapport : ' + items.map(function (c) { return '`' + c.id + '`'; }).join(', '));
@@ -4771,53 +5250,53 @@
     persist(); renderList(); renderMarkers();
     return n;
   }
-  /* Prépare un rapport : renvoie { id, md, items } ou null si rien à mettre dedans. Demande si l'on
-     marque les tickets (Annuler = rapport généré sans les verrouiller). */
-  function prepareReport() {
+  /* Prépare un rapport puis appelle suite({ id, md, items, marked }) ; rien si rien à mettre dedans. Des retours à marquer
+     « signalés » : la question se pose au pied de la liste (fiche Etats, plus de confirm() natif) ; « sans marquer » crée
+     le rapport sans les verrouiller (comme « annuler » de l'ancienne confirmation), « marquer » les verrouille. */
+  function prepareReport(suite) {
     var full = !!(document.getElementById('cmFullReport') && document.getElementById('cmFullReport').checked);
     var items = reportItems(full);
-    if (!items.length) { cmStatus(full ? 'aucun retour sur ce site.' : 'rien de nouveau à signaler. coche « rapport complet » pour tout exporter.'); return null; }
+    if (!items.length) { cmStatus(full ? 'aucun retour sur ce site.' : 'rien de nouveau à signaler. coche « rapport complet » pour tout exporter.'); return; }
     var id = nextReportId();
     var md = buildReportMd(items, id, full);
     var toMark = items.filter(function (c) { return c.status === 'nouveau' || hasPendingReply(c); }).length;
-    var marked = 0;
-    if (toMark) {
-      if (window.confirm('marquer ' + (toMark > 1 ? toMark + ' retours comme signalés' : '1 retour comme signalé') + ' dans le rapport ' + id + ' ? ' + (toMark > 1 ? 'ils ne seront plus modifiables' : 'il ne sera plus modifiable') + '. annuler : le rapport est créé ' + (toMark > 1 ? 'sans les marquer' : 'sans le marquer') + '.')) marked = markReported(items, id);
-    }
-    return { id: id, md: md, items: items, marked: marked };
+    if (!toMark) { suite({ id: id, md: md, items: items, marked: 0 }); return; }
+    demanderAuPied('marquer ' + (toMark > 1 ? toMark + ' retours comme signalés' : '1 retour comme signalé') + ' dans le rapport ' + id + ' ? ' + (toMark > 1 ? 'ils ne seront plus modifiables.' : 'il ne sera plus modifiable.'),
+      'marquer', function () { suite({ id: id, md: md, items: items, marked: markReported(items, id) }); },
+      { libelleNon: 'sans marquer', non: function () { suite({ id: id, md: md, items: items, marked: 0 }); } });
   }
   function signales(n) { return n > 1 ? n + ' retours signalés' : '1 retour signalé'; }
   window.cmExport = function () {
-    var r = prepareReport();
-    if (!r) return;
-    var blob = new Blob([r.md], { type: 'text/markdown;charset=utf-8' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
-    // Lien posé dans la liste (couche de witmit) : 0.4.0, la liste est ouverte avec le mode annotation, qui bloque les
-    // clics sur la page ; un lien posé dans <body> ne se téléchargerait pas.
-    a.className = 'cm-ui'; a.hidden = true;
-    (document.getElementById('cmPanel') || document.body).appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-    cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.', { type: 'fait' });
+    prepareReport(function (r) {
+      var blob = new Blob([r.md], { type: 'text/markdown;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'witmit-' + CONFIG.project + '-' + r.id + '.md';
+      // Lien posé dans la liste (couche de witmit) : 0.4.0, la liste est ouverte avec le mode annotation, qui bloque les
+      // clics sur la page ; un lien posé dans <body> ne se téléchargerait pas.
+      a.className = 'cm-ui'; a.hidden = true;
+      (document.getElementById('cmPanel') || document.body).appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      cmStatus('rapport ' + r.id + ' téléchargé' + (r.marked ? ' · ' + signales(r.marked) : '') + '.', { type: 'fait' });
+    });
   };
   window.cmCopy = function () {
-    var r = prepareReport();
-    if (!r) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(r.md).then(function () {
-        cmStatus('rapport ' + r.id + ' copié' + (r.marked ? ' · ' + signales(r.marked) : '') + '. colle-le à Claude.', { type: 'fait' });
-      }).catch(function () { cmStatus('copie impossible : utilise « télécharger ».', { type: 'echec' }); });
-    } else cmStatus('ce navigateur ne permet pas la copie : utilise « télécharger ».', { type: 'echec' });
+    prepareReport(function (r) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(r.md).then(function () {
+          cmStatus('rapport ' + r.id + ' copié' + (r.marked ? ' · ' + signales(r.marked) : '') + '. colle-le à Claude.', { type: 'fait' });
+        }).catch(function () { cmStatus('copie impossible : utilise « télécharger ».', { type: 'echec' }); });
+      } else cmStatus('ce navigateur ne permet pas la copie : utilise « télécharger ».', { type: 'echec' });
+    });
   };
   window.cmSendMail = function () {
     if (!EMAIL_TO) { cmStatus('aucune adresse d\'envoi prévue pour ce site : utilise « télécharger » ou « copier ».', { type: 'echec' }); return; }
-    var r = prepareReport();
-    if (!r) return;
-    var subject = CONFIG.project + ' — Rapport de retours ' + r.id + ' (' + r.items.length + ')';
-    var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(r.md);
-    if (mailto.length > 1900) { cmStatus('rapport trop long pour un email : utilise « télécharger » ou « copier ».', { type: 'echec' }); return; }
-    window.location.href = mailto;
+    prepareReport(function (r) {
+      var subject = CONFIG.project + ' — Rapport de retours ' + r.id + ' (' + r.items.length + ')';
+      var mailto = 'mailto:' + EMAIL_TO + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(r.md);
+      if (mailto.length > 1900) { cmStatus('rapport trop long pour un email : utilise « télécharger » ou « copier ».', { type: 'echec' }); return; }
+      window.location.href = mailto;
+    });
   };
 
   /* ---------- retour : on colle le bloc produit par la session (ou tapé à la main) ----------
@@ -4881,6 +5360,7 @@
   load();
   renderMarkers();
   renderList();
+  reprendreSuite();   // « aller » à une autre page : witmit s'y rouvre (et ouvre le retour visé)
   if (SYNC && allComments.length) setTimeout(function () { flushPending(); refreshStatuses(); }, 1500);
   } // fin boot()
 

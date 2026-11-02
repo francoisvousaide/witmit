@@ -79,12 +79,14 @@ for (const P of PAGES) {
       await expect(page.locator('#cmCount')).toHaveAttribute('data-zero', '1');       // voyant : ton propre retour n'est pas du nouveau (C5)
     });
 
-    test('5. Annuler / clic ailleurs → rien n’est enregistré', async ({ page }) => {
+    // 0.4.0 (h1) : plus d'« annuler » ; la croix, champ rempli, demande « abandonner ce retour ? ».
+    test('5. fermer / abandonner → rien n’est enregistré', async ({ page }) => {
       await H.activate(page);
       const box = await H.visibleBox(page, P.pinTarget);
       await page.mouse.click(box.x + 5, box.y + 5);
       await page.locator('.cm-popup textarea').fill('brouillon');
-      await page.locator('.cm-popup .cm-cancel').click();
+      await page.locator('.cm-popup .cm-fermer').click();
+      await page.locator('.cm-popup .cm-abandonner').click();
       await expect(page.locator('.cm-popup')).toHaveCount(0);
       await expect(page.locator('.cm-pin')).toHaveCount(0);
       expect(await H.stored(page, P.key)).toHaveLength(0);
@@ -115,7 +117,7 @@ for (const P of PAGES) {
       expect(await page.locator('mark.cm-highlight').count()).toBeGreaterThan(0);
       const data = await H.stored(page, P.key);
       expect(data[0].type).toBe('text');
-      expect(data[0].zone.startsWith('«')).toBe(true);
+      expect(data[0].zone).toMatch(/^(texte|mot) « /);   // 0.4.0 : le type du passage, puis le passage entre « »
     });
 
     test('8. clic sur la pastille → édition pré-remplie, puis suppression', async ({ page }) => {
@@ -253,6 +255,9 @@ for (const P of PAGES) {
       const pins = page.locator('.cm-pin');
       await pins.nth(0).click();
       await expect(pins.nth(0)).toHaveClass(/cm-focus/);
+      // 0.4.0 (h1) : un clic hors de la fenêtre la ferme seulement ; le second clic vise l'autre épingle.
+      await pins.nth(1).click();
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
       await pins.nth(1).click();
       await expect(pins.nth(1)).toHaveClass(/cm-focus/);
       await expect(pins.nth(0)).not.toHaveClass(/cm-focus/);
@@ -275,7 +280,7 @@ for (const P of PAGES) {
       await page.keyboard.press('Escape');
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
       await page.locator('.cm-pin').nth(0).click();
-      await page.locator('.cm-popup .cm-cancel').click();
+      await page.locator('.cm-popup .cm-fermer').click();
       await expect(page.locator('.cm-pin').nth(0)).not.toHaveClass(/cm-focus/);
       // …alors qu'Enregistrer sur un commentaire existant le déclenche
       await page.locator('.cm-pin').nth(0).click();
@@ -289,15 +294,17 @@ for (const P of PAGES) {
       const box = await H.visibleBox(page, P.pinTarget);
       await page.mouse.click(box.x + 5, box.y + 5);
       await page.locator('.cm-popup textarea').fill('pas enregistré');
-      // Le texte n'est pas parti : « réduire » demande d'abord (Léa 3.9) ; refuser ne change rien.
-      const messages = [];
-      page.once('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
+      // Le texte n'est pas parti : « réduire » pose d'abord « abandonner ce retour ? » dans la fenêtre (h1, plus de
+      // confirm() natif) ; « garder » ne change rien ; « abandonner » ferme la fenêtre ; « réduire » replie ensuite.
       await page.locator('#cmPanel .cm-panel-reduire').click();
+      await expect(page.locator('.cm-popup .cm-abandon-question')).toHaveText('abandonner ce retour ?');
+      await page.locator('.cm-popup .cm-garder').click();
       await expect(page.locator('.cm-popup textarea')).toHaveValue('pas enregistré');
       await expect(page.locator('#cmPanel')).toHaveClass(/show/);
-      page.once('dialog', (d) => { messages.push(d.message()); d.accept(); });
       await page.locator('#cmPanel .cm-panel-reduire').click();
-      expect(messages).toEqual(["fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.", "fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu."]);
+      await page.locator('.cm-popup .cm-abandonner').click();
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
+      await page.locator('#cmPanel .cm-panel-reduire').click();
       await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
       await expect(page.locator('.cm-popup')).toHaveCount(0);
       await expect(page.locator('.cm-box-editing')).toHaveCount(0);
@@ -322,7 +329,7 @@ for (const P of PAGES) {
       await H.addPin(page, P.boxTarget, 'Retour B');
       await H.deactivate(page);
       await H.ouvrirListe(page);
-      page.once('dialog', (d) => d.dismiss()); // « Annuler » = rapport sans marquer les tickets
+      H.repondreConfirmation(page, false); // « Annuler » = rapport sans marquer les tickets
       await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
       await expect(page.locator('#cmStatus')).toContainText('copié');
       const txt = await page.evaluate(() => navigator.clipboard.readText());
@@ -351,8 +358,9 @@ for (const P of PAGES) {
       await page.evaluate((k) => localStorage.setItem(k, JSON.stringify([{ id: 'x', type: 'pin', page: 'autre.html', zone: 'z', text: 't', date: '' }])), P.key);
       await page.reload();
       await H.ouvrirListe(page);
-      page.once('dialog', (d) => d.dismiss());
+      const refus = H.repondreConfirmation(page, false);
       await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();
+      expect(await refus).toBe("effacer le retour du site ? c'est définitif.");
       expect(await H.stored(page, P.key)).toHaveLength(1);
       const q2 = H.accepterConfirmation(page);
       await page.locator('.cm-panel-foot button', { hasText: 'vider tout' }).click();

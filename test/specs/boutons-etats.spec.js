@@ -143,7 +143,10 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
     await page.goto(pageEssai('lisere-clair', { fond: '#ffffff' }));
     await H.clearStorage(page); await page.reload();
     await ouvrirFenetreSur(page, '#bloc');
-    const f = await page.locator('.cm-popup .cm-cancel').evaluate((b) => { const cs = getComputedStyle(b, '::before'); return { ombre: cs.boxShadow, trait: cs.borderTopWidth }; });
+    // 0.4.0 : plus d'« annuler » ; les boutons gris de la fenêtre sont ceux de « abandonner ce retour ? » (h1).
+    await page.locator('.cm-popup textarea').fill('texte');
+    await page.locator('.cm-popup .cm-fermer').click();
+    const f = await page.locator('.cm-popup .cm-garder').evaluate((b) => { const cs = getComputedStyle(b, '::before'); return { ombre: cs.boxShadow, trait: cs.borderTopWidth }; });
     expect(f).toEqual({ ombre: 'rgba(0, 0, 0, 0.08) 0px 0px 0px 0.5px inset', trait: '0px' });
   });
 
@@ -189,7 +192,9 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
   });
 
   // 0.4.0 : witmit ouvert, la liste (340 px) pousse la page ; 940 px d'écran laissent 600 px à la page d'essai.
-  test('B7. placement de la fenêtre : une épingle recouverte pèse bien plus lourd qu’un bord de cadre recouvert', async ({ page }) => {
+  // 0.4.0 (a2, fiche Fenetre) : la fenêtre se centre sous la sélection, 8 px dessous ; au-dessus, centrée, quand la place
+  // manque dessous. Elle ne recouvre jamais sa cible ni son épingle (elle peut recouvrir d'autres repères).
+  test('B7. placement de la fenêtre : centrée 8 px sous la sélection ; au-dessus, centrée, quand la place manque dessous', async ({ page }) => {
     await page.setViewportSize({ width: 940, height: 1000 });
     const corps = `<div id="dessus" style="position:absolute;left:80px;top:140px;width:440px;height:270px;background:#eee">Un grand bloc au-dessus.</div>
 <div id="cible" style="position:absolute;left:80px;top:480px;width:220px;height:30px;background:#ddd">La cible du retour</div>
@@ -204,12 +209,22 @@ test.describe('B. Corrections renvoyées au lot 8', () => {
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await expect(page.locator('.cm-popup textarea')).toBeVisible();
     const m = await page.evaluate(() => {
-      const f = document.querySelector('.cm-popup').getBoundingClientRect(), touche = (q) => f.left < q.right && q.left < f.right && f.top < q.bottom && q.top < f.bottom;
-      const epingles = Array.from(document.querySelectorAll('.cm-pin')).filter((p) => touche(p.getBoundingClientRect())).length;
-      const cible = document.getElementById('cible').getBoundingClientRect();
-      return { epingles, auDessus: f.bottom <= cible.top };
+      const f = document.querySelector('.cm-popup').getBoundingClientRect(), c = document.querySelector('.cm-box-editing > .wm-cadre').getBoundingClientRect();
+      return { centre: Math.abs((f.left + f.width / 2) - (c.left + c.width / 2)) < 1.5, ecart: Math.abs(f.top - c.bottom - 8) <= 0.5 };
     });
-    expect(m).toEqual({ epingles: 0, auDessus: true });  // au-dessus, sur le bord du grand cadre, plutôt que sur l'épingle du petit
+    expect(m).toEqual({ centre: true, ecart: true });
+    await page.keyboard.press('Escape');
+    // en bas de l'écran : au-dessus, toujours centrée
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.setViewportSize({ width: 940, height: 560 });
+    const b2 = await page.locator('#cible').boundingBox();
+    await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2);
+    await expect(page.locator('.cm-popup textarea')).toBeVisible();
+    const n = await page.evaluate(() => {
+      const f = document.querySelector('.cm-popup').getBoundingClientRect(), c = document.querySelector('.cm-box-editing > .wm-cadre').getBoundingClientRect();
+      return { centre: Math.abs((f.left + f.width / 2) - (c.left + c.width / 2)) < 1.5, auDessus: f.bottom <= c.top - 8 + 0.5, dansEcran: f.top >= 8 };
+    });
+    expect(n).toEqual({ centre: true, auDessus: true, dansEcran: true });
   });
 
 });

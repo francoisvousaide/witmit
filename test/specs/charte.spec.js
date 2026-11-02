@@ -569,7 +569,8 @@ test('13. liste : le numéro du retour sélectionné est lisible (V2 : face ink,
   }
 });
 
-test('14. fenêtre : la rangée de la catégorie, puce « auto » comprise, tient dans la fenêtre', async ({ page }) => {
+// 0.4.0 (i1) : plus de catégorie dans la fenêtre ; ce qui reste (tête, champ, bouton) tient dans ses 300 px.
+test('14. fenêtre : plus de rangée de catégorie ; la tête, le champ et le bouton tiennent dans la fenêtre', async ({ page }) => {
   for (const nom of ['planche-charte.html', 'generic-dashboard.html', 'tellus-accueil.html']) {
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
@@ -580,9 +581,10 @@ test('14. fenêtre : la rangée de la catégorie, puce « auto » comprise, tien
     await ta.fill('Le bouton est trop petit et le texte déborde un peu');
     const r = await page.evaluate(() => {
       const b = (sel) => document.querySelector(sel).getBoundingClientRect();
-      return { popup: b('.cm-popup'), cat: b('.cm-cat'), auto: b('.cm-cat-auto') };
+      return { popup: b('.cm-popup'), tete: b('.cm-popup .cm-tete'), champ: b('.cm-popup textarea'), bouton: b('.cm-popup .cm-save'), cat: document.querySelector('.cm-popup .cm-cat, .cm-popup .cm-cat-auto') };
     });
-    for (const k of ['cat', 'auto']) {
+    expect(r.cat, nom).toBeNull();
+    for (const k of ['tete', 'champ', 'bouton']) {
       expect(r[k].left, `${nom} ${k}`).toBeGreaterThanOrEqual(r.popup.left);
       expect(r[k].right, `${nom} ${k}`).toBeLessThanOrEqual(r.popup.right);
     }
@@ -686,16 +688,17 @@ test('17. contour retracé à la taille réelle : plus de trait d’angles cass�
   let c = await lire();
   expect([c.w, c.h]).toEqual([c.W, c.H]);
   expect(c.polygones).toBe(0);                                          // V2 : le bord est porté par le verre arrondi
-  expect(c.coins[0]).toBe('M8.4 16.8V11.4Q8.4 8.4 11.4 8.4H16.8');       // haut gauche : coude en quart de cercle de 3 px
-  expect(c.coins[1]).toBe(`M${n(c.W - 8.4)} ${n(c.H - 16.8)}V${n(c.H - 11.4)}Q${n(c.W - 8.4)} ${n(c.H - 8.4)} ${n(c.W - 11.4)} ${n(c.H - 8.4)}H${n(c.W - 16.8)}`);
+  // 0.4.0 (fiche Fenetre) : crochets G à 5 px des bords (axe du trait de 2 px à 6 px), bras de 12 px, coude de 3 px.
+  expect(c.coins[0]).toBe('M6 16V9Q6 6 9 6H16');                         // haut gauche : coude en quart de cercle de 3 px
+  expect(c.coins[1]).toBe(`M${n(c.W - 6)} ${n(c.H - 16)}V${n(c.H - 9)}Q${n(c.W - 6)} ${n(c.H - 6)} ${n(c.W - 9)} ${n(c.H - 6)}H${n(c.W - 16)}`);
   // la fenêtre grandit : le même ResizeObserver retrace le contour
   await page.locator('.cm-popup').evaluate((el) => { el.style.width = '400px'; });
   await expect.poll(async () => (await lire()).w).toBe(400);
   c = await lire();
-  expect(c.coins[1]).toBe(`M${400 - 8.4} ${n(c.H - 16.8)}V${n(c.H - 11.4)}Q${400 - 8.4} ${n(c.H - 8.4)} ${400 - 11.4} ${n(c.H - 8.4)}H${400 - 16.8}`);
+  expect(c.coins[1]).toBe(`M${400 - 6} ${n(c.H - 16)}V${n(c.H - 9)}Q${400 - 6} ${n(c.H - 6)} ${400 - 9} ${n(c.H - 6)}H${400 - 16}`);
 });
 
-test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal orange, secondaire et annuler gris, désactivé', async ({ page }) => {
+test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal orange, secondaire gris (« abandonner », « garder »), désactivé', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const st = (sel, pseudo) => page.locator(sel).first().evaluate((el, ps) => {
     const cs = getComputedStyle(el, ps);
@@ -724,10 +727,13 @@ test('18. boutons macOS (fiche Touche) : arrondi de 6 px sur ::before, principal
   expect(secAvant.ombre).toBe(jetons.lisere + ' 0px 0px 0px 0.5px inset');
   expect(secAvant.trait).toBe('0px');
   expect([sec.couleur, sec.graisse]).toEqual([jetons.ink, '400']);      // libellé ink, graisse normale
-  const annuler = await st('.cm-popup .cm-cancel'), annulerAvant = await st('.cm-popup .cm-cancel', '::before');
-  expect(annulerAvant.fond).toBe(jetons.face);                          // « annuler » : un vrai bouton gris, plus un texte seul
-  expect(annulerAvant.rayon).toBe('6px');
-  expect([annuler.couleur, annuler.graisse]).toEqual([jetons.ink, '400']);
+  // 0.4.0 (h1) : plus d'« annuler » ; « abandonner » et « garder » sont de vrais boutons gris.
+  await page.locator('.cm-popup .cm-fermer').click();
+  const garder = await st('.cm-popup .cm-garder'), garderAvant = await st('.cm-popup .cm-garder', '::before');
+  expect(garderAvant.fond).toBe(jetons.face);
+  expect(garderAvant.rayon).toBe('6px');
+  expect([garder.couleur, garder.graisse]).toEqual([jetons.ink, '400']);
+  await page.locator('.cm-popup .cm-garder').click();
   // désactivé (fiches Touche et Etats) : face grise au lieu de l'orange, libellé ink-faint (60 %), curseur par défaut, aucune opacité
   await page.locator('.cm-popup textarea').fill('');
   await expect(page.locator('.cm-popup .cm-save')).toBeDisabled();
@@ -781,13 +787,13 @@ test('19b. arrondis V2 : jetons de rayon et rayon de chaque élément (fenêtres
     return {
       jetons: ['fenetre', 'bloc', 'bouton', 'epingle', 'champ', 'message', 'coude'].map(jeton),
       fenetre: rayon('.cm-popup > .wm-verre'), liste: rayon('#cmPanel > .wm-verre'), message: rayon('#cmStatus > .wm-verre'),
-      touche: rayon('.cm-popup .cm-save', '::before'), categorie: rayon('.cm-popup .cm-cat', '::before'), annuler: rayon('.cm-popup .cm-cancel', '::before'),
+      touche: rayon('.cm-popup .cm-save', '::before'), garder: rayon('.cm-popup .cm-garder', '::before'),
       champ: rayon('.cm-popup .wm-champ > textarea'), champColler: rayon('#cmFeedbackBox .wm-champ > textarea'), ligne: rayon('#cmPanel .cm-panel-item', '::before'),
       epingle: rayon('.cm-pin'), cadre: rayon('.cm-box'), traceCadre: rayon('.cm-box > .wm-cadre'),
     };
   });
   expect(r.jetons).toEqual(['9px', '7px', '6px', '6px', '5px', '8px', '3px']);
-  expect(r).toMatchObject({ fenetre: '9px', liste: '9px 0px 0px 9px', message: '8px', touche: '6px', categorie: '6px', annuler: '6px',
+  expect(r).toMatchObject({ fenetre: '9px', liste: '9px 0px 0px 9px', message: '8px', touche: '6px', garder: '6px',
     champ: '5px', champColler: '5px', ligne: '6px', epingle: '6px', cadre: '6px', traceCadre: '6px' });
 });
 
@@ -809,7 +815,7 @@ test('19c. plus aucun angle cassé : aucun clip-path sur une couche de witmit, p
   }
 });
 
-test('19d. coins witmit : haut gauche et bas droit de la fenêtre, trait de 2,1 px, coude arrondi de 3 px ; aucun sur le message passager ni sur la liste (0.4.0 : elle porte le mot witmit)', async ({ page }) => {
+test('19d. coins witmit (crochets G, 0.4.0) : haut gauche et bas droit de la fenêtre, à 5 px des bords, trait de 2 px, coude arrondi de 3 px ; aucun sur le message passager ni sur la liste (0.4.0 : elle porte le mot witmit)', async ({ page }) => {
   await ouvrirFenetres(page, 'planche-charte.html', '#carteClaire p');
   const r = await page.evaluate(() => ['.cm-popup', '#cmPanel', '#cmStatus'].map((sel) => {
     const el = document.querySelector(sel), W = el.offsetWidth, H = el.offsetHeight;
@@ -820,13 +826,13 @@ test('19d. coins witmit : haut gauche et bas droit de la fenêtre, trait de 2,1 
   for (const f of r) {
     if (f.sel !== '.cm-popup') { expect(f.d, f.sel).toEqual([]); continue; }
     expect(f.d.length, f.sel).toBe(2);
-    // haut gauche : de (8,4 ; 16,8) au coude (8,4 ; 8,4), arrondi en quart de cercle de 3 px, puis jusqu'à (16,8 ; 8,4)
-    expect(f.d[0], f.sel).toBe('M8.4 16.8V11.4Q8.4 8.4 11.4 8.4H16.8');
-    // bas droit : même coin retourné, à 8,4 px des bords droit et bas
+    // haut gauche : de (6 ; 16) au coude (6 ; 6), arrondi en quart de cercle de 3 px, puis jusqu'à (16 ; 6)
+    expect(f.d[0], f.sel).toBe('M6 16V9Q6 6 9 6H16');
+    // bas droit : même coin retourné, axe à 6 px des bords droit et bas
     const m = f.d[1].match(/^M([\d.]+) ([\d.]+)V([\d.]+)Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)H([\d.]+)$/).slice(1).map(Number);
-    const attendu = [f.W - 8.4, f.H - 16.8, f.H - 11.4, f.W - 8.4, f.H - 8.4, f.W - 11.4, f.H - 8.4, f.W - 16.8];
+    const attendu = [f.W - 6, f.H - 16, f.H - 9, f.W - 6, f.H - 6, f.W - 9, f.H - 6, f.W - 16];
     m.forEach((v, i) => expect(v, f.sel + ' ' + i).toBeCloseTo(attendu[i], 2));
-    expect(f.trait, f.sel).toEqual(['2.1px', '2.1px']);
+    expect(f.trait, f.sel).toEqual(['2px', '2px']);
     expect(f.joint, f.sel).toEqual(['round', 'round']);
     expect(f.encre, f.sel).toEqual([f.ink, f.ink]);
   }
@@ -861,8 +867,8 @@ test('20. icônes Phosphor : SVG intégrés, viewBox 256, couleur du texte, muet
   const src = fs.readFileSync(path.join(SRC_DIR, 'witmit.js'), 'utf8');
   expect(src).toContain('Copyright (c) 2023 Phosphor Icons');
   expect(src).toContain('Permission is hereby granted, free of charge');
-  for (const nom of ['ArrowLineRight', 'Info', 'CursorClick', 'BoundingBox', 'TextT', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
-    'CircleNotch', 'Trash', 'Broom', 'X', 'ArrowElbowDownLeft', 'Command', 'Option', 'DotsSixVertical']) {   // 0.4.0 : CrosshairSimple et EyeSlash retirés (bouton du mode, « masquer witmit »)
+  for (const nom of ['ArrowLineRight', 'Info', 'CursorClick', 'BoundingBox', 'Highlighter', 'TextAa', 'Rectangle', 'Crosshair', 'ArrowsDownUp', 'ArrowRight', 'SelectionPlus', 'SealQuestion', 'CheckCircle', 'WarningCircle',
+    'CircleNotch', 'Trash', 'Broom', 'X', 'ArrowElbowDownLeft', 'Command', 'Option', 'Link', 'Image', 'TagSimple', 'Textbox', 'CheckSquare', 'CaretUpDown']) {   // 0.4.0 : CrosshairSimple et EyeSlash retirés (bouton du mode, « masquer witmit ») ; DotsSixVertical et TextT retirés (lot 3 : poignée à points, type « texte » en Highlighter)
     expect(src, nom).toMatch(new RegExp('\\n    ' + nom + ": '<path d=\"M"));
   }
 });
@@ -1282,8 +1288,8 @@ test('27. message passager : witmit ouvert (1280, 1100, 900 px), centré dans la
     expect(t.largeur, `${w} px`).toBeGreaterThan(300);                 // message long : plusieurs lignes, pas un mot
     if (liste) {
       expect(t.bas, `${w} px`).toBe(20);                                // 0.4.0 : le bouton a quitté la page, le message reste en bas
-      // centré dans l'espace à gauche de la liste
-      const c = await page.evaluate(() => { const s = document.getElementById('cmStatus').getBoundingClientRect(), p = document.getElementById('cmPanel').getBoundingClientRect(); return { centre: s.left + s.width / 2, libre: document.documentElement.clientWidth - p.width - 8, droite: s.right, liste: p.left }; });
+      // centré dans l'espace à gauche de la liste (ZB-280 : toute la page rétrécie)
+      const c = await page.evaluate(() => { const s = document.getElementById('cmStatus').getBoundingClientRect(), p = document.getElementById('cmPanel').getBoundingClientRect(); return { centre: s.left + s.width / 2, libre: document.documentElement.clientWidth - p.width, droite: s.right, liste: p.left }; });
       expect(Math.abs(c.centre - c.libre / 2), `${w} px`).toBeLessThanOrEqual(1);
       expect(c.droite, `${w} px`).toBeLessThanOrEqual(c.liste);
     } else expect(t.bas, `${w} px`).toBe(w <= 680 ? 84 : 20);
@@ -1332,20 +1338,20 @@ const lireBoutons = (racine) => Array.from(racine.querySelectorAll('button')).fi
     gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom, largeur: r.width, hauteur: r.height, faceHaut: r.top + (parseFloat(f.top) || 0), faceBas: r.bottom - (parseFloat(f.bottom) || 0) };
 });
 
-test('29. fenêtre de saisie à 340 px ; bloc intérieur à 10 px des bords, arrondi de 7 px, fond, liseré, contour et ombre ; pas de filet ni de bande de pied (clair et sombre)', async ({ page }) => {
+test('29. fenêtre de commentaire à 300 px (0.4.0) ; bloc intérieur à 8 px des bords, 10 px sous la tête, arrondi de 7 px, fond, liseré, contour et ombre ; pas de filet ni de bande de pied (clair et sombre)', async ({ page }) => {
   for (const [nom, cible] of PAGES_LOT3) {
     await fenetreVide(page, nom, cible);
     const sombre = (await theme(page)) === 'client-sombre';
     const m = await page.evaluate(() => {
       const pop = document.querySelector('.cm-popup'), bloc = pop.querySelector('.wm-bloc'), tete = pop.querySelector('.cm-tete');
-      const p = pop.getBoundingClientRect(), b = bloc.getBoundingClientRect(), t = tete.getBoundingClientRect(), cs = getComputedStyle(bloc), a = pop.querySelector('.cm-popup-actions').getBoundingClientRect();
+      const p = pop.getBoundingClientRect(), b = bloc.getBoundingClientRect(), t = tete.getBoundingClientRect(), cs = getComputedStyle(bloc), a = pop.querySelector('.cm-save').getBoundingClientRect();
       const champ = pop.querySelector('.wm-champ').getBoundingClientRect(), titre = pop.querySelector('.cm-titre').getBoundingClientRect();
       return { largeur: p.width, gauche: b.left - p.left, droite: p.right - b.right, sousTete: b.top - t.bottom, rayon: cs.borderRadius, fond: cs.backgroundColor, ombre: cs.boxShadow,
-        filetTete: getComputedStyle(tete).borderBottomWidth, actionsSousBloc: a.top - b.bottom, piedFond: getComputedStyle(pop.querySelector('.cm-popup-actions')).backgroundColor,
-        piedBord: getComputedStyle(pop.querySelector('.cm-popup-actions')).borderTopWidth, alignement: champ.left - titre.left, dansBloc: champ.left >= b.left && champ.right <= b.right && champ.bottom <= b.bottom };
+        filetTete: getComputedStyle(tete).borderBottomWidth, actionsSousBloc: Math.round(a.top + parseFloat(getComputedStyle(pop.querySelector('.cm-save'), '::before').top) - b.bottom), piedFond: getComputedStyle(pop.querySelector('.cm-popup-actions')).backgroundColor,
+        piedBord: getComputedStyle(pop.querySelector('.cm-popup-actions')).borderTopWidth, alignement: champ.left - b.left, dansBloc: champ.left >= b.left && champ.right <= b.right && champ.bottom <= b.bottom };
     });
-    expect(m.largeur, nom).toBe(340);
-    expect([m.gauche, m.droite, m.sousTete], nom).toEqual([10, 10, 8]);
+    expect(m.largeur, nom).toBe(300);
+    expect([m.gauche, m.droite, m.sousTete], nom).toEqual([8, 8, 10]);
     expect(m.rayon, nom).toBe('7px');
     expect(m.fond, nom).toMatch(sombre ? /^rgba\(255, 255, 255, 0\.04\)$/ : /^rgba\(0, 0, 0, 0\.02[78]\)$/);   // 2,8 % (alpha arrondi au 1/255)
     // liseré intérieur (blanc à 75 % ; 8 % en sombre), contour à peine marqué (noir à 4,5 % ; 35 % en sombre), ombre très douce
@@ -1353,9 +1359,9 @@ test('29. fenêtre de saisie à 340 px ; bloc intérieur à 10 px des bords, arr
       ? /^rgba\(255, 255, 255, 0\.08\) 0px 0px 0px 1px inset, rgba\(0, 0, 0, 0\.35\) 0px 0px 0px 1px, rgba\(0, 0, 0, 0\.3\) 0px 1px 6px 0px$/
       : /^rgba\(255, 255, 255, 0\.75\) 0px 0px 0px 1px inset, rgba\(0, 0, 0, 0\.04[3-6]\) 0px 0px 0px 1px, rgba\(0, 0, 0, 0\.05\) 0px 1px 6px 0px$/);
     expect(m.filetTete, nom).toBe('0px');                                // plus de filet sous la tête
-    expect(m.actionsSousBloc, nom).toBe(10);                             // les boutons sous le bloc
+    expect(m.actionsSousBloc, nom).toBe(12);                             // la face du bouton 12 px sous le bloc (fiche Fenetre)
     expect([m.piedFond, m.piedBord], nom).toEqual(['rgba(0, 0, 0, 0)', '0px']);   // sans bande de pied
-    expect(m.alignement, nom).toBe(0);                                   // le contenu du bloc reste aligné sur le titre
+    expect(m.alignement, nom).toBe(10);                                  // le champ à 10 px du bord du bloc (marge intérieure)
     expect(m.dansBloc, nom).toBe(true);
     await page.keyboard.press('Escape');
   }
@@ -1367,15 +1373,15 @@ test('30. boutons de la fenêtre : 30 px dessinés, à droite, jamais pleine lar
     const lire = () => page.evaluate((f) => { const pop = document.querySelector('.cm-popup'); return { p: pop.getBoundingClientRect().toJSON(), b: eval(f)(pop) }; }, lireBoutons.toString());
     // Champ vide : le principal est désactivé, gris ; aucun bouton orange.
     let { p, b } = await lire();
-    const actions = b.filter((x) => x.touche && ['annuler', 'enregistrer'].includes(x.nom));
-    expect(actions.map((x) => x.nom), nom).toEqual(['annuler', 'enregistrer']);
+    // 0.4.0 (h1) : un seul bouton, le principal ; plus d'« annuler ».
+    const actions = b.filter((x) => x.touche);
+    expect(actions.map((x) => x.nom), nom).toEqual(['enregistrer']);
     expect(b.filter((x) => x.orange), nom).toEqual([]);
     for (const x of actions) {
       expect(x.faceBas - x.faceHaut, `${nom} ${x.nom}`).toBe(30);        // 30 px dessinés
       expect(x.largeur, `${nom} ${x.nom}`).toBeLessThan(p.width / 2);   // jamais sur toute la largeur
     }
-    expect(Math.round(p.right - actions[1].droite), nom).toBe(24);       // calés à droite, sur le bord droit du contenu
-    expect(Math.round(actions[1].gauche - actions[0].droite), nom).toBe(8);   // 8 px entre deux boutons
+    expect(Math.round(p.right - actions[0].droite), nom).toBe(20);       // calé à droite, marge de 20 px (fiche Fenetre)
     // Rempli : un seul bouton orange, le principal.
     await page.locator('.cm-popup textarea').fill('Un retour');
     ({ p, b } = await lire());
@@ -1383,7 +1389,7 @@ test('30. boutons de la fenêtre : 30 px dessinés, à droite, jamais pleine lar
     await page.locator('.cm-popup textarea').press('Enter');
     await expect(page.locator('.cm-popup')).toHaveCount(0);
   }
-  // Lecture seule : une seule action, « fermer », grise ; aucun orange.
+  // Lecture seule : aucun bouton (la croix ferme) ; aucun orange.
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('witmit_kiosque_v1') || '[]'); d.forEach((c) => { c.status = 'resolu'; c.resolvedBy = 'moi'; }); localStorage.setItem('witmit_kiosque_v1', JSON.stringify(d)); });
   await page.reload();
@@ -1391,7 +1397,9 @@ test('30. boutons de la fenêtre : 30 px dessinés, à droite, jamais pleine lar
   await page.locator('.cm-pin').first().click();
   await expect(page.locator('.cm-popup')).toHaveClass(/cm-locked/);
   const lu = await page.evaluate((f) => eval(f)(document.querySelector('.cm-popup')), lireBoutons.toString());
-  expect(lu.filter((x) => x.touche).map((x) => [x.nom, x.orange])).toEqual([['fermer', false]]);
+  expect(lu.filter((x) => x.touche).map((x) => [x.nom, x.orange])).toEqual([]);
+  expect(lu.filter((x) => x.orange)).toEqual([]);
+  await expect(page.locator('.cm-popup .cm-fermer')).toHaveAttribute('aria-label', 'fermer');
 });
 
 test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport, champ de réponse, coller un retour) ; il reste dans le nom accessible', async ({ page }) => {
@@ -1401,7 +1409,7 @@ test('31. plus aucun raccourci affiché dans un bouton (fenêtre, liste, rapport
   await fenetreVide(page, 'generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)');
   expect(await fautes()).toEqual([]);
   await expect(page.locator('.cm-popup .cm-save')).toHaveAttribute('aria-keyshortcuts', 'Enter');
-  await expect(page.locator('.cm-popup .cm-cancel')).toHaveAttribute('aria-keyshortcuts', 'Escape');
+  await expect(page.locator('.cm-popup .cm-fermer')).toHaveAttribute('aria-keyshortcuts', 'Escape');   // 0.4.0 : la croix (plus d'« annuler »)
   await page.locator('.cm-popup textarea').fill('Un retour');
   await page.locator('.cm-popup textarea').press('Enter');
   await H.deactivate(page);
@@ -1439,7 +1447,7 @@ test('32. zone cliquable de 44 px au moins pour chaque bouton dessiné en 30 px 
   await fenetreVide(page, 'generic-dashboard.html', 'tbody tr:first-child td:nth-child(2)');
   await page.locator('.cm-popup textarea').fill('Un retour');
   const fenetre = await mesurer('.cm-popup .wm-touche', true);
-  expect(fenetre.map((x) => x.nom)).toEqual([expect.stringMatching(/auto/), 'annuler', 'enregistrer']);
+  expect(fenetre.map((x) => x.nom)).toEqual(['enregistrer']);   // 0.4.0 : plus de catégorie ni d'« annuler »
   await page.locator('.cm-popup textarea').press('Enter');
   await H.deactivate(page);
   await H.ouvrirListe(page);
@@ -1662,7 +1670,9 @@ test('41. onde : sur chacun des cadres d’un retour à plusieurs éléments, en
   await expect(page.locator('.cm-box-outline.cm-focus')).toHaveCount(3);
 });
 
-test('42. fenêtre d’une zone tracée en bas de l’écran : ni montée de 48 px pour une épingle au-dessus, ni posée sur le cadre d’un autre retour quand une place libre existe (N4)', async ({ page }) => {
+// 0.4.0 (décision a2 du 28/10, fiche Fenetre) : la fenêtre se centre au-dessus quand la place manque dessous ; elle ne
+// cherche plus une place de côté pour éviter le cadre d'un autre retour (N4 du lot 6 remplacé par a2).
+test('42. fenêtre d’une zone tracée en bas de l’écran : au-dessus, centrée, sans recouvrir la zone ni son épingle', async ({ page }) => {
   await page.goto(pageBords('lot6-fenetre'));
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
@@ -1679,7 +1689,7 @@ test('42. fenêtre d’une zone tracée en bas de l’écran : ni montée de 48 
   });
   const recouvre = (a, c) => !(a.x + a.w <= c.x || c.x + c.w <= a.x || a.y + a.h <= c.y || c.y + c.h <= a.y);
   expect(recouvre(r.pop, r.zone)).toBe(false);
-  expect(recouvre(r.pop, r.autre)).toBe(false);
+  expect(Math.abs((r.pop.x + r.pop.w / 2) - (r.zone.x + r.zone.w / 2))).toBeLessThan(1.5);
   expect(recouvre(r.pop, r.epingle)).toBe(false);
   expect(r.pop.y + r.pop.h).toBeLessThanOrEqual(vh - 8);
 });

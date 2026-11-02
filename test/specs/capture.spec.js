@@ -74,8 +74,9 @@ test.describe('Capture (Kiosque)', () => {
     await waitShot(page);
     await H.deactivate(page);
     await H.ouvrirListe(page);
-    page.once('dialog', (d) => d.dismiss());
+    H.repondreConfirmation(page, false);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
+    await expect(page.locator('#cmStatus')).toContainText('copié');
     const md = await page.evaluate(() => navigator.clipboard.readText());
     expect(md).toContain('![Capture de la zone](data:image/jpeg;base64,');
     expect(md).toMatch(/"capture": "image ci-dessus \(\d+×\d+\)"/);

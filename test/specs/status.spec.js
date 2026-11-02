@@ -15,22 +15,24 @@ async function setup(page) {
   await H.ouvrirListe(page);
 }
 async function copyReport(page, accept) {
-  page.once('dialog', (d) => (accept ? d.accept() : d.dismiss()));
+  const q = H.repondreConfirmation(page, accept);   // 0.4.0 : la question au pied de la liste (« marquer » ou « sans marquer »)
   await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
+  await q;
   await expect(page.locator('#cmStatus')).toContainText('copié');
   return page.evaluate(() => navigator.clipboard.readText());
 }
 
-test('marquer un seul retour : la confirmation est au singulier, « sans le marquer » (Léa 3.9, accords)', async ({ page }) => {
+test('marquer un seul retour : la question est au singulier, « sans marquer » (Léa 3.9, accords ; 0.4.0 : dessinée dans la liste)', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
   await H.addPin(page, '.kpi-tile:nth-child(1) .kpi-value', 'Seul');
   await H.deactivate(page);
   await H.ouvrirListe(page);
-  const confirmation = new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.dismiss(); resolve(m); }));
+  const confirmation = H.repondreConfirmation(page, false);
   await page.locator('.cm-panel-foot button', { hasText: 'copier' }).click();
-  expect(await confirmation).toMatch(/^marquer 1 retour comme signalé dans le rapport R-\d{4}-\d{2}-\d{2}-\d+ \? il ne sera plus modifiable\. annuler : le rapport est créé sans le marquer\.$/);
+  expect(await confirmation).toMatch(/^marquer 1 retour comme signalé dans le rapport R-\d{4}-\d{2}-\d{2}-\d+ \? il ne sera plus modifiable\.$/);
+  await expect(page.locator('#cmPanelPied .cm-confirme')).toHaveCount(0);
   await expect(page.locator('#cmStatus')).toContainText('copié');
 });
 
@@ -60,8 +62,9 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await expect(page.locator('.cm-popup .cm-texte-lu')).toHaveText(/^« (Premier|Second) »$/);
     await expect(page.locator('.cm-popup .cm-save')).toHaveCount(0);
     await expect(page.locator('.cm-popup .cm-lock-line')).toHaveText('résolu par moi · non modifiable');
-    await expect(page.locator('.cm-popup .cm-cancel')).toHaveText('fermer');
-    await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);                 // une seule action, « fermer » (fiche Fenetre)
+    await expect(page.locator('.cm-popup .wm-touche')).toHaveCount(0);                // 0.4.0 : lecture seule, aucun bouton, la croix ferme
+    await expect(page.locator('.cm-popup .cm-fermer')).toHaveAccessibleName('fermer');
+    await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);                 // ni corbeille (fiche Fenetre)
     await page.keyboard.press('Escape');
     await H.deactivate(page);
     await H.ouvrirListe(page);
@@ -79,7 +82,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
     expect(md).toMatch(/^# kiosque — Rapport de retours R-\d{4}-\d{2}-\d{2}-1\n/);
     expect(md).toContain('périmètre : nouveautés');
     expect(md).toContain('## Page : Kiosque');
-    expect(md).toContain('### #1 · élément : 1 240 € — à classer · nouveau');   // Léa 3.12
+    expect(md).toContain('### #1 · texte « 1 240 € » · dans « Chiffre du jour » — à classer · nouveau');   // Léa 3.12 ; 0.4.0 : le type et le nom de l'élément
     expect(md).toContain('"texte": "Premier"');
     expect(md).toContain('"selecteur": "main');
     expect(md).toContain('## Pour répondre à ce rapport');
@@ -129,7 +132,7 @@ test.describe('Cycle de vie (Kiosque)', () => {
 
   test('téléchargement du rapport .md', async ({ page }) => {
     await setup(page);
-    page.once('dialog', (d) => d.accept());
+    H.repondreConfirmation(page, true);
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.locator('.cm-panel-foot button', { hasText: 'télécharger' }).click(),
@@ -208,7 +211,8 @@ test.describe('Cycle de vie (Kiosque)', () => {
     await page.locator('.cm-pin').nth(0).click();
     await expect(page.locator('.cm-popup .cm-feedback-q')).toContainText('Sur quel écran ?');
     await expect(page.locator('.cm-popup textarea')).toHaveCount(1);                    // seul le champ de réponse
-    await expect(page.locator('.cm-popup .cm-feedback-q')).toContainText('complément demandé :');
+    await expect(page.locator('.cm-popup .cm-feedback-q .cm-feedback-titre')).toHaveText('complément demandé');   // fiche Fenetre : « complément demandé » en graisse 500
+    await expect(page.locator('.cm-popup .cm-feedback-q .cm-feedback-msg')).toHaveText('« Sur quel écran ? »');
     await expect(page.locator('.cm-popup .cm-save')).toBeDisabled();                  // désactivée tant que la réponse est vide
     await page.locator('.cm-popup .cm-reply-ta').fill('Le tableau de bord');
     await page.locator('.cm-popup .cm-save').click();

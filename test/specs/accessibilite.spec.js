@@ -136,7 +136,7 @@ test('5b. visionneuse : Échap, croix et clic à côté la ferment (le clic à c
   await ouvrir();
   await expect(page.locator('.cm-lightbox .cm-lb-fermer')).toBeFocused();
   await expect(page.locator('.cm-lightbox')).toContainText('Capture de la zone');
-  await expect(page.locator('.cm-lightbox .cm-lb-meta')).toHaveText(/^retour 1 · zone · zone encadrée dans : Tableau · \d\d\/\d\d$/);
+  await expect(page.locator('.cm-lightbox .cm-lb-meta')).toHaveText(/^retour 1 · zone encadrée dans\s:\sTableau · \d\d\/\d\d$/);   // ZB-280 : plus de « zone · zone encadrée »
   await page.keyboard.press('Escape');
   await expect(page.locator('.cm-lightbox')).toHaveCount(0);
   await expect(vignette).toBeFocused();
@@ -185,6 +185,7 @@ test('10. messages passagers : role="status", un échec reste au moins 6 s, sur 
   expect(m.encre).toBe(true);
   // un message réussi qui arrive pendant l'échec ne l'efface pas avant ses 6 s
   await page.evaluate(() => document.querySelector('#cmReportFoot .wm-touche').click());   // « télécharger » : message réussi
+  await page.locator('#cmPanelPied .cm-confirme').getByRole('button', { name: 'sans marquer' }).click();   // 0.4.0 : la question au pied, plus de confirm() natif
   await expect(toast).toHaveText("aucune adresse d'envoi prévue pour ce site : utilise « télécharger » ou « copier ».");
   await page.waitForTimeout(Math.max(0, 5600 - (Date.now() - depart)));
   await expect(toast).toBeVisible();
@@ -194,7 +195,7 @@ test('10. messages passagers : role="status", un échec reste au moins 6 s, sur 
   await expect(toast.locator('svg[data-icone="Check"]')).toHaveCount(1);
 });
 
-test('11. largeurs : à 820 px (0.4.0 : witmit ouvert, la liste de 340 px laisse 480 px à la page), la fenêtre de saisie tient dans la page, catégories dépliées comprises', async ({ page }) => {
+test('11. largeurs : à 820 px (0.4.0 : witmit ouvert, la liste de 340 px laisse 480 px à la page), la fenêtre de saisie (300 px, sans catégorie) tient dans la page', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 812 });
   for (const [nom, cible] of [[MAQUETTE, CIBLE], [MAQUETTE, '.kpi-tile:nth-child(3) .kpi-value'], ['tellus-accueil.html', '.mcard.active .mcard-title']]) {
     await page.goto(H.fileUrl(nom));
@@ -203,27 +204,26 @@ test('11. largeurs : à 820 px (0.4.0 : witmit ouvert, la liste de 340 px laisse
     const b = await H.visibleBox(page, cible);
     await page.mouse.click(b.x + 4, b.y + 4);
     await expect(page.locator('.cm-popup')).toBeVisible();
-    await page.locator('.cm-popup .cm-cat').click();
     const r = await page.evaluate(() => {
       const vw = document.documentElement.clientWidth;
       const p = document.querySelector('.cm-popup').getBoundingClientRect();
-      const dedans = Array.from(document.querySelectorAll('.cm-popup .cm-tete, .cm-popup .cm-corps > *, .cm-popup .cm-cat-choix, .cm-popup .cm-save'))
+      const dedans = Array.from(document.querySelectorAll('.cm-popup .cm-tete, .cm-popup .cm-corps > *, .cm-popup .cm-save'))
         .every((el) => { const q = el.getBoundingClientRect(); return !q.width || (q.left >= p.left - 0.5 && q.right <= p.right + 0.5); });
       return { vw, left: p.left, right: p.right, width: p.width, dedans };
     });
     expect(r.left, `${nom} ${cible}`).toBeGreaterThanOrEqual(8);
     expect(r.right, `${nom} ${cible}`).toBeLessThanOrEqual(r.vw - 340 - 8 + 0.5);   // dans la page, à gauche de la liste
-    expect(r.width, `${nom} ${cible}`).toBeGreaterThan(300);
+    expect(r.width, `${nom} ${cible}`).toBe(300);
     expect(r.dedans, `${nom} ${cible}`).toBe(true);
     await page.keyboard.press('Escape');
   }
-  // Sur ordinateur, la fenêtre fait 340 px (V2, fiche Fenetre) ; la liste aussi (V2, fiche Tiroir).
+  // Sur ordinateur, la fenêtre fait 300 px (0.4.0, fiche Fenetre) ; la liste 340 px (fiche Tiroir).
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(H.fileUrl(MAQUETTE));
   await H.activate(page);
   const b = await H.visibleBox(page, CIBLE);
   await page.mouse.click(b.x + 4, b.y + 4);
-  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(340);
+  expect((await page.locator('.cm-popup').boundingBox()).width).toBe(300);
   await page.keyboard.press('Escape');
   await H.ouvrirListe(page);
   await page.waitForTimeout(400);
@@ -358,7 +358,7 @@ test('4. focus : au clavier, un contour visible sur chaque élément de witmit a
   await page.locator('.cm-pin').first().click();
   await expect(page.locator('.cm-popup textarea')).toBeVisible();
   const fenetre = await parcourir('.cm-popup textarea', 20);
-  expect(fenetre.length).toBeGreaterThan(4);
+  expect(fenetre.length).toBeGreaterThanOrEqual(3);   // 0.4.0 : le champ, la corbeille, le bouton principal (plus de catégorie ni d'« annuler »)
   await page.keyboard.press('Escape');
   // au clic souris : aucun contour (ni :focus-visible) sur le bouton witmit (witmit replié), les touches et les cercles
   await H.deactivate(page);
@@ -434,12 +434,17 @@ test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt 
     expect(fautes, etape).toEqual([]);
   };
   await parcoursMaquette(page, MAQUETTE, verifier);
-  // confirmations (fenêtres du navigateur) : effacer (page), vider tout (site), fermer une fenêtre écrite
+  // confirmations (0.4.0 : dessinées dans witmit, plus de fenêtre du navigateur) : effacer (page), vider tout (site),
+  // fermer une fenêtre écrite
   await page.keyboard.press('Escape');
   if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await H.ouvrirListe(page);
   await page.waitForTimeout(400);
-  await page.locator('#cmClearPageBtn').click();
-  await page.locator('#cmClearSiteBtn').click();
+  const questions = [];
+  for (const bouton of ['#cmClearPageBtn', '#cmClearSiteBtn']) {
+    await page.locator(bouton).click();
+    questions.push(await page.locator('#cmPanelPied .cm-confirme-question').textContent());
+    await page.locator('#cmPanelPied .cm-confirme').getByRole('button', { name: 'annuler' }).click();
+  }
   await H.ouvrirListe(page);
   // c1 (V2) : ouvrir un retour de la liste a lancé le mode annotation (son repère s'allume) ; sinon, on le lance.
   await H.activate(page);
@@ -449,8 +454,11 @@ test('8. émojis : aucun dans les textes, title, aria-label, placeholder et alt 
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.locator('.cm-popup textarea').fill('pas fini');
   await page.locator('#cmPanel .cm-panel-reduire').click();
-  await expect.poll(() => dialogues.length).toBeGreaterThanOrEqual(3);
-  for (const m of dialogues) expect(EMOJI.test(m), m).toBe(false);
+  questions.push(await page.locator('.cm-popup .cm-abandon-question').textContent());
+  await page.locator('.cm-popup .cm-abandonner').click();
+  expect(questions).toHaveLength(3);
+  expect(dialogues).toEqual([]);
+  for (const m of questions) expect(EMOJI.test(m), m).toBe(false);
   await parcoursLive(page, verifier);
 });
 

@@ -89,7 +89,7 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await H.deactivate(page);
   await H.ouvrirListe(page);
   // Refus : rien n'est effacé.
-  const refus = new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.dismiss(); resolve(m); }));
+  const refus = H.repondreConfirmation(page, false);   // 0.4.0 : la question au pied de la liste, « annuler »
   await page.locator('#cmClearPageBtn').click();
   expect(await refus).toBe("effacer les 2 retours de cette page ? c'est définitif.");
   await expect(page.locator('.cm-panel-item')).toHaveCount(2);
@@ -115,7 +115,10 @@ test('« effacer (page) » demande confirmation (maquette) ; « masquer witmit �
   await expect(page.locator('#cmStatus')).toContainText('witmit est masqué. pour le retrouver :');
 });
 
-test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même modifié ; un retour jamais reçu la garde', async ({ page }) => {
+// 0.4.0 (décision d1 du 29/10, remplace C9) : un retour reçu par witmit garde sa corbeille tant qu'il n'est pas « pris en
+// compte » : elle le retire (route « retirer » du guichet) ; un retour jamais reçu s'efface ici. « effacer (page) » et
+// « vider tout (site) » n'effacent toujours que les retours jamais reçus.
+test('d1 : en live, un retour reçu par witmit se retire (corbeille « retirer ») tant qu’il est nouveau ; un retour jamais reçu s’efface', async ({ page }) => {
   const KEY = 'witmit_kiosque-sync_v1';
   const state = {};
   await H.mockSupabase(page, state);
@@ -127,9 +130,9 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Reçu');
   await sent(0).toBe('sent');
   expect((await H.stored(page, KEY))[0].recuLe).toBeTruthy();
-  // Modifié après réception : renvoyé, toujours sans corbeille (ni dans la fenêtre, ni dans la liste).
+  // Reçu : la corbeille le retire (fenêtre et liste) ; modifié, il est renvoyé.
   await page.locator('.cm-pin').first().click();
-  await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);
+  await expect(page.locator('.cm-popup .cm-delete')).toHaveAccessibleName('retirer ce retour');
   await page.locator('.cm-popup textarea').fill('Reçu, puis modifié');
   await page.locator('.cm-popup textarea').press('Enter');
   await expect.poll(() => state.posts.length, { timeout: 15000 }).toBe(2);
@@ -138,7 +141,7 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Jamais reçu');
   await sent(1).toBe('error');
   await page.locator('.cm-pin').nth(1).click();
-  await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(1);
+  await expect(page.locator('.cm-popup .cm-delete')).toHaveAccessibleName('supprimer ce retour');
   await page.keyboard.press('Escape');
   await H.deactivate(page);
   state.failNext = { status: 429, erreur: 'trop de tickets' };             // l'ouverture de la liste renvoie : refusé encore
@@ -146,7 +149,7 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   await sent(1).toBe('error');
   await expect.poll(() => state.posts.length, { timeout: 15000 }).toBe(4);
   const lignes = page.locator('.cm-panel-item');
-  await expect(lignes.nth(0).locator('.del')).toHaveCount(0);
+  await expect(lignes.nth(0).locator('.del')).toHaveAttribute('aria-label', 'retirer ce retour');
   await expect(lignes.nth(1).locator('.del')).toHaveCount(1);
   await H.ouvrirRetour(page, lignes.nth(1));                                 // c1 (V2) : la corbeille est dans le retour ouvert
   await expect(lignes.nth(1).locator('.del')).toHaveAccessibleName('supprimer ce retour');
@@ -165,10 +168,11 @@ test('C9 : en live, un retour reçu par witmit n’a plus de corbeille, même mo
   expect((await H.stored(page, KEY)).map((c) => c.id)).toEqual([recu.id]);
   await expect(page.locator('#cmClearPageBtn')).toBeHidden();
   await expect(page.locator('#cmClearSiteBtn')).toBeHidden();
-  await expect(lignes.nth(0).locator('.del')).toHaveCount(0);
+  await expect(lignes.nth(0).locator('.del')).toHaveAttribute('aria-label', 'retirer ce retour');
+  expect(state.retraits).toHaveLength(0);                               // rien n'a été retiré sans la corbeille
 });
 
-test('C9 : pendant « envoi en cours », pas de corbeille ; au premier chargement de la 0.2.0, recuLe posé sur les retours qui portent une trace du guichet', async ({ page }) => {
+test('C9 et d1 : pendant « envoi en cours », pas de corbeille ; au premier chargement de la 0.2.0, recuLe posé sur les retours qui portent une trace du guichet', async ({ page }) => {
   const KEY = 'witmit_kiosque-sync_v1';
   const state = {};
   await H.mockSupabase(page, state);
@@ -195,6 +199,8 @@ test('C9 : pendant « envoi en cours », pas de corbeille ; au premier chargemen
   await page.evaluate(() => document.getElementById('cmPanel').classList.add('show'));   // regarder la liste sans relancer l'envoi
   await expect(ligne('enroute').locator('.cm-sync-chip')).toHaveText('envoi en cours…');
   await expect(ligne('enroute').locator('.del')).toHaveCount(0);
-  for (const id of ['avecid', 'modifie', 'serveur']) await expect(ligne(id).locator('.del'), id).toHaveCount(0);
+  // d1 : envoyé et encore « nouveau », avec son identifiant au guichet : « retirer » ; reçu sans identifiant ou terminé : rien.
+  await expect(ligne('avecid').locator('.del')).toHaveAttribute('aria-label', 'retirer ce retour');
+  for (const id of ['modifie', 'serveur']) await expect(ligne(id).locator('.del'), id).toHaveCount(0);
   await expect(ligne('jamais').locator('.del')).toHaveCount(1);
 });

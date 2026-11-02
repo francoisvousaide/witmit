@@ -128,9 +128,30 @@ async function horsLigne(page, state, coupe) {
   state.horsLigne = coupe;
   await page.context().setOffline(coupe);
 }
-// Accepte la prochaine confirmation du navigateur (Playwright les refuse d'office) et renvoie son texte.
-function accepterConfirmation(page) {
-  return new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.accept(); resolve(m); }));
+// 0.4.0 (critère 16) : plus aucune fenêtre native du navigateur. Accepte la prochaine confirmation dessinée par witmit
+// (question au pied de la liste ou sous un message : son bouton d'action ; « abandonner ce retour ? » dans la fenêtre :
+// « abandonner ») et renvoie sa question, espaces insécables ramenées à des espaces. Une fenêtre native qui apparaîtrait
+// quand même fait échouer le test.
+// Répond à la prochaine question dessinée par witmit, sans l'attendre (à lancer avant le geste) : oui = son action ; non =
+// « annuler », « sans marquer » (rapport) ou « garder » (fenêtre). Rend la question, ou null si aucune n'est venue.
+function repondreConfirmation(page, oui) {
+  return (async () => {
+    const q = page.locator('.cm-confirme, .cm-popup .cm-abandon:not([hidden])').first();
+    await q.waitFor({ state: 'visible', timeout: 5000 });
+    const texte = (await q.locator('.cm-confirme-question, .cm-abandon-question').textContent()).replace(/\u00a0/g, ' ');
+    await q.locator(oui ? '.cm-confirme-oui, .cm-abandonner' : '.cm-confirme-non, .cm-garder').click();
+    return texte;
+  })().catch(() => null);
+}
+async function accepterConfirmation(page) {
+  const natif = (d) => { throw new Error('fenêtre native du navigateur : ' + d.message()); };
+  page.once('dialog', natif);
+  const q = page.locator('.cm-confirme, .cm-popup .cm-abandon:not([hidden])').first();
+  await q.waitFor({ state: 'visible' });
+  const texte = (await q.locator('.cm-confirme-question, .cm-abandon-question').textContent()).replace(/\u00a0/g, ' ');
+  await q.locator('.cm-confirme-oui, .cm-abandonner').click();
+  page.off('dialog', natif);
+  return texte;
 }
 
 // Liste, décision c1 (V2, lot 4) : un clic choisit un retour, un deuxième l'ouvre (son texte en entier, sa méta, ses
@@ -143,7 +164,7 @@ async function ouvrirRetour(page, ligne) {
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Faux Supabase : identité anonyme, défi, dépôt, réponse / réouverture, relecture des statuts (et du fil). `state` pilote les réponses.
 function mockSupabase(page, state) {
-  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [], replies: [], failReply: null, ...state });
+  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [], replies: [], failReply: null, retraits: [], failRetrait: null, ...state });
   return page.route('https://witmit.test/**', async (route, req) => {
     const url = new URL(req.url());
     const json = (status, body) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(body) });
@@ -154,6 +175,12 @@ function mockSupabase(page, state) {
       state.challenges++;
       const salt = 'sel' + state.challenges, number = 100 + state.challenges;
       return json(200, { algorithm: 'SHA-256', challenge: sha256(salt + number), maxnumber: 2000, salt, signature: 'sig' });
+    }
+    if (url.pathname.endsWith('/submit-annotation/retirer')) {   // retirer un retour (0.4.0, d1 ; partie serveur au lot 4)
+      const body = req.postDataJSON();
+      state.retraits.push({ body, headers: req.headers() });
+      if (state.failRetrait) { const f = state.failRetrait; state.failRetrait = null; return json(f.status, { erreur: f.erreur }); }
+      return json(200, { statut: 'retire' });
     }
     if (url.pathname.endsWith('/submit-annotation/reponse')) {   // répondre / rouvrir (V2.2)
       const body = req.postDataJSON();
@@ -174,4 +201,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { ouvrirListe, mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, CACHER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne, ouvrirRetour, assurerMode };
+module.exports = { repondreConfirmation, ouvrirListe, mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, CACHER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne, ouvrirRetour, assurerMode };

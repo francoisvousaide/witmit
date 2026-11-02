@@ -117,26 +117,30 @@ test.describe('Liste : corrections reportées du lot 4', () => {
     expect(coupures).toEqual([]);
   });
 
-  test('aria-label : liste vide, ni rôle ni nom ; avec des retours, le rôle et le nom reviennent ensemble', async ({ page }) => {
+  // 0.4.0 (liste par page) : la zone des pages est une région nommée pour tout le site ; chaque page a sa liste nommée.
+  test('aria-label : liste vide, ni rôle de liste ni nom de liste ; avec des retours, la liste de la page a son rôle et son nom', async ({ page }) => {
     const nom = 'tellus-accueil.html';
     await page.goto(H.fileUrl(nom));
     await H.clearStorage(page); await page.reload();
     await ouvrirListe(page);
-    const liste = page.locator('#cmList');
-    await expect(liste).not.toHaveAttribute('role', /.+/);
-    await expect(liste).not.toHaveAttribute('aria-label', /.+/);
+    const zone = page.locator('#cmList');
+    await expect(zone).toHaveAttribute('role', 'region');
+    await expect(zone).toHaveAccessibleName('tes retours sur ce site, page par page');
+    await expect(page.locator('#cmList [role="list"]')).toHaveCount(0);
     await semer(page, nom, 'witmit_tellus_v1', [retour('a', nom)]);
     await ouvrirListe(page);
+    const liste = page.locator('#cmList .cm-page-ici .cm-page-lignes');
     await expect(liste).toHaveAttribute('role', 'list');
     await expect(liste).toHaveAccessibleName('tes retours sur cette page');
   });
 
-  test('scroll-padding : la ligne choisie au clavier garde 4 px d’air au bord du bloc, en bas comme en haut', async ({ page }) => {
+  // 0.4.0 (liste par page) : la zone des pages défile seule ; la ligne choisie garde 10 px d'air (la marge des blocs) en haut et en bas.
+  test('scroll-padding : la ligne choisie au clavier garde de l’air au bord de la zone qui défile, en bas comme en haut', async ({ page }) => {
     const nom = 'tellus-accueil.html';
     const ids = Array.from({ length: 18 }, (_, i) => 'r' + i);
     await semer(page, nom, 'witmit_tellus_v1', ids.map((id) => retour(id, nom, { status: 'signale', signaledAt: new Date().toISOString() })));
     await ouvrirListe(page);
-    expect(await page.locator('#cmList').evaluate((e) => [getComputedStyle(e).scrollPaddingTop, getComputedStyle(e).scrollPaddingBottom])).toEqual(['4px', '4px']);
+    expect(await page.locator('#cmList').evaluate((e) => [getComputedStyle(e).scrollPaddingTop, getComputedStyle(e).scrollPaddingBottom])).toEqual(['10px', '10px']);
     const ecarts = () => page.evaluate(() => {
       const l = document.getElementById('cmList').getBoundingClientRect(), c = document.querySelector('.cm-panel-item[aria-current="true"]').getBoundingClientRect();
       return { haut: c.top - l.top, bas: l.bottom - c.bottom };

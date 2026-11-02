@@ -220,9 +220,9 @@ test('11. raisons en clair (429, 409, 413, 500, puis hors ligne) ; la raison bru
   const ecran = await page.evaluate(() => [...document.querySelectorAll('.cm-ui, .cm-ui *')].map((el) => (el.getAttribute('title') || '') + ' ' + (el.childNodes.length === 1 && el.firstChild.nodeType === 3 ? el.textContent : '')).join(' | '));
   for (const [refus] of cas) expect(ecran).not.toContain(refus.erreur);
   expect(ecran).not.toMatch(/failed to fetch|internet_disconnected/i);
-  await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-sync-error')).toHaveAttribute('title', "trop d'envois d'un coup. clique pour réessayer.");
-  await expect(page.locator('.cm-panel-item').nth(2).locator('.cm-sync-error')).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
-  await expect(page.locator('.cm-panel-item').nth(4).locator('.cm-sync-error')).toHaveAttribute('title', 'pas de connexion. clique pour réessayer.');
+  await expect(page.locator('.cm-panel-item').nth(0).locator('.cm-meta .cm-sync-error')).toHaveAttribute('title', "trop d'envois d'un coup. clique pour réessayer.");
+  await expect(page.locator('.cm-panel-item').nth(2).locator('.cm-meta .cm-sync-error')).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
+  await expect(page.locator('.cm-panel-item').nth(4).locator('.cm-meta .cm-sync-error')).toHaveAttribute('title', 'pas de connexion. clique pour réessayer.');
 });
 
 test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture de la liste, ni au chargement ; il repart une fois modifié', async ({ page }) => {
@@ -241,7 +241,7 @@ test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture
   await page.waitForTimeout(2500);
   expect(state.posts).toHaveLength(2);
   // « à renvoyer » n'est plus un bouton : son info-bulle donne la raison, sans « clique pour réessayer »
-  const marque = page.locator('.cm-panel-item').nth(0).locator('.cm-sync-error');
+  const marque = page.locator('.cm-panel-item').nth(0).locator('.cm-meta .cm-sync-error');
   await expect(marque.locator('b')).toHaveText('à renvoyer');
   expect(await marque.evaluate((el) => el.tagName)).toBe('SPAN');
   await expect(marque).toHaveAttribute('title', 'ton retour dépasse 5 000 caractères.');
@@ -249,8 +249,8 @@ test('12. aucun renvoi automatique après un 409 ou un 413 : ni à l’ouverture
   await expect(marque).toHaveText('à renvoyer : ton retour dépasse 5 000 caractères.');      // contenu lu en parcourant la ligne
   await expect(marque.locator('.wm-lu')).toHaveText(' : ton retour dépasse 5 000 caractères.');
   const refuse = page.locator('.cm-panel-item').nth(1);
-  await expect(refuse.locator('.cm-sync-error')).toHaveAttribute('title', 'witmit a refusé ce retour.');
-  await expect(refuse.locator('.cm-sync-error .wm-lu')).toHaveText(' : witmit a refusé ce retour.');
+  await expect(refuse.locator('.cm-meta .cm-sync-error')).toHaveAttribute('title', 'witmit a refusé ce retour.');
+  await expect(refuse.locator('.cm-meta .cm-sync-error .wm-lu')).toHaveText(' : witmit a refusé ce retour.');
   await expect(refuse.locator('.del')).toHaveCount(1);              // jamais reçu par witmit : la corbeille reste (C9), « efface-le »
   await page.reload();                                              // au chargement non plus
   await page.waitForTimeout(2500);

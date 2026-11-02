@@ -11,7 +11,7 @@ const MAQUETTE = 'generic-dashboard.html';
 const REVEAL_KEY = 'witmit_kiosque-live_reveal';
 const CIBLE = 'tbody tr:first-child td:nth-child(2)';
 const RACC_DOUBLE_ALT = H.IS_MAC ? '⌥ deux fois' : 'alt deux fois';
-const CONFIRMATION = "fermer quand même ? ce que tu viens d'écrire n'est pas parti et sera perdu.";
+const CONFIRMATION = 'abandonner ce retour ?';
 
 const revealed = (page) => page.evaluate((k) => localStorage.getItem(k), REVEAL_KEY);
 async function ouvrirPropre(page, nom, suffixe = '') {
@@ -51,6 +51,8 @@ async function centreDonne(page, sel) {
 
 
 const RACC_CACHER = H.IS_MAC ? '⌥+A' : 'alt+A';
+// ZB-280 : dans un message passager, ⌥ est une icône (Option) dans son carré, lue « option ».
+const LU = (geste) => geste.replace('⌥', 'option');
 const ouvert = async (page) => { await expect(page.locator('#cmPanel')).toHaveClass(/show/); await expect(page.locator('body')).toHaveClass(/cm-active/); };
 const replie = async (page) => { await expect(page.locator('#cmPanel')).not.toHaveClass(/show/); await expect(page.locator('body')).not.toHaveClass(/cm-active/); };
 
@@ -77,7 +79,7 @@ test('2. ⌥+A cache : tout se ferme et s’oublie, le message de masquage reste
   const toast = page.locator('#cmStatus');
   await expect(toast).toBeVisible();
   await expect(toast).toHaveClass(/wm-toast-masquage/);
-  await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + RACC_CACHER + ", ou ?witmit=on dans l'adresse.");
+  await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + LU(RACC_CACHER) + ", ou ?witmit=on dans l'adresse.");
   await page.waitForTimeout(5000);
   await expect(toast).toBeVisible();                                   // lisible toute sa durée : 6 s, comme un échec (Léa)
   await expect(toast).toBeHidden({ timeout: 3000 });
@@ -86,15 +88,19 @@ test('2. ⌥+A cache : tout se ferme et s’oublie, le message de masquage reste
   await H.activate(page);
   await ouvrirFenetre(page, 'pas encore parti');
   await page.locator('.cm-popup textarea').blur();                     // dans le champ, ⌥+A est ignoré (K4)
-  const messages = [];
-  page.once('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
+  // 0.4.0 (h1) : la question « abandonner ce retour ? » dans la fenêtre, plus de confirm() natif ; « garder ».
   await page.keyboard.press(H.CACHER);
-  await expect.poll(() => messages.length).toBe(1);
-  expect(messages[0]).toBe(CONFIRMATION);
+  await expect(page.locator('.cm-popup .cm-abandon-question')).toHaveText(CONFIRMATION);
+  await page.locator('.cm-popup .cm-garder').click();
+  await page.locator('.cm-popup textarea').blur();
   await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
   await expect(page.locator('.cm-popup textarea')).toHaveValue('pas encore parti');
-  // L'accepter cache tout.
-  page.once('dialog', (d) => d.accept());
+  // « abandonner » ferme la fenêtre (le geste n'a pas lieu) ; un nouvel ⌥+A cache tout.
+  await page.keyboard.press(H.CACHER);
+  await expect(page.locator('.cm-popup .cm-abandon')).toBeVisible();
+  await page.locator('.cm-popup .cm-abandonner').click();
+  await expect(page.locator('.cm-popup')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
   await page.keyboard.press(H.CACHER);
   await expect(page.locator('body')).toHaveClass(/cm-concealed/);
   await expect(page.locator('.cm-popup')).toHaveCount(0);
@@ -379,7 +385,7 @@ test('21. message de masquage : « ?witmit=on » jamais coupé après le « ? »
     await ouvrirPropre(page, LIVE, '?witmit=on');
     await page.evaluate(() => window.cmReveal(false));
     const toast = page.locator('#cmStatus');
-    await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + geste + ", ou ?witmit=on dans l'adresse.");
+    await expect(toast).toHaveText('witmit est masqué. pour le retrouver : ' + LU(geste) + ", ou ?witmit=on dans l'adresse.");
     const coupees = [];
     for (const l of largeurs) {
       await page.setViewportSize({ width: l, height: 800 });

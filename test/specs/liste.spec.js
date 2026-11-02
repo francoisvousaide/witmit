@@ -81,10 +81,11 @@ test('L2. retours réduits à deux lignes (texte 14 px puis élément visé 13 p
       bord: getComputedStyle(it).borderBottomWidth, rayon: getComputedStyle(it, '::before').borderRadius };
   });
   expect(r).toEqual({ vus: ['txt', 'zone'], ordre: true, txt: '14px', zone: '13px', coupe: true, uneLigne: true, actions: 0, bord: '0px', rayon: '6px' });
-  // Le bloc intérieur, même matière que celui de la fenêtre : à 10 px des bords, arrondi de 7 px.
+  // 0.4.0 (liste par page) : le bloc de la page, même matière que celui de la fenêtre : à 10 px des bords, arrondi de 7 px ;
+  // c'est la zone des pages qui défile.
   const bloc = await page.evaluate(() => {
-    const l = document.getElementById('cmList'), p = document.getElementById('cmPanel').getBoundingClientRect(), b = l.getBoundingClientRect(), cs = getComputedStyle(l);
-    return { gauche: Math.round(b.left - p.left), droite: Math.round(p.right - b.right), rayon: cs.borderRadius, fond: cs.backgroundColor, padding: cs.padding, defile: cs.overflowY };
+    const l = document.querySelector('#cmList .cm-page-bloc'), p = document.getElementById('cmPanel').getBoundingClientRect(), b = l.getBoundingClientRect(), cs = getComputedStyle(l);
+    return { gauche: Math.round(b.left - p.left), droite: Math.round(p.right - b.right), rayon: cs.borderRadius, fond: cs.backgroundColor, padding: cs.padding, defile: getComputedStyle(document.getElementById('cmList')).overflowY };
   });
   expect(bloc).toEqual({ gauche: 10, droite: 10, rayon: '7px', fond: 'rgba(0, 0, 0, 0.027)', padding: '4px', defile: 'auto' });
 });
@@ -195,7 +196,8 @@ for (const [plateforme, multi] of [['MacIntel', '⌘'], ['Win32', 'ctrl']]) {
     await ouvrirListe(page);
     const vide = page.locator('#cmList .cm-panel-empty');
     await expect(vide.locator('p')).toHaveText(["aucun retour sur cette page pour l'instant.", 'pour en laisser un, vise un élément de la page\u00a0:']);
-    await expect(vide.locator('li')).toHaveText(['clic : un élément', multi + '+clic : plusieurs', 'glisser : une zone', 'maj+glisser : un passage de texte']);
+    // 0.4.0 : un clic sur un paragraphe ou un titre le prend comme passage ; l'aide le dit (le plus court qui soit exact).
+    await expect(vide.locator('li')).toHaveText(['clic : un élément ou un paragraphe', multi + '+clic : plusieurs', 'glisser : une zone', 'maj+glisser : un passage de texte']);
     const touches = await vide.locator('.wm-repere').evaluateAll((els) => els.map((e) => [e.textContent, getComputedStyle(e).fontFamily.split(',')[0].trim(), getComputedStyle(e).borderTopLeftRadius]));
     expect(touches).toEqual([[multi, 'ui-monospace', '4px'], ['maj', 'ui-monospace', '4px']]);
     const gestes = await vide.locator('li').evaluateAll((els) => els.map((e) => [getComputedStyle(e).whiteSpace, getComputedStyle(e.querySelector('b')).fontWeight]));
@@ -207,7 +209,7 @@ for (const [plateforme, multi] of [['MacIntel', '⌘'], ['Win32', 'ctrl']]) {
       return { dessous: n.top > v.bottom, centre: cs.textAlign, taille: cs.fontSize, texte: a.firstChild.textContent, seconde: a.querySelector('span').textContent,
         encre: cs.color, encreSeconde: s.color, inkSoft: getComputedStyle(document.getElementById('cmPanel')).getPropertyValue('--wm-ink-soft').trim() };
     });
-    expect(pied).toMatchObject({ dessous: true, centre: 'center', taille: '13px', texte: 'clique un élément de la page pour laisser un retour', seconde: 'glisser : une zone · échap : réduire witmit' });
+    expect(pied).toMatchObject({ dessous: true, centre: 'center', taille: '13px', texte: 'clique un élément de la page pour laisser un retour', seconde: 'glisser\u00a0: une zone · échap\u00a0: réduire witmit' });   // espaces insécables (ZB-280)
   });
 }
 
@@ -307,7 +309,7 @@ test('L9 (É1). lecteur d’écran : liste nommée, retours en éléments de lis
   const nom = 'tellus-accueil.html';
   await semer(page, nom, 'witmit_tellus_v1', ['a', 'b', 'c'].map((id) => retour(id, nom)));
   await ouvrirListe(page);
-  const liste = page.locator('#cmList');
+  const liste = page.locator('#cmList .cm-page-ici .cm-page-lignes');   // 0.4.0 : la liste de la page en cours, dans la zone des pages
   await expect(liste).toHaveAttribute('role', 'list');
   await expect(liste).toHaveAccessibleName('tes retours sur cette page');
   const etat = () => page.locator('#cmList .cm-panel-item').evaluateAll((els) => els.map((e) => [e.getAttribute('role'), e.getAttribute('aria-posinset'), e.getAttribute('aria-setsize'),
@@ -329,8 +331,9 @@ test('L9 (É1). lecteur d’écran : liste nommée, retours en éléments de lis
   // État vide : pas de rôle de liste (aucun élément).
   await page.goto(H.fileUrl(nom)); await H.clearStorage(page); await page.reload();
   await ouvrirListe(page);
-  await expect(page.locator('#cmList')).not.toHaveAttribute('role', /.+/);
-  await expect(page.locator('#cmList')).not.toHaveAttribute('aria-label', /.+/);   // ni nom sans rôle (lot 7)
+  await expect(page.locator('#cmList [role="list"]')).toHaveCount(0);
+  await expect(page.locator('#cmList')).toHaveAttribute('role', 'region');      // la zone des pages reste une région nommée
+  await expect(page.locator('#cmList')).toHaveAccessibleName('tes retours sur ce site, page par page');
 });
 
 test('L10 (É2). un seul arrêt de tabulation pour la liste : la ligne choisie, sinon la première ; mis à jour quand le choix change', async ({ page }) => {
