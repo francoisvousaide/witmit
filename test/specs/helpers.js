@@ -176,11 +176,11 @@ function mockSupabase(page, state) {
       const salt = 'sel' + state.challenges, number = 100 + state.challenges;
       return json(200, { algorithm: 'SHA-256', challenge: sha256(salt + number), maxnumber: 2000, salt, signature: 'sig' });
     }
-    if (url.pathname.endsWith('/submit-annotation/retirer')) {   // retirer un retour (0.4.0, d1 ; partie serveur au lot 4)
+    if (url.pathname.endsWith('/submit-annotation/retirer')) {   // retirer un retour (0.4.0, d1) : même réponse que la route déployée
       const body = req.postDataJSON();
       state.retraits.push({ body, headers: req.headers() });
       if (state.failRetrait) { const f = state.failRetrait; state.failRetrait = null; return json(f.status, { erreur: f.erreur }); }
-      return json(200, { statut: 'retire' });
+      return json(200, { id: body.ticket_id, statut: 'retire' });
     }
     if (url.pathname.endsWith('/submit-annotation/reponse')) {   // répondre / rouvrir (V2.2)
       const body = req.postDataJSON();

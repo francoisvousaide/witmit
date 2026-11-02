@@ -5,6 +5,7 @@
 //   commentaire sur l'issue → un message « equipe » dans le fil du ticket (+ message_retour, gardé pour le widget V2.1)
 //   commentaire qui commence par le marqueur witmit:auteur → ignoré : c'est la réponse de l'auteur, publiée par
 //     submit-annotation (le jeton GitHub étant personnel, elle apparaît signée d'un humain, pas d'un bot)
+//   ticket « retire » (retiré par son auteur, 0.4.0) → tout est ignoré : ni statut, ni fil ne changent
 // Authentification : signature HMAC de GitHub (X-Hub-Signature-256) avec GITHUB_WEBHOOK_SECRET — pas de JWT.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -56,6 +57,8 @@ Deno.serve(async (req) => {
   if (!slugs.length) return json(200, { ignore: "repo inconnu " + repo });
   const { data: ticket } = await admin.from("annotations").select("id, statut").in("projet", slugs).eq("github_issue_number", numero).maybeSingle();
   if (!ticket) return json(200, { ignore: "issue sans ticket #" + numero });
+  // Retiré par son auteur (0.4.0) : witmit a fermé l'issue lui-même ; rien ne doit le faire revivre (ni statut, ni fil)
+  if (ticket.statut === "retire") return json(200, { ignore: "ticket retiré par son auteur" });
 
   const action = String(p.action ?? "");
   const maj: Record<string, unknown> = { mis_a_jour_le: new Date().toISOString() };

@@ -281,10 +281,10 @@ test.describe('Renvoi du lot 8 (relectures de Paula et de Léa)', () => {
 
 });
 
-test('Lot 9. version : window.witmit.version, l’en-tête du widget, package.json et le titre du README disent 0.3.0', async ({ page }) => {
+test('Lot 9. version : window.witmit.version, l’en-tête du widget, package.json et le titre du README disent 0.4.0', async ({ page }) => {
   const racine = path.resolve(__dirname, '..', '..');
   const paquet = JSON.parse(fs.readFileSync(path.join(racine, 'package.json'), 'utf8')).version;
-  expect(paquet).toBe('0.3.0');
+  expect(paquet).toBe('0.4.0');
   await page.goto(pageEssai('lot9-version'));
   expect(await page.evaluate(() => window.witmit.version)).toBe(paquet);
   expect(fs.readFileSync(path.join(racine, 'src', 'witmit.js'), 'utf8').split('\n')[1]).toContain('witmit ' + paquet);

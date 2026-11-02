@@ -1,5 +1,5 @@
 /*!
- * witmit 0.3.0 — widget d'annotation visuelle (charte V2 : thème du site, verre et titane, orange en signal)
+ * witmit 0.4.0 — widget d'annotation visuelle (charte V2 : thème du site, verre et titane, orange en signal)
  * Un seul fichier : injecte son style, son interface et sa logique au chargement.
  * Police : celle du système (aucun fichier de police chargé).
  * Usage : <script src="witmit.js" data-project="monprojet" data-email="moi@exemple.fr"></script>
@@ -68,7 +68,7 @@
     // dans son navigateur. Présent (sans valeur, ou "true") : affiché ; absent, "false", "0" ou "non" : pas d'interrupteur.
     selectionSwitch: !!(SCRIPT_EL && SCRIPT_EL.hasAttribute('data-selection-switch') && !/^(false|0|non)$/i.test(SCRIPT_EL.getAttribute('data-selection-switch') || ''))
   };
-  var VERSION = '0.3.0';
+  var VERSION = '0.4.0';
 
   /* ---------- police : celle du système (V2) ----------
      Plus aucune police embarquée ni chargée : witmit écrit avec la police système (SF Pro sur Mac, Segoe UI
@@ -1833,9 +1833,11 @@
       var q = '?select=id_local,page,statut,message_retour,mis_a_jour_le,messages(de,texte,rouvre,cree_le)&messages.order=cree_le.asc&projet=eq.' + encodeURIComponent(CONFIG.project) + '&id_local=in.(' + ids.map(encodeURIComponent).join(',') + ')';
       return fetch(CONFIG.supabaseUrl + '/rest/v1/annotations' + q, { headers: sbHeaders(sess.access_token) });
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
-      var changed = false;
+      var changed = false, retires = {}, nRetires = 0;
       rows.forEach(function (row) {
         var c = findComment(row.id_local); if (!c || !c.sync) return;
+        // Retiré par son auteur (0.4.0, d1), ici ou depuis un autre onglet : il quitte la liste, sans statut affiché.
+        if (row.statut === 'retire') { retires[c.id] = true; nRetires++; return; }
         var thread = Array.isArray(row.messages) ? row.messages : null;
         poserRecu(c);                                          // le serveur le connaît : reçu (C9)
         // Voyant (C5) : l'équipe a changé le statut, écrit un message de retour ou un nouveau message du fil.
@@ -1856,7 +1858,10 @@
         if (fini && c.status !== 'resolu') { c.status = 'resolu'; c.resolvedAt = row.mis_a_jour_le; c.resolvedBy = 'serveur'; }
         if (fini && c.resolvedBy === 'serveur') { if (row.statut === 'repondu') c.repondu = true; else delete c.repondu; }
       });
-      if (changed) { persist(); renderList(); renderMarkers(); }
+      if (nRetires) {
+        if (pendingPopup && pendingPopup._meta && pendingPopup._meta.existing && retires[pendingPopup._meta.existing.id]) closePopup(true);
+        effacerRetours(retires);                               // persist + rendu de la liste et des repères
+      } else if (changed) { persist(); renderList(); renderMarkers(); }
     }).catch(function () {});
   }
   /* Le rapport (Télécharger/Copier/Envoyer) et le retour collé sont le circuit du mode maquette.
@@ -1937,6 +1942,10 @@
         }
       });
     } catch (e) { allComments = []; }
+    // Un retour que le serveur a déjà vu « retire » (0.4.0, d1) ne revient jamais dans la liste de son auteur.
+    var avantRetires = allComments.length;
+    allComments = allComments.filter(function (c) { return !(c.sync && c.sync.statut === 'retire'); });
+    var retiresOtes = allComments.length !== avantRetires;
     // Premier chargement de la 0.2.0 (C5) : tout l'existant compte comme vu, y compris ce que la première relecture
     // des statuts va rapporter de l'équipe ; ensuite, seul ce qui arrive après allume le voyant.
     var VU_KEY = 'witmit_' + CONFIG.project + '_vu_0_2', aEcrire = false;
@@ -1948,7 +1957,7 @@
         localStorage.setItem(VU_KEY, '1');
       }
     } catch (e) {}
-    if (marquerRecusConnus() || aEcrire) persist();          // C9 : retours qui portent une trace du guichet
+    if (marquerRecusConnus() || aEcrire || retiresOtes) persist();         // C9 : retours qui portent une trace du guichet
   }
   function persist() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allComments)); } catch (e) {}
@@ -4013,8 +4022,8 @@
     if (!c.recuLe) return 'effacer';
     return isEditable(c) && c.sync && c.sync.id ? 'retirer' : null;
   }
-  // La route « retirer » du guichet (sa partie serveur arrive au lot 4) : POST …/submit-annotation/retirer, { ticket_id },
-  // avec le jeton anonyme ; 200 { statut: "retire" } ; 409 si le retour n'est plus « nouveau ».
+  // La route « retirer » du guichet (submit-annotation, version 11) : POST …/submit-annotation/retirer, { ticket_id },
+  // avec le jeton anonyme ; 200 { id, statut: "retire" } (avec « avertissement » si GitHub n'a pas pu fermer l'issue) ; 409 si le retour n'est plus « nouveau ».
   function posterRetrait(c) {
     return getSession().then(function (sess) {
       return fetch(FN_URL + '/retirer', { method: 'POST', headers: sbHeaders(sess.access_token), body: JSON.stringify({ ticket_id: c.sync.id }) });
