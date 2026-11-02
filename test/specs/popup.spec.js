@@ -10,11 +10,14 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await H.activate(page);
   });
 
-  test('Échap annule la bulle ; un second Échap quitte le mode', async ({ page }) => {
+  // 0.4.0 (h1) : champ rempli, Échap pose « abandonner ce retour ? » ; « abandonner » ferme sans rien enregistrer.
+  test('Échap, champ rempli : « abandonner ce retour ? » ; abandonner ferme la bulle ; un second Échap quitte le mode', async ({ page }) => {
     const b = await H.visibleBox(page, 'tbody tr:first-child td:nth-child(2)');
     await page.mouse.click(b.x + 5, b.y + 5);
     await page.locator('.cm-popup textarea').fill('brouillon');
     await page.keyboard.press('Escape');
+    await expect(page.locator('.cm-popup .cm-abandon')).toBeVisible();
+    await page.locator('.cm-popup .cm-abandonner').click();
     await expect(page.locator('.cm-popup')).toHaveCount(0);
     await expect(page.locator('body')).toHaveClass(/cm-active/);
     expect(await H.stored(page, KEY)).toHaveLength(0);
@@ -41,7 +44,8 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     const t1 = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
     const t2 = await H.visibleBox(page, '.kpi-tile:nth-child(2)');
     await H.drag(page, t1.x - 4, t1.y - 4, t1.x + t1.width + 4, t1.y + t1.height + 4);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('zone encadrée : Chiffre du jour, 1 240 €');
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('zone');   // 0.4.0 : le type en titre, les textes contenus dessous
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour, 1 240 € · dans « Tableau de bord »');
     await expect(page.locator('.cm-box-editable .cm-handle')).toHaveCount(8);
     // on tire la poignée "e" (côté droit) jusqu'à couvrir la 2e tuile
     const h = await page.locator('.cm-handle-e').boundingBox();
@@ -52,14 +56,14 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await page.locator('.cm-popup textarea').press('Enter');
     await expect(page.locator('.cm-handle')).toHaveCount(0); // poignées retirées après enregistrement
     const data = await H.stored(page, KEY);
-    expect(data[0].zone).toBe('zone encadrée : Chiffre du jour, 1 240 €, Commandes (+1)');
+    expect(data[0].zone).toBe('zone « Chiffre du jour, 1 240 €, Commandes (+1) » · dans « Tableau de bord »');
     expect(data[0].fallback.w).toBeGreaterThan(t2.x + t2.width - t1.x - 10);
     // le repère rendu couvre bien les deux tuiles
     const saved = await page.locator('.cm-box-saved').boundingBox();
     expect(saved.x + saved.width).toBeGreaterThan(t2.x + t2.width);
   });
 
-  test('encadré : déplacement au centre ; Annuler remet un encadré existant en place', async ({ page }) => {
+  test('encadré : déplacement au centre ; fermer (sans changer le texte) remet un encadré existant en place', async ({ page }) => {
     const t1 = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
     await H.drag(page, t1.x - 4, t1.y - 4, t1.x + t1.width + 4, t1.y + t1.height + 4);
     await page.locator('.cm-popup textarea').fill('à déplacer');
@@ -72,7 +76,7 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await H.drag(page, c.x + c.width / 2, c.y + c.height / 2, c.x + c.width / 2 + 200, c.y + c.height / 2 + 150);
     const moved = await page.locator('.cm-box-editable').boundingBox();
     expect(moved.x - before.x).toBeGreaterThan(150);
-    await page.locator('.cm-popup .cm-cancel').click();
+    await page.locator('.cm-popup .cm-fermer').click();   // 0.4.0 : plus d'« annuler » ; la croix
     const restored = await page.locator('.cm-box-saved').boundingBox();
     expect(Math.abs(restored.x - before.x)).toBeLessThan(3);
     expect(Math.abs(restored.y - before.y)).toBeLessThan(3);
@@ -86,15 +90,17 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     expect(afterReload.x - before.x).toBeGreaterThan(250);
   });
 
-  test('pastille de texte : en haut à gauche, au début du passage, sans cacher le texte', async ({ page }) => {
+  test('pastille de texte (0.4.0) : épingle de 18 px au bout du passage, sur le coin haut droit de sa dernière ligne, décalée de 0,40', async ({ page }) => {
     const t = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
     await H.drag(page, t.x + 2, t.y + 10, t.x + 120, t.y + 10, { shift: true });
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
-    const mark = await page.locator('mark.cm-highlight').first().boundingBox();
+    const fin = await page.locator('mark.cm-highlight').last().evaluate((m) => { const r = [...m.getClientRects()].pop(); return { r: r.right, t: r.top, b: r.bottom }; });
     const pin = await page.locator('.cm-pin').boundingBox();
-    expect(pin.y + pin.height).toBeLessThanOrEqual(mark.y + 8); // au-dessus du texte (la pointe inclinée peut effleurer)
-    expect(Math.abs(pin.x + pin.width / 2 - mark.x)).toBeLessThan(14); // au niveau du début du passage
+    expect(pin.height).toBe(18);
+    expect(Math.abs(pin.x + 9 - (fin.r + 7.2))).toBeLessThan(0.6);   // au bout du passage, 90 % hors du surlignage
+    expect(Math.abs(pin.y + 9 - (fin.t - 7.2))).toBeLessThan(0.6);
+    expect(pin.y + pin.height).toBeLessThanOrEqual(fin.t + 2);       // sans cacher le texte
     await page.reload(); await H.activate(page);
     const pin2 = await page.locator('.cm-pin').boundingBox();
     expect(Math.abs(pin2.x - pin.x)).toBeLessThan(3); // même position après rechargement
@@ -104,10 +110,12 @@ test.describe('Bulle et encadré (Kiosque)', () => {
     await H.deactivate(page);
     await page.locator('#tabBtnForm').click();
     await page.locator('#client').click();
-    await page.keyboard.press('Alt+KeyA');
+    await H.doubleAlt(page);                                            // 0.4.0 : ⌥ deux fois ouvre witmit… sauf dans un champ
+    await page.keyboard.press('Alt+KeyA');                              // ⌥+A cache witmit… sauf dans un champ
     await expect(page.locator('body')).not.toHaveClass(/cm-active/);
+    await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
     await page.locator('h1').click();
-    await page.keyboard.press('Alt+KeyA');
+    await H.doubleAlt(page);
     await expect(page.locator('body')).toHaveClass(/cm-active/);
   });
 });
@@ -117,7 +125,7 @@ test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', as
   await H.clearStorage(page); await page.reload(); await H.activate(page);
   await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'sombre');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-item .body').click();
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola-light/);
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-focus-light/);
@@ -125,19 +133,19 @@ test('onde claire sur fond sombre (Kiosque), orange sur fond clair (TellUs)', as
   await H.clearStorage(page); await page.reload(); await H.activate(page);
   await H.addPin(page, '.mcard.active .mcard-title', 'clair');
   await H.deactivate(page);
-  await page.locator('#cmPanelBtn').click();
+  await H.ouvrirListe(page);
   await page.locator('.cm-panel-item .body').click();
   await expect(page.locator('.cm-box-outline')).toHaveClass(/cm-ola(?!-light)/);
 });
 
-test('curseurs : main ouverte sur la poignée de la barre, flèche ailleurs, pointeur sur les boutons', async ({ page }) => {
+test('curseurs : croix sur la page, flèche dans la liste, pointeur sur les boutons (0.4.0 : plus de bandeau)', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
+  expect(await page.locator('#cmPanelBtn').evaluate((el) => getComputedStyle(el).cursor)).toBe('pointer');
   await H.activate(page);
   const cur = (sel) => page.locator(sel).evaluate((el) => getComputedStyle(el).cursor);
-  expect(await cur('#cmPill .cm-drag-handle')).toBe('grab');
-  expect(await cur('#cmPill')).toBe('default');
-  expect(await cur('#cmPill button')).toBe('pointer');
-  expect(await cur('#cmToggleBtn')).toBe('pointer');
+  expect(await cur('body')).toBe('crosshair');
+  expect(await cur('#cmPanel .cm-panel-head')).toBe('default');
+  expect(await cur('#cmPanel .cm-panel-reduire')).toBe('pointer');
 });
 
 // ---------- Lot 4 : fenêtre de saisie (fiche Fenetre ; textes de Léa 3.7 et 3.8) ----------
@@ -182,63 +190,66 @@ test('« envoyer » / « enregistrer » désactivée tant que le champ est vide 
   }
 });
 
-test('titre selon le type de cible ; tête-poignée, élément visé sur une ligne, croix « annuler »', async ({ page }) => {
+// 0.4.0 (décision a2, fiche Fenetre, fiche Icones) : le type de l'élément en titre, avec son icône de 16 px ; « nom ·
+// description » dessous, sur une ligne ; la tête entière déplace la fenêtre (plus de poignée à points) ; croix « fermer ».
+test('type en titre selon la cible (a2) ; tête-poignée sans points, élément visé sur une ligne, croix « fermer »', async ({ page }) => {
   await page.goto(H.fileUrl('generic-dashboard.html'));
   await H.clearStorage(page); await page.reload();
   await H.activate(page);
+  const ico = () => page.locator('.cm-popup .cm-type-ico svg');
   const clic = async (sel) => { const b = await H.visibleBox(page, sel); await page.mouse.click(b.x + 4, b.y + 4); await expect(page.locator('.cm-popup')).toBeVisible(); };
   await clic('#tabBtnOrders');
-  await expect(titre(page)).toHaveText('Ton retour sur ce bouton');
-  // tête : poignée entière (info-bulle), élément visé en dessous (poignée, icône du type, libellé complet en info-bulle)
+  await expect(titre(page)).toHaveText('bouton');
+  await expect(ico()).toHaveAttribute('data-icone', 'CursorClick');
   await expect(page.locator('.cm-popup .cm-tete')).toHaveAttribute('title', 'glisse pour déplacer la fenêtre');
-  await expect(page.locator('.cm-popup .cm-zone svg')).toHaveCount(2);
-  await expect(page.locator('.cm-popup .cm-zone svg').first()).toHaveAttribute('data-icone', 'DotsSixVertical');
-  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'CursorClick');
+  await expect(page.locator('.cm-popup [data-icone="DotsSixVertical"]')).toHaveCount(0);
   await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveAttribute('title', 'Commandes');
-  expect(await page.locator('.cm-popup .cm-zone-txt').evaluate((el) => getComputedStyle(el.parentNode).whiteSpace + ' ' + getComputedStyle(el).textOverflow)).toBe('nowrap ellipsis');
-  await expect(page.locator('.cm-popup .cm-fermer')).toHaveAccessibleName('annuler');
-  await expect(page.locator('.cm-popup .cm-libelle').first()).toHaveText('ce que tu as remarqué');
+  expect(await page.locator('.cm-popup .cm-zone-txt').evaluate((el) => getComputedStyle(el).whiteSpace + ' ' + getComputedStyle(el).textOverflow)).toBe('nowrap ellipsis');
+  await expect(page.locator('.cm-popup .cm-fermer')).toHaveAccessibleName('fermer');
+  await expect(page.locator('.cm-popup .cm-libelle, .cm-popup .cm-libelle-cat, .cm-popup .cm-cancel')).toHaveCount(0);
   await expect(page.locator('.cm-popup textarea')).toHaveAccessibleName('ce que tu as remarqué');
-  await expect(page.locator('.cm-popup textarea')).toHaveAttribute('placeholder', 'ta remarque, ta question ou ta critique… (maj+entrée : nouvelle ligne)');
-  await expect(page.locator('.cm-popup .cm-libelle-cat')).toHaveText('catégorie');
-  await expect(page.locator('.cm-popup .cm-cancel')).toHaveText('annuler');
+  await expect(page.locator('.cm-popup textarea')).toHaveAttribute('placeholder', 'ta remarque, ta question ou ta critique…');
   await expect(page.locator('.cm-popup .cm-aide-multi')).toBeHidden();
-  await page.locator('.cm-popup .cm-fermer').click();       // la croix ferme comme échap
+  await page.locator('.cm-popup .cm-fermer').click();       // la croix ferme comme échap (champ vide)
   await expect(page.locator('.cm-popup')).toHaveCount(0);
-  await clic('nav a:last-child');                         // (le premier lien est sous le bandeau du mode, posé en haut de cette page sans --nav-h)
-  await expect(titre(page)).toHaveText('Ton retour sur ce lien');
+  await clic('nav a:last-child');
+  await expect(titre(page)).toHaveText('lien');
+  await expect(ico()).toHaveAttribute('data-icone', 'Link');
   await page.keyboard.press('Escape');
   await clic('.kpi-tile:nth-child(1) .kpi-value');
-  await expect(titre(page)).toHaveText('Ton retour sur cet élément');
-  // plusieurs éléments (⌘/ctrl+clic sur deux autres) : titre au nombre près, icône SelectionPlus, ligne d'aide
+  await expect(titre(page)).toHaveText('texte');
+  await expect(ico()).toHaveAttribute('data-icone', 'Highlighter');
+  // plusieurs éléments (⌘/ctrl+clic sur deux autres) : icône SelectionPlus, ligne d'aide
   const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
   for (const sel of ['.kpi-tile:nth-child(2) .kpi-value', '.kpi-tile:nth-child(3) .kpi-value']) {
     const r = await H.visibleBox(page, sel);
     await page.keyboard.down(MOD); await page.mouse.click(r.x + 5, r.y + 5); await page.keyboard.up(MOD);
   }
-  await expect(titre(page)).toHaveText('Ton retour sur ces 3 éléments');
-  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'SelectionPlus');
+  await expect(titre(page)).toHaveText('plusieurs éléments');
+  await expect(ico()).toHaveAttribute('data-icone', 'SelectionPlus');
+  await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveText('1 240 €, 37, 33,5 € · 3 éléments');
   await expect(page.locator('.cm-popup .cm-aide-multi')).toBeVisible();
   await expect(page.locator('.cm-popup .cm-aide-multi')).toHaveText(process.platform === 'darwin' ? 'cmd+clic : ajouter ou retirer un élément' : 'ctrl+clic : ajouter ou retirer un élément');
   await page.keyboard.press('Escape');
-  // une zone encadrée, un passage de texte
+  // une zone encadrée, un mot
   const t = await H.visibleBox(page, '.kpi-tile:nth-child(1)');
   await H.drag(page, t.x - 4, t.y - 4, t.x + t.width + 4, t.y + t.height + 4);
-  await expect(titre(page)).toHaveText('Ton retour sur cette zone');
-  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'BoundingBox');
+  await expect(titre(page)).toHaveText('zone');
+  await expect(ico()).toHaveAttribute('data-icone', 'BoundingBox');
   await page.keyboard.press('Escape');
   const c = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
   await page.mouse.dblclick(c.x + 12, c.y + c.height / 2);
-  await expect(titre(page)).toHaveText('Ton retour sur ce texte');
-  await expect(page.locator('.cm-popup .cm-zone .cm-type')).toHaveAttribute('data-icone', 'TextT');
+  await expect(titre(page)).toHaveText('mot');
+  await expect(ico()).toHaveAttribute('data-icone', 'TextAa');
   await page.keyboard.press('Escape');
   // un champ du site (onglet « Nouvelle commande »)
   await H.deactivate(page);
   await page.locator('#tabBtnForm').click();
   await H.activate(page);
   await clic('#client');
-  await expect(titre(page)).toHaveText('Ton retour sur ce champ');
-  await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveText('champ Nom du client');
+  await expect(titre(page)).toHaveText('champ');
+  await expect(ico()).toHaveAttribute('data-icone', 'Textbox');
+  await expect(page.locator('.cm-popup .cm-zone-txt')).toHaveText(/^Client · vide, texte grisé «\sNom du client\s»$/);   // R20 : le texte grisé du champ vide
 });
 
 test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la charte ; rien du focus de la page hôte', async ({ page }) => {
@@ -268,9 +279,9 @@ test('champ : au clic, trait line-strong sans anneau ; au clavier, anneau de la 
   expect(st.rayon).toBe('5px');                                // arrondi radius-champ
   await ta.pressSequentially('du texte');                      // taper ne fait pas apparaître l'anneau
   expect((await etat()).anneau).toBe('none');
-  // 2. Tab vers la catégorie, puis maj+Tab vers le champ : l'anneau de la charte, qui suit les coins.
+  // 2. Tab vers le bouton principal (0.4.0 : plus de catégorie), puis maj+Tab vers le champ : l'anneau de la charte.
   await page.keyboard.press('Tab');
-  await expect(page.locator('.cm-popup .cm-cat')).toBeFocused();
+  await expect(page.locator('.cm-popup .cm-save')).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(ta).toBeFocused();
   st = await etat();

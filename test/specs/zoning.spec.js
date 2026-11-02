@@ -12,7 +12,8 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
   test('clic sur "Chiffre du jour" → ce libellé, pas la rangée des 3 cartes', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-tile:first-child .kpi-name');
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText(/^«\sChiffre du jour\s»/);   // 0.4.0 : un texte, son nom entre « »
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('texte');
     const outline = await page.locator('.cm-box-editing').boundingBox();
     expect(outline.width).toBeLessThan(b.width + 10); // le contour entoure le libellé, pas la section
   });
@@ -20,7 +21,8 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
   test('clic dans la marge d’une tuile → la tuile (boîte visuelle), pas la rangée', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-tile:first-child');
     await page.mouse.click(b.x + b.width - 6, b.y + b.height - 6);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour · 1 240 €');   // 0.4.0 : un bloc, son titre puis son texte
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('bloc');
     const outline = await page.locator('.cm-box-editing').boundingBox();
     expect(Math.abs(outline.width - b.width)).toBeLessThan(4);
     await page.locator('.cm-popup textarea').fill('x');
@@ -29,25 +31,25 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     expect(data[0].anchor.path).toMatch(/article:nth-of-type\(1\)$/);
   });
 
-  test('encadré sur les 3 tuiles → "zone encadrée : …" avec les textes contenus', async ({ page }) => {
+  test('encadré sur les 3 tuiles → type « zone », les textes contenus dessous', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-row');
     await H.drag(page, b.x - 4, b.y - 4, b.x + b.width + 4, b.y + b.height + 4);
     const zone = page.locator('.cm-popup .cm-zone');
-    await expect(zone).toContainText('zone encadrée : Chiffre du jour');
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('zone');
+    await expect(zone).toContainText('Chiffre du jour');
     await expect(zone).toContainText('(+');
     await page.locator('.cm-popup textarea').fill('x');
     await page.locator('.cm-popup textarea').press('Enter');
     const data = await H.stored(page, 'witmit_kiosque_v1');
-    expect(data[0].zone.startsWith('zone encadrée : Chiffre du jour')).toBe(true);
+    expect(data[0].zone.startsWith('zone « Chiffre du jour')).toBe(true);
     expect(data[0].anchor.path).toBeTruthy(); // ancré au plus petit élément englobant (main), pas au centre
   });
 
   test('encadré partiel sur l’en-tête → libellé lisible, mots séparés', async ({ page }) => {
     const brand = await H.visibleBox(page, '.topbar .brand');
-    const pill = await page.locator('#cmPill').boundingBox(); // le bandeau du mode, posé en haut : on s'arrête avant lui
-    // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu
-    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, Math.min(brand.x + brand.width + 120, pill.x - 8), brand.y + brand.height + 4);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('zone encadrée dans : KIOSQUE · Ventes · Stocks · Réglages');
+    // rectangle qui coupe le mot "KIOSQUE" en deux : aucun texte entièrement contenu (0.4.0 : plus de bandeau à éviter en haut)
+    await H.drag(page, brand.x + brand.width / 2, brand.y - 4, brand.x + brand.width + 120, brand.y + brand.height + 4);
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText(/^\d+ × \d+ px · dans\s«\sKIOSQUE · Ventes · Stocks · Réglages\s»$/);
   });
 
   test('les icônes de type apparaissent dans la liste et dans le rapport', async ({ page }) => {
@@ -57,13 +59,16 @@ test.describe('Détection de zone et libellés (Kiosque)', () => {
     await page.locator('.cm-popup textarea').fill('box');
     await page.locator('.cm-popup textarea').press('Enter');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
-    await expect(page.locator('.cm-panel-item .zone').nth(0)).toHaveText('Boulangerie Martin');
-    await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('zone encadrée : Commandes, 37');
-    page.once('dialog', (d) => d.dismiss());
+    await H.ouvrirListe(page);
+    await expect(page.locator('.cm-panel-item .zone').nth(0)).toHaveText('bloc « Boulangerie Martin »');   // 0.4.0 : le type, puis le nom
+    await expect(page.locator('.cm-panel-item .zone').nth(0).locator('svg')).toHaveAttribute('data-icone', 'Rectangle');
+    await expect(page.locator('.cm-panel-item .zone').nth(1)).toHaveText('zone « Commandes, 37 »');
+    await expect(page.locator('.cm-panel-item .zone').nth(1).locator('svg')).toHaveAttribute('data-icone', 'BoundingBox');
+    H.repondreConfirmation(page, false);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
+    await expect(page.locator('#cmStatus')).toContainText('copié');
     const txt = await page.evaluate(() => navigator.clipboard.readText());
-    expect(txt).toContain('### #1 · élément : Boulangerie Martin');        // Léa 3.12 : le type en mots, sans émoji
-    expect(txt).toContain('### #2 · zone : zone encadrée : Commandes, 37');
+    expect(txt).toContain('### #1 · bloc « Boulangerie Martin »');        // Léa 3.12 : le type en mots, sans émoji
+    expect(txt).toContain('### #2 · zone « Commandes, 37 »');
   });
 });

@@ -25,7 +25,8 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');
     await shiftClick(page, 'tbody tr:nth-child(2) td:nth-child(4)');
     await expect(page.locator('.cm-box-editing')).toHaveCount(3);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('3 éléments : 1 240 €, 37, En retard');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('1 240 €, 37, En retard · 3 éléments');   // 0.4.0 : « nom · description »
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('plusieurs éléments');
     await page.locator('.cm-popup textarea').fill('Ces trois chiffres doivent utiliser la même police');
     await page.locator('.cm-popup textarea').press('Enter');
     await expect(page.locator('.cm-box-outline')).toHaveCount(3);
@@ -48,7 +49,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await expect(page.locator('.cm-box-editing')).toHaveCount(2);
     await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');
     await expect(page.locator('.cm-box-editing')).toHaveCount(1);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('1 240 €');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« 1 240 € » · dans « Chiffre du jour »');   // 0.4.0 : un texte, dans son bloc
     await shiftClick(page, '.kpi-tile:nth-child(1) .kpi-value');
     await expect(page.locator('.cm-box-editing')).toHaveCount(1);
   });
@@ -89,7 +90,7 @@ test.describe('Sélection multiple (Kiosque)', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.cm-focus')).toHaveCount(0);
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await page.locator('.cm-panel-item .body').click();
     await page.locator('.cm-panel-item .body').click();              // c1 (V2) : le deuxième clic ouvre le champ
     await expect(page.locator('.cm-panel-item textarea')).toHaveValue('groupe');
@@ -131,7 +132,7 @@ test('data-multi-lines="false" : pas de lignes', async ({ page }) => {
   const b = await H.visibleBox(page, '.kpi-tile:nth-child(1) .kpi-value');
   await page.mouse.click(b.x + 5, b.y + 5);
   await expect(page.locator('.cm-popup')).toBeVisible();
-  await shiftClick(page, '.kpi-tile:nth-child(3) .kpi-value');
+  await shiftClick(page, '.kpi-tile:nth-child(2) .kpi-value');   // 0.4.0 : cette page a data-drawer="overlay" ; witmit ouvert, la liste couvre la 3e tuile
   await page.locator('.cm-popup textarea').fill('g');
   await page.locator('.cm-popup textarea').press('Enter');
   await expect(page.locator('.cm-pin')).toHaveCount(2);

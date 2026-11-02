@@ -13,7 +13,8 @@ test.describe('Double et triple clic (Kiosque)', () => {
   test('double-clic sur un mot → ce mot surligné, accents compris', async ({ page }) => {
     const b = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)'); // "Épicerie Lila"
     await page.mouse.dblclick(b.x + 12, b.y + b.height / 2);
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« Épicerie »');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« Épicerie » · dans « Épicerie Lila »');   // 0.4.0 : « nom · description » (fiche Fenetre)
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('mot');
     await expect(page.locator('mark.cm-highlight')).toHaveText('Épicerie');
     await page.locator('.cm-popup textarea').fill('mot');
     await page.locator('.cm-popup textarea').press('Enter');
@@ -25,7 +26,8 @@ test.describe('Double et triple clic (Kiosque)', () => {
   test('triple-clic → tout le paragraphe (ici la cellule)', async ({ page }) => {
     const b = await H.visibleBox(page, 'tbody tr:nth-child(3) td:nth-child(2)');
     await page.mouse.click(b.x + 12, b.y + b.height / 2, { clickCount: 3 });
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« Épicerie Lila »');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText(/^«\sÉpicerie Lila\s»/);
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('texte');
     await page.locator('.cm-popup textarea').fill('cellule');
     await page.locator('.cm-popup textarea').press('Enter');
     expect((await H.stored(page, KEY))[0].quote).toBe('Épicerie Lila');
@@ -34,7 +36,8 @@ test.describe('Double et triple clic (Kiosque)', () => {
   test('double-clic sur un espace ou hors texte → comportement du clic simple', async ({ page }) => {
     const b = await H.visibleBox(page, '.kpi-tile:first-child');
     await page.mouse.dblclick(b.x + b.width - 6, b.y + b.height - 6); // marge de la tuile
-    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour');
+    await expect(page.locator('.cm-popup .cm-zone')).toHaveText('Chiffre du jour · 1 240 €');   // 0.4.0 : un bloc, son titre puis son texte
+    await expect(page.locator('.cm-popup .cm-titre')).toHaveText('bloc');
   });
 });
 
@@ -50,12 +53,12 @@ test('clic simple : la bulle attend ~250 ms ; double-clic : aucune bulle interm�
   await page.keyboard.press('Escape');
   const seen = [];
   await page.exposeFunction('cmSeen', (t) => seen.push(t));
-  await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-zone'); if (z) window.cmSeen((z.querySelector('svg.cm-type') || { dataset: {} }).dataset.icone || ''); }).observe(document.body, { childList: true, subtree: true }));
+  await page.evaluate(() => new MutationObserver(() => { const z = document.querySelector('.cm-popup .cm-type-ico svg'); if (z) window.cmSeen(z.dataset.icone || ''); }).observe(document.body, { childList: true, subtree: true }));
   await page.mouse.dblclick(b.x + 12, b.y + b.height / 2);
-  await expect(page.locator('.cm-popup .cm-zone')).toHaveText('« Boulangerie »');
+  await expect(page.locator('.cm-popup .cm-zone')).toHaveText(/^«\sBoulangerie\s»/);
   await page.waitForTimeout(400);
-  expect(seen.filter((t) => t === 'CursorClick')).toHaveLength(0); // jamais la fenêtre « élément » avant celle du texte
-  expect(seen).toContain('TextT');
+  expect(seen.length).toBeGreaterThan(0);
+  expect(seen.filter((t) => t !== 'TextAa')).toHaveLength(0); // jamais la fenêtre d'un élément avant celle du mot (0.4.0 : icône TextAa)
 });
 
 // La bulle ne recouvre jamais ce qu'elle commente, quel que soit le type et la place à l'écran.

@@ -7,10 +7,11 @@ const PAGES_DIR = path.resolve(__dirname, '..', 'pages');
 const fileUrl = (name) => 'file://' + path.join(PAGES_DIR, name);
 
 const IS_MAC = process.platform === 'darwin';
-// Raccourcis (K1) : ⌥+A / alt+A lance et arrête le mode annotation ; ⌥ deux fois / alt deux fois montre et cache
-// witmit (live ; décision de François du 25/10 après-midi). Playwright tape la lettre de base avec alt (« a »),
-// comme Windows et Linux.
-const ANNOTER = 'Alt+KeyA';
+// Raccourcis (0.4.0, décisions f1 et R27) : ⌥ deux fois / alt deux fois ouvre witmit d'un coup (liste et mode annotation),
+// et le fait apparaître s'il était caché ; ⌥+A / alt+A cache ou réaffiche witmit entièrement. Playwright tape la lettre
+// de base avec alt (« a »), comme Windows et Linux.
+const CACHER = 'Alt+KeyA';
+const ANNOTER = CACHER;   // nom de 0.3.0, gardé pour les tests de lecture de la lettre (AZERTY, touche morte…)
 // Deux appuis sur alt seule, chacun relâché ; « pause » : millisecondes entre les deux (witmit : moins de 400).
 async function doubleAlt(page, pause = 0) {
   await page.keyboard.press('Alt');
@@ -24,29 +25,46 @@ async function clearStorage(page) {
 async function stored(page, key) {
   return page.evaluate((k) => JSON.parse(localStorage.getItem(k) || '[]'), key);
 }
-// Bouton du mode annotation (#cmToggleBtn) : un clic bascule le mode ; il suit en aria-pressed, le halo aussi.
+// 0.4.0 (fiche BoutonWitmit) : un clic sur le bouton witmit ouvre ensemble la liste et le mode annotation ; le bouton
+// quitte alors la page (aria-expanded suit), le halo s'allume.
+// Déjà ouvert (les tests de 0.3.0 rouvraient la liste puis relançaient le mode) : rien à faire.
 async function activate(page) {
-  await page.locator('#cmToggleBtn').click();
+  const ouvert = await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show'));
+  if (!ouvert) {
+    await page.locator('#cmPanelBtn').click();
+    // La liste pousse la page (marge droite de <html>, transition de 240 ms, repères redessinés à 260 ms) : on attend la
+    // page à sa nouvelle largeur avant de viser quoi que ce soit (les tests mesurent les éléments à l'écran).
+    await expect.poll(() => page.evaluate(() => { const h = document.documentElement; return !h.style.marginRight || getComputedStyle(h).marginRight === h.style.marginRight; })).toBe(true);
+    await page.waitForTimeout(300);
+  }
   await expect(page.locator('body')).toHaveClass(/cm-active/);
-  await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+  await expect(page.locator('#cmPanelBtn')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#cmFrame')).toHaveClass(/show/);
 }
-// Mode annotation actif, qu'il le soit déjà ou non (c1, V2 : choisir un retour dans la liste lance le mode).
+// witmit ouvert (liste et mode), qu'il le soit déjà ou non.
 async function assurerMode(page) {
-  if ((await page.locator('#cmToggleBtn').getAttribute('aria-pressed')) !== 'true') await activate(page);
+  if (!/\bcm-active\b/.test((await page.locator('body').getAttribute('class')) || '')) await activate(page);
   await expect(page.locator('body')).toHaveClass(/cm-active/);
 }
+// « réduire » (tête de la liste) : tout se replie, le bouton revient.
 async function deactivate(page) {
-  await page.locator('#cmToggleBtn').click();
+  if (await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show'))) await page.locator('#cmPanel .cm-panel-reduire').click();
   await expect(page.locator('body')).not.toHaveClass(/cm-active/);
-  await expect(page.locator('#cmToggleBtn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
+  await expect(page.locator('#cmPanelBtn')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#cmFrame')).not.toHaveClass(/show/);
 }
-// Live : ⌥ deux fois montre witmit (les deux boutons, liste fermée).
+// La liste : 0.4.0, elle s'ouvre avec le mode (bouton witmit) ; déjà ouverte, rien à faire.
+async function ouvrirListe(page) {
+  if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await activate(page);
+  await expect(page.locator('#cmPanel')).toHaveClass(/show/);
+}
+// Live : ⌥+A montre witmit (le bouton seul, au repos).
 async function montrer(page) {
-  await doubleAlt(page);
+  await page.keyboard.press(CACHER);
   await expect(page.locator('body')).not.toHaveClass(/cm-concealed/);
-  await expect(page.locator('#cmToggleBtn')).toBeVisible();
+  await expect(page.locator('#cmPanelBtn')).toBeVisible();
 }
 // Un vrai événement clavier envoyé par le protocole de Chromium (CDP Input.dispatchKeyEvent), pour les
 // caractères que Playwright ne sait pas taper avec alt (« ∑ », « ‹ », « Æ », touche morte « Dead »).
@@ -99,7 +117,7 @@ async function drag(page, x1, y1, x2, y2, { shift = false } = {}) {
 // Mode maquette : l'équipe répond par un « retour collé » (lignes « <id> <statut> | message »), liste ouverte.
 // C'est l'activité de l'équipe qui allume le voyant (C5) dans une maquette.
 async function retourColle(page, lignes) {
-  if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await page.locator('#cmPanelBtn').click();
+  if (!(await page.locator('#cmPanel').evaluate((p) => p.classList.contains('show')))) await activate(page);
   await page.locator('#cmPasteBtn').click();
   await page.locator('#cmFeedbackBox textarea').fill(lignes.join('\n'));
   await page.locator('#cmFeedbackBox').getByRole('button', { name: 'appliquer' }).click();
@@ -110,9 +128,30 @@ async function horsLigne(page, state, coupe) {
   state.horsLigne = coupe;
   await page.context().setOffline(coupe);
 }
-// Accepte la prochaine confirmation du navigateur (Playwright les refuse d'office) et renvoie son texte.
-function accepterConfirmation(page) {
-  return new Promise((resolve) => page.once('dialog', async (d) => { const m = d.message(); await d.accept(); resolve(m); }));
+// 0.4.0 (critère 16) : plus aucune fenêtre native du navigateur. Accepte la prochaine confirmation dessinée par witmit
+// (question au pied de la liste ou sous un message : son bouton d'action ; « abandonner ce retour ? » dans la fenêtre :
+// « abandonner ») et renvoie sa question, espaces insécables ramenées à des espaces. Une fenêtre native qui apparaîtrait
+// quand même fait échouer le test.
+// Répond à la prochaine question dessinée par witmit, sans l'attendre (à lancer avant le geste) : oui = son action ; non =
+// « annuler », « sans marquer » (rapport) ou « garder » (fenêtre). Rend la question, ou null si aucune n'est venue.
+function repondreConfirmation(page, oui) {
+  return (async () => {
+    const q = page.locator('.cm-confirme, .cm-popup .cm-abandon:not([hidden])').first();
+    await q.waitFor({ state: 'visible', timeout: 5000 });
+    const texte = (await q.locator('.cm-confirme-question, .cm-abandon-question').textContent()).replace(/\u00a0/g, ' ');
+    await q.locator(oui ? '.cm-confirme-oui, .cm-abandonner' : '.cm-confirme-non, .cm-garder').click();
+    return texte;
+  })().catch(() => null);
+}
+async function accepterConfirmation(page) {
+  const natif = (d) => { throw new Error('fenêtre native du navigateur : ' + d.message()); };
+  page.once('dialog', natif);
+  const q = page.locator('.cm-confirme, .cm-popup .cm-abandon:not([hidden])').first();
+  await q.waitFor({ state: 'visible' });
+  const texte = (await q.locator('.cm-confirme-question, .cm-abandon-question').textContent()).replace(/\u00a0/g, ' ');
+  await q.locator('.cm-confirme-oui, .cm-abandonner').click();
+  page.off('dialog', natif);
+  return texte;
 }
 
 // Liste, décision c1 (V2, lot 4) : un clic choisit un retour, un deuxième l'ouvre (son texte en entier, sa méta, ses
@@ -125,7 +164,7 @@ async function ouvrirRetour(page, ligne) {
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // Faux Supabase : identité anonyme, défi, dépôt, réponse / réouverture, relecture des statuts (et du fil). `state` pilote les réponses.
 function mockSupabase(page, state) {
-  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [], replies: [], failReply: null, ...state });
+  Object.assign(state, { signups: 0, challenges: 0, posts: [], failNext: null, rows: [], replies: [], failReply: null, retraits: [], failRetrait: null, ...state });
   return page.route('https://witmit.test/**', async (route, req) => {
     const url = new URL(req.url());
     const json = (status, body) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(body) });
@@ -136,6 +175,12 @@ function mockSupabase(page, state) {
       state.challenges++;
       const salt = 'sel' + state.challenges, number = 100 + state.challenges;
       return json(200, { algorithm: 'SHA-256', challenge: sha256(salt + number), maxnumber: 2000, salt, signature: 'sig' });
+    }
+    if (url.pathname.endsWith('/submit-annotation/retirer')) {   // retirer un retour (0.4.0, d1) : même réponse que la route déployée
+      const body = req.postDataJSON();
+      state.retraits.push({ body, headers: req.headers() });
+      if (state.failRetrait) { const f = state.failRetrait; state.failRetrait = null; return json(f.status, { erreur: f.erreur }); }
+      return json(200, { id: body.ticket_id, statut: 'retire' });
     }
     if (url.pathname.endsWith('/submit-annotation/reponse')) {   // répondre / rouvrir (V2.2)
       const body = req.postDataJSON();
@@ -156,4 +201,4 @@ function mockSupabase(page, state) {
     return json(404, { erreur: 'route inconnue ' + url.pathname });
   });
 }
-module.exports = { mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne, ouvrirRetour, assurerMode };
+module.exports = { repondreConfirmation, ouvrirListe, mockSupabase, fileUrl, visibleBox, IS_MAC, ANNOTER, CACHER, doubleAlt, clearStorage, stored, activate, deactivate, montrer, toucheBrute, carteClavier, addPin, drag, retourColle, accepterConfirmation, horsLigne, ouvrirRetour, assurerMode };

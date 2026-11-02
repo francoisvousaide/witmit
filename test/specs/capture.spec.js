@@ -32,7 +32,7 @@ test.describe('Capture (Kiosque)', () => {
     expect(await page.evaluate(() => !!window.html2canvas)).toBe(true);
     await expect(page.locator('#cmStatus')).toContainText('capture enregistrée (');
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
+    await H.ouvrirListe(page);
     await H.ouvrirRetour(page, page.locator('.cm-panel-item').first());   // c1 (V2) : la vignette est dans le retour ouvert
     await expect(page.locator('.cm-panel-item img.cm-shot')).toBeVisible();
     await page.locator('.cm-panel-item img.cm-shot').click();
@@ -73,9 +73,10 @@ test.describe('Capture (Kiosque)', () => {
     await drawBox(page, '.kpi-tile:nth-child(2)', 'tuile 2');
     await waitShot(page);
     await H.deactivate(page);
-    await page.locator('#cmPanelBtn').click();
-    page.once('dialog', (d) => d.dismiss());
+    await H.ouvrirListe(page);
+    H.repondreConfirmation(page, false);
     await page.locator('.cm-panel-foot button', { hasText: 'Copier' }).click();
+    await expect(page.locator('#cmStatus')).toContainText('copié');
     const md = await page.evaluate(() => navigator.clipboard.readText());
     expect(md).toContain('![Capture de la zone](data:image/jpeg;base64,');
     expect(md).toMatch(/"capture": "image ci-dessus \(\d+×\d+\)"/);

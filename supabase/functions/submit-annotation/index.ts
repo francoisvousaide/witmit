@@ -1,8 +1,9 @@
 // witmit — Edge Function « submit-annotation » : le guichet devant le coffre.
-// Le widget ne parle qu'à ce guichet. Trois routes :
+// Le widget ne parle qu'à ce guichet. Quatre routes :
 //   GET  …/submit-annotation/challenge  → un défi Altcha (petit calcul à résoudre par le navigateur)
 //   POST …/submit-annotation            → le ticket + la preuve du calcul ; vérifie, range, rend un reçu
 //   POST …/submit-annotation/reponse    → l'auteur répond à l'équipe, ou rouvre son ticket résolu / répondu (commentaire sur l'issue)
+//   POST …/submit-annotation/retirer    → l'auteur retire son ticket encore « nouveau » (statut « retire », issue fermée « not planned »)
 // Après l'insertion, si le projet a un repo GitHub : une issue par ticket (texte lisible + bloc JSON), lien noté sur le ticket.
 // Facultatif : auteur_nom + auteur_source (prénom déclaré par le site hôte…), nettoyé, noté sur le ticket et dans l'issue.
 // Secrets attendus : ALTCHA_HMAC_KEY, GITHUB_TOKEN (à poser dans Edge Functions → Secrets) ;
@@ -155,6 +156,7 @@ Deno.serve(async (req) => {
   }
   if (req.method !== "POST") return json(405, { erreur: "méthode" });
   if (route === "reponse") return await repondre(req, user.id, admin);
+  if (route === "retirer") return await retirer(req, user.id, admin);
 
   // ---- 2. le ticket : forme et tailles ----
   let body: Record<string, unknown>;
@@ -320,4 +322,56 @@ async function repondre(req: Request, userId: string, admin: any) {
     await admin.from("annotations").update({ statut, mis_a_jour_le: new Date().toISOString() }).eq("id", t.id);
   }
   return json(201, { message, statut, rouvert, ...(avertissement ? { avertissement } : {}) });
+}
+
+// ---- Retirer (route …/retirer, 0.4.0, décision d1 du 29/10) ----
+// L'auteur retire son ticket tant que l'équipe ne l'a pas pris en compte (statut « nouveau »). Le ticket passe à
+// « retire » (jamais effacé : l'historique reste), puis son issue est fermée « not planned » avec une note marquée
+// witmit:auteur. Le statut change AVANT GitHub : quand le webhook reçoit la fermeture, le ticket est déjà « retire »
+// et il l'ignore. Un échec GitHub n'annule pas le retrait (journal d'erreur + avertissement dans la réponse).
+// Pas de preuve Altcha ni de quota : seul l'auteur agit, une fois par ticket, sur un ticket qu'il a déjà dû envoyer.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NOTE_RETRAIT = [MARQUEUR_AUTEUR, "retiré par son auteur depuis witmit"].join("\n");
+// deno-lint-ignore no-explicit-any
+async function retirer(req: Request, userId: string, admin: any) {
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return json(400, { erreur: "JSON invalide" }); }
+  const ticketId = String(body.ticket_id ?? "");
+
+  // 1. le ticket existe et c'est le tien
+  if (!UUID.test(ticketId)) return json(400, { erreur: "ticket_id invalide" });
+  const { data: t } = await admin.from("annotations").select("id, projet, statut, auteur_anonyme_id, github_issue_number").eq("id", ticketId).maybeSingle();
+  if (!t) return json(404, { erreur: "ticket introuvable" });
+  if (t.auteur_anonyme_id !== userId) return json(403, { erreur: "ce ticket n'est pas le tien" });
+
+  // 2. déjà retiré (réponse perdue, second clic) : même réponse, sans rien refaire
+  if (t.statut === "retire") return json(200, { id: t.id, statut: "retire" });
+  if (t.statut !== "nouveau") return json(409, { erreur: "ticket déjà pris en compte, il ne peut plus être retiré" });
+
+  // 3. le statut, seulement s'il est encore « nouveau » à cet instant (l'équipe a pu le prendre entre-temps)
+  const { data: fait, error } = await admin.from("annotations")
+    .update({ statut: "retire", mis_a_jour_le: new Date().toISOString() })
+    .eq("id", t.id).eq("statut", "nouveau").select("id").maybeSingle();
+  if (error) return json(500, { erreur: "retrait impossible", detail: error.message });
+  if (!fait) return json(409, { erreur: "ticket déjà pris en compte, il ne peut plus être retiré" });
+
+  // 4. l'issue GitHub : note puis fermeture « not planned » ; un échec n'empêche pas le retrait
+  let avertissement: string | undefined;
+  if (t.github_issue_number) {
+    const { data: p } = await admin.from("projets").select("github_repo").eq("slug", t.projet).maybeSingle();
+    if (p?.github_repo && GITHUB_TOKEN) {
+      const chemin = `/repos/${p.github_repo}/issues/${t.github_issue_number}`;
+      try {
+        await github("POST", chemin + "/comments", { body: NOTE_RETRAIT });
+        await github("PATCH", chemin, { state: "closed", state_reason: "not_planned" });
+      } catch (e) {
+        console.error("fermeture GitHub impossible pour le ticket retiré", t.id, (e as Error).message);
+        avertissement = "retour retiré, mais son issue GitHub n'a pas pu être fermée";
+      }
+    } else {
+      console.error("ticket retiré sans suivi GitHub joignable", t.id);
+      avertissement = "retour retiré, mais son issue GitHub n'a pas pu être fermée";
+    }
+  }
+  return json(200, { id: t.id, statut: "retire", ...(avertissement ? { avertissement } : {}) });
 }
