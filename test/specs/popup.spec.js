@@ -207,7 +207,7 @@ test('type en titre selon la cible (a2) ; tête-poignée sans points, élément 
   expect(await page.locator('.cm-popup .cm-zone-txt').evaluate((el) => getComputedStyle(el).whiteSpace + ' ' + getComputedStyle(el).textOverflow)).toBe('nowrap ellipsis');
   await expect(page.locator('.cm-popup .cm-fermer')).toHaveAccessibleName('fermer');
   await expect(page.locator('.cm-popup .cm-libelle, .cm-popup .cm-libelle-cat, .cm-popup .cm-cancel')).toHaveCount(0);
-  await expect(page.locator('.cm-popup textarea')).toHaveAccessibleName('ton retour');
+  await expect(page.locator('.cm-popup textarea')).toHaveAccessibleName('ce que tu as remarqué');
   await expect(page.locator('.cm-popup textarea')).toHaveAttribute('placeholder', 'ta remarque, ta question ou ta critique…');
   await expect(page.locator('.cm-popup .cm-aide-multi')).toBeHidden();
   await page.locator('.cm-popup .cm-fermer').click();       // la croix ferme comme échap (champ vide)

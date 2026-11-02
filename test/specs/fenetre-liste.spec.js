@@ -271,6 +271,7 @@ test.describe('corbeille (d1)', () => {
     await expect(page.locator('.cm-popup')).toHaveCount(0);
     await expect.poll(async () => (await H.stored(page, KS)).length).toBe(0);
     await expect(page.locator('#cmList .cm-panel-item')).toHaveCount(0);
+    await expect(page.locator('#cmList')).toBeFocused();                     // plus de ligne voisine : le focus va à la liste (renvoi É4)
     // pas encore parti : effacé ici, sans appel au guichet
     state.failNext = { status: 409, erreur: 'refusé' };
     await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Jamais parti');
@@ -282,7 +283,7 @@ test.describe('corbeille (d1)', () => {
     expect(state.retraits).toHaveLength(1);
   });
 
-  test('10. 409 (plus « nouveau ») : le retour reste, « pris en compte », plus de corbeille ; pris en compte : jamais de corbeille', async ({ page }) => {
+  test('10. 409 (plus « nouveau ») : le retour reste, « pris en compte » ; sa fenêtre passe en lecture seule, sans corbeille ; pris en compte : jamais de corbeille', async ({ page }) => {
     await H.activate(page);
     await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Trop tard');
     await envoye(page);
@@ -291,9 +292,13 @@ test.describe('corbeille (d1)', () => {
     await page.locator('.cm-popup .cm-delete').click();
     await expect(page.locator('#cmStatus')).toHaveText("retrait impossible : l'équipe a déjà pris ce retour en compte.");
     await expect.poll(async () => (await H.stored(page, KS))[0].status).toBe('pris_en_compte');
-    await page.keyboard.press('Escape');
-    await page.locator('.cm-pin').first().click();
-    await expect(page.locator('.cm-popup .cm-delete')).toHaveCount(0);
+    // Renvoi É3 : la fenêtre reste ouverte, en lecture seule (fiche Fenetre) : ni champ, ni bouton, ni corbeille.
+    const pop = page.locator('.cm-popup');
+    await expect(pop).toHaveCount(1);
+    await expect(pop).toHaveClass(/cm-locked/);
+    await expect(pop.locator('.cm-lock-line')).toHaveText(/pris en compte\s·\snon modifiable/);
+    await expect(pop.locator('textarea, .cm-delete, .wm-principale')).toHaveCount(0);
+    expect(state.retraits).toHaveLength(1);
     await page.keyboard.press('Escape');
     await expect(page.locator('.cm-popup')).toHaveCount(0);
     const ligne = page.locator('#cmList .cm-panel-item').first();
@@ -324,6 +329,9 @@ test.describe('liste par page (g2 version 2)', () => {
     await expect(pages.nth(1).locator('.cm-page-afficher')).toHaveText('afficher');
     await expect(pages.nth(1).locator('.cm-page-afficher svg')).toHaveAttribute('data-icone', 'CaretDown');
     await expect(pages.nth(1).locator('.cm-page-aller')).toHaveText('aller');
+    // Renvoi É5 : chaque « aller » a un nom accessible qui dit où il mène ; le libellé visible ne change pas.
+    await expect(pages.nth(1).locator('.cm-page-aller')).toHaveAccessibleName('aller à « File d’attente du comité »');
+    await expect(pages.nth(2).locator('.cm-page-aller')).toHaveAccessibleName('aller à « Vieille page »');
     await expect(pages.nth(1).locator('.cm-page-aller svg')).toHaveAttribute('data-icone', 'ArrowRight');
     // Titre hors du bloc : 13 px semi-gras ; bloc à 10 px des bords de la liste.
     await expect(pages.nth(0).locator('.cm-page-nom')).toHaveCSS('font-weight', '600');
@@ -362,10 +370,11 @@ test.describe('liste par page (g2 version 2)', () => {
     await expect(page.locator('.cm-popup textarea')).toHaveValue('Le titre pourrait dire « comité ».');
   });
 
-  test('13. liste vide : l’aide reste juste (un clic sur un paragraphe le prend comme passage)', async ({ page }) => {
+  test('13. liste vide : l’aide de la fiche Tiroir, mot pour mot', async ({ page }) => {
     await poser(page, []);
     await H.activate(page);
-    await expect(page.locator('#cmList .cm-vide-gestes li').first()).toHaveText('clic : un élément ou un paragraphe');
+    // Fiche Tiroir, mot pour mot (renvoi É2) ; « … ou un paragraphe » est proposé à François, pas livré.
+    await expect(page.locator('#cmList .cm-vide-gestes li').first()).toHaveText('clic : un élément');
     await expect(page.locator('#cmList .cm-page-nom')).toHaveText('Proposer une expérience · cette page');
   });
 
@@ -513,5 +522,80 @@ test.describe('finitions (ZB-280)', () => {
     await msg.locator('.cm-msg-drop').click();
     expect(await q).toBe("retirer ce message d'ici ? il ne sera pas renvoyé.");
     await expect(ligne.locator('.cm-msg-pending')).toHaveCount(0);
+  });
+});
+
+test.describe('renvoi du lot 3', () => {
+  test('21. É4 : après « abandonner » (souris ou clavier), le focus revient à l’épingle qui avait ouvert la fenêtre', async ({ page }) => {
+    await poser(page, []);
+    await H.activate(page);
+    await H.addPin(page, '#envoyer', 'Le bouton se cache');
+    await page.waitForTimeout(1300);
+    const pin = page.locator('.cm-pin').first();
+    for (const clavier of [false, true]) {
+      await pin.click();
+      await page.locator('.cm-popup textarea').fill('Autre chose');
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.cm-popup .cm-garder')).toBeFocused();
+      if (clavier) { await page.keyboard.press('Shift+Tab'); await expect(page.locator('.cm-popup .cm-abandonner')).toBeFocused(); await page.keyboard.press('Enter'); }
+      else await page.locator('.cm-popup .cm-abandonner').click();
+      await expect(page.locator('.cm-popup')).toHaveCount(0);
+      await expect(page.locator('.cm-pin').first()).toBeFocused();
+    }
+    expect((await H.stored(page, KEY))[0].text).toBe('Le bouton se cache');
+  });
+
+  test('22. É4 : après un retrait réussi, le focus va à la ligne voisine dans la liste', async ({ page }) => {
+    const st = {};
+    await H.mockSupabase(page, st);
+    await page.goto(H.fileUrl('generic-dashboard-sync.html'));
+    await H.clearStorage(page);
+    await page.goto(H.fileUrl('generic-dashboard-sync.html') + '?witmit=on');
+    const KS = 'witmit_kiosque-sync_v1';
+    await H.activate(page);
+    await H.addPin(page, 'tbody tr:first-child td:nth-child(2)', 'Premier');
+    await H.addPin(page, 'tbody tr:nth-child(2) td:nth-child(2)', 'Second');
+    await expect.poll(async () => (await H.stored(page, KS)).map((c) => (c.sync || {}).state).join(), { timeout: 20000 }).toBe('sent,sent');
+    const [premier, second] = await H.stored(page, KS);
+    await page.locator('.cm-pin[data-id="' + premier.id + '"]').click();
+    await page.locator('.cm-popup .cm-delete').click();
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+    await expect.poll(async () => (await H.stored(page, KS)).length).toBe(1);
+    await expect(page.locator('#cmList .cm-panel-item[data-id="' + second.id + '"]')).toBeFocused();
+  });
+
+  test('23. décision d’Enzo : fenêtre ouverte, une commande de la liste agit dès le premier clic (vide) ou pose la question (texte écrit) ; les lignes et la page gardent les deux clics', async ({ page }) => {
+    await poser(page, [retour('r1', FORM, 'Un retour', '2026-11-01T10:00:00.000Z', { anchor: { path: 'div:nth-of-type(1)', relX: 0.5, relY: 0.5 } })]);
+    await H.activate(page);
+    const filtre = page.locator('#cmPanel .cm-hide-done');
+    const sw = page.locator('#cmPanel .cm-interrupteur');
+    // vide : la fenêtre se ferme et la commande se fait, en un clic
+    await viser(page, '#envoyer');
+    await filtre.click();
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+    await expect(filtre).toHaveAttribute('aria-checked', 'true');
+    await viser(page, '#envoyer');
+    await sw.click();
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    // texte écrit : la question, la commande n'a pas lieu
+    await viser(page, '#envoyer');
+    await page.locator('.cm-popup textarea').fill('pas parti');
+    await sw.click();
+    await expect(page.locator('.cm-popup .cm-abandon')).toBeVisible();
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    await page.locator('.cm-popup .cm-abandonner').click();
+    // une ligne de retour de la liste : le premier clic ferme seulement, le second choisit
+    await viser(page, '#envoyer');
+    const ligne = page.locator('#cmList .cm-panel-item[data-id="r1"]');
+    await ligne.locator('.txt').click();
+    await expect(page.locator('.cm-popup')).toHaveCount(0);
+    await expect(ligne).not.toHaveClass(/cm-current/);
+    await ligne.locator('.txt').click();
+    await expect(ligne).toHaveClass(/cm-current/);
+    // « réduire », fenêtre vide : un seul clic replie witmit
+    await viser(page, '#envoyer');
+    await page.locator('#cmPanel .cm-panel-reduire').click();
+    await expect(page.locator('#cmPanel')).not.toHaveClass(/show/);
   });
 });

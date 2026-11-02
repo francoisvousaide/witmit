@@ -206,7 +206,7 @@
     // 0.4.0 (fiche Tiroir) : plus de « nouveau retour », le mode est déjà actif quand la liste est ouverte.
     '<p class="cm-vide-mode">pour en laisser un, vise un élément de la page\u00a0:</p>' +
     '<ul class="cm-vide-gestes">' +
-      '<li><b>clic</b> : un élément ou un paragraphe</li>' +   // 0.4.0 : un clic sur un paragraphe ou un titre le prend comme passage
+      '<li><b>clic</b> : un élément</li>' +
 
       '<li><b><span class="wm-repere">' + (IS_MAC ? '⌘' : 'ctrl') + '</span>+clic</b> : plusieurs</li>' +
       '<li><b>glisser</b> : une zone</li>' +
@@ -2788,7 +2788,7 @@
     return '<div class="cm-page-titre"><div class="cm-page-noms">' +
       '<p class="cm-page-nom" title="' + cmEsc(titre) + '">' + cmEsc(titre) + (ici ? '<span class="cm-page-ici"> · cette page</span>' : '') + '</p>' +
       '<div class="cm-page-chemin" title="' + cmEsc(chemin) + '">' + cmEsc(chemin) + '</div></div>' +
-      (ici ? '' : '<button type="button" class="cm-page-aller" onclick="cmAllerPage(\'' + cmEsc(cle) + '\')" title="ouvrir cette page ; witmit reste ouvert">aller' + icone('ArrowRight', 13) + '</button>') +
+      (ici ? '' : '<button type="button" class="cm-page-aller" onclick="cmAllerPage(\'' + cmEsc(cle) + '\')" aria-label="' + cmEsc('aller à « ' + titre + ' »') + '" title="ouvrir cette page ; witmit reste ouvert">aller' + icone('ArrowRight', 13) + '</button>') +
       '</div>';
   }
 
@@ -4031,22 +4031,38 @@
     if (!c || corbeille(c) !== 'retirer' || retraitsEnCours[id]) return;
     retraitsEnCours[id] = true;
     cmStatus('retrait en cours…', { type: 'encours' });
+    var fenetreDuRetour = function () { return pendingPopup && pendingPopup._meta && pendingPopup._meta.existing && pendingPopup._meta.existing.id === id; };
     posterRetrait(c).then(function () {
       delete retraitsEnCours[id];
-      if (pendingPopup && pendingPopup._meta && pendingPopup._meta.existing && pendingPopup._meta.existing.id === id) closePopup(true);
+      // Le focus ne se perd pas (renvoi É4) : il va à la ligne voisine dans la liste (suivante, sinon précédente), sinon à la liste.
+      var ligne = ligneDe(id), voisine = null;
+      if (ligne) {
+        var n = ligne.nextElementSibling, pr = ligne.previousElementSibling;
+        while (n && !n.classList.contains('cm-panel-item')) n = n.nextElementSibling;
+        while (pr && !pr.classList.contains('cm-panel-item')) pr = pr.previousElementSibling;
+        voisine = (n || pr) ? (n || pr).dataset.id : null;
+      }
+      if (fenetreDuRetour()) closePopup(true);
       var ids = {}; ids[id] = true;
       effacerRetours(ids);                                         // un retour retiré quitte la liste de son auteur
+      if (voisine && ligneDe(voisine)) focusLigne(voisine);
+      else { var liste = document.getElementById('cmList'); if (liste) { liste.setAttribute('tabindex', '-1'); try { liste.focus({ preventScroll: true }); } catch (e) { liste.focus(); } } }
       cmStatus("retour retiré : l'équipe ne le verra plus.", { type: 'fait' });
     }).catch(function (err) {
       delete retraitsEnCours[id];
       var live = findComment(id);
+      var rouvrir = false;
       if (err && err.status === 409) {
-        // Plus « nouveau » : l'équipe l'a pris en compte entre-temps ; la corbeille disparaît, les statuts sont relus.
+        // Plus « nouveau » : l'équipe l'a pris en compte entre-temps ; la corbeille disparaît, les statuts sont relus. Sa
+        // fenêtre ouverte passe en lecture seule (renvoi É3, fiche Fenetre : pris en compte = lecture seule, sans corbeille).
         if (live) { live.status = 'pris_en_compte'; live.ackAt = live.ackAt || new Date().toISOString(); if (live.sync) live.sync.statut = 'en_cours'; persist(); }
+        rouvrir = fenetreDuRetour();
+        if (rouvrir) closePopup(true);
         cmStatus("retrait impossible : l'équipe a déjà pris ce retour en compte.", { type: 'echec' });
         refreshStatuses();
       } else cmStatus('retrait impossible : ' + raisonEchec(err, false).raison + '. réessaie plus tard.', { type: 'echec' });
       renderList(); renderMarkers();
+      if (rouvrir) { var pin = document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + id + '"]'); if (pin) pin.click(); }
     });
   };
   function jeterRetour(id) {
@@ -4084,9 +4100,12 @@
     if (!pendingPopup) return;
     if (pendingPopup._abandon) { cacherAbandon(pendingPopup); return; }
     if (fenetreModifiee()) { montrerAbandon(pendingPopup); return; }
+    fermerEtRendreFocus();
+  }
+  // Fermer la fenêtre et, comme la visionneuse, rendre le focus à l'épingle qui l'avait ouverte (croix, Échap, « abandonner »).
+  function fermerEtRendreFocus() {
     var ouvreuse = epingleOuvreuse;
     closePopup(true);
-    // Comme la visionneuse : le focus revient à l'épingle qui avait ouvert la fenêtre.
     var pinOuvreuse = ouvreuse && document.querySelector('.cm-pin:not(.cm-pin-secondary)[data-id="' + ouvreuse + '"]');
     if (pinOuvreuse) pinOuvreuse.focus();
   }
@@ -4109,6 +4128,12 @@
     if (t && t.closest && t.closest('.cm-box-editable, .cm-status, .cm-lightbox')) return;
     var meta = pendingPopup._meta || {};
     if ((e.metaKey || e.ctrlKey) && meta.type === 'pin' && !inUi(t)) return;
+    // Décision d'Enzo (renvoi du lot 3) : h1 vise le fait de viser un élément de la page. Une commande de la liste witmit
+    // (« réduire », interrupteur, « masquer les terminés », « afficher », « aller », outils et rapport) agit dès le premier
+    // clic : fenêtre vide, elle se ferme et la commande se fait ; texte écrit, la question. Les épingles, les lignes de retour
+    // de la liste et la page gardent les deux clics.
+    var commande = t && t.closest && t.closest('#cmPanel') && !t.closest('.cm-panel-item');
+    if (commande && !fenetreModifiee()) { closePopup(true); return; }
     e.preventDefault(); e.stopPropagation();
     avalerLeClic();
     if (fenetreModifiee()) montrerAbandon(pendingPopup);
@@ -4148,7 +4173,7 @@
         '<div class="cm-texte-lu">« ' + cmEsc(ex.text) + ' »</div>' + vignette;
     } else {
       // Plus de libellés ni de catégorie (i1) : le champ seul, qui garde son nom accessible.
-      corps = '<span class="wm-champ"><textarea aria-label="ton retour" placeholder="ta remarque, ta question ou ta critique…" title="maj+entrée : aller à la ligne">' + (isEdit ? cmEsc(ex.text) : '') + '</textarea></span>' +
+      corps = '<span class="wm-champ"><textarea aria-label="ce que tu as remarqué" placeholder="ta remarque, ta question ou ta critique…" title="maj+entrée : aller à la ligne">' + (isEdit ? cmEsc(ex.text) : '') + '</textarea></span>' +
         '<div class="cm-refus" role="status" hidden>' + icone('Info', 14) + '<span>' + (LIVE ? "écris ton retour avant d'envoyer." : "écris ton retour avant d'enregistrer.") + '</span></div>' +
         vignette;
     }
@@ -4186,7 +4211,7 @@
     makePopupDraggable(pop, pop.querySelector('.cm-tete'));
     pop.querySelector('.cm-fermer').onclick = function (e) { e.stopPropagation(); demanderFermeture(); };
     if (pop.querySelector('.cm-abandon')) {
-      pop.querySelector('.cm-abandonner').onclick = function (e) { e.stopPropagation(); closePopup(true); };
+      pop.querySelector('.cm-abandonner').onclick = function (e) { e.stopPropagation(); fermerEtRendreFocus(); };
       pop.querySelector('.cm-garder').onclick = function (e) { e.stopPropagation(); cacherAbandon(pop); };
     }
     var save = pop.querySelector('.cm-save');

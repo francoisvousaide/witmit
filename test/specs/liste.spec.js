@@ -196,8 +196,7 @@ for (const [plateforme, multi] of [['MacIntel', '⌘'], ['Win32', 'ctrl']]) {
     await ouvrirListe(page);
     const vide = page.locator('#cmList .cm-panel-empty');
     await expect(vide.locator('p')).toHaveText(["aucun retour sur cette page pour l'instant.", 'pour en laisser un, vise un élément de la page\u00a0:']);
-    // 0.4.0 : un clic sur un paragraphe ou un titre le prend comme passage ; l'aide le dit (le plus court qui soit exact).
-    await expect(vide.locator('li')).toHaveText(['clic : un élément ou un paragraphe', multi + '+clic : plusieurs', 'glisser : une zone', 'maj+glisser : un passage de texte']);
+    await expect(vide.locator('li')).toHaveText(['clic : un élément', multi + '+clic : plusieurs', 'glisser : une zone', 'maj+glisser : un passage de texte']);
     const touches = await vide.locator('.wm-repere').evaluateAll((els) => els.map((e) => [e.textContent, getComputedStyle(e).fontFamily.split(',')[0].trim(), getComputedStyle(e).borderTopLeftRadius]));
     expect(touches).toEqual([[multi, 'ui-monospace', '4px'], ['maj', 'ui-monospace', '4px']]);
     const gestes = await vide.locator('li').evaluateAll((els) => els.map((e) => [getComputedStyle(e).whiteSpace, getComputedStyle(e.querySelector('b')).fontWeight]));
