@@ -5,7 +5,7 @@ Repo de code du widget witmit (widget d'annotation visuelle, produit à part ent
 ## À lire avant de commencer toute session
 
 Les docs produit (vision, décisions, bilans) vivent dans le second cerveau (Z-Brain), pas dans ce repo :
-`/Users/francois_/Documents/Claude/Z-Brain/10-Missions-AgenceIA/mes_outils/Outil_WitMit/`
+`/Users/francois_/Documents/Claude/Z-Brain/03-AgenceIA/mes_outils/Outil_WitMit/`
 
 Lire dans cet ordre :
 1. `BILAN-V1-2026-09-21.md` — état actuel : ce qui existe, ce qui manque
@@ -33,5 +33,5 @@ witmit est un produit à part entière, avec sa propre infrastructure, indépend
 
 ## Portabilité
 Ce projet suit la charte de portabilité :
-/Users/francois_/Documents/Claude/Z-Brain/03-SaaS-Strategie/CHARTE-PORTABILITE.md
+/Users/francois_/Documents/Claude/Z-Brain/04-SaaS-Strategie/CHARTE-PORTABILITE.md
 Contrôle « Niveau 1 » (§5) obligatoire en fin de session. Inventaire du projet : DEMENAGEMENT.md.
