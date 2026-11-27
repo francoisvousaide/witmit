@@ -169,4 +169,4 @@ npm test               # suite Playwright (pages de test de test/pages/, dont la
 - `test/vendor/html2canvas.min.js` — copie locale de la bibliothèque, utilisée par les pages de test (pas de réseau pendant les tests).
 - `test/pages/` — pages de test. Les copies TellUs sont générées par `tools/strip-tellus-module.py` à partir des maquettes d'origine (jamais modifiées).
 - `archive/` — les 3 fichiers sources d'origine (référence, plus utilisés).
-- Docs produit (brief, cadrage, bilans) — dans le second cerveau `Z-Brain/10-Missions-AgenceIA/mes_outils/Outil_WitMit/`, pas dans ce repo ; voir `CLAUDE.md`.
+- Docs produit (brief, cadrage, bilans) — dans le second cerveau `Z-Brain/03-AgenceIA/mes_outils/Outil_WitMit/`, pas dans ce repo ; voir `CLAUDE.md`.
